@@ -1,0 +1,12 @@
+/topeft/
+/coffea/
+
+/reports/__pycache__/
+/tmp/
+/local_tmp/
+/.codex/
+/__pycache__/
+
+/*.pyc
+/*.pyo
+/*.pyd
