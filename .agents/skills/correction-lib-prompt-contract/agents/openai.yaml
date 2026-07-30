@@ -1,0 +1,4 @@
+interface:
+  display_name: "Correction-lib Prompt Contract"
+  short_description: "Author and validate governed Codex prompts"
+  default_prompt: "Use $correction-lib-prompt-contract to validate this correction-lib Codex prompt without executing it."

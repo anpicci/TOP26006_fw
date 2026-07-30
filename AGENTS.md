@@ -1425,3 +1425,18 @@ merge_not_performed_without_separate_authorization
 remote_branch_not_deleted_without_separate_authorization
 no_publication_success_claim_without_remote_readback
 ```
+
+---
+
+## 26. Project-local skill registry
+
+```text
+logical_id: prompt_contract
+skill_name: correction-lib-prompt-contract
+path: .agents/skills/correction-lib-prompt-contract/SKILL.md
+version: 1.0.0
+trigger: author or validate correction-lib Codex prompts
+normative_sources: live AGENTS.md and CPC.md
+```
+
+Skill availability does not authorize its use or any underlying task action.
