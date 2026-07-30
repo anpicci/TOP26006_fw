@@ -103,6 +103,19 @@
       "empty_no_changes"
     ]
   },
+  "branch_contract_forms": [
+    "scalar",
+    "repository_scoped"
+  ],
+  "repository_key_source": "repo_locations top-level children",
+  "repository_scoped_branch_fields": [
+    "branch_policy",
+    "current_checked_out_branch",
+    "reference_branch",
+    "target_branch",
+    "feature_branch",
+    "current_baseline_branch"
+  ],
   "conditional_rules": {
     "continuation_fields": [
       "accepted_prior_evidence",
@@ -153,6 +166,8 @@
   "cross_field_rules": [
     "commit_flags_are_logical_opposites",
     "branch_values_match_branch_policy",
+    "repository_branch_keys_match_repo_locations",
+    "repository_branch_values_are_validated_independently",
     "remote_writes_require_network",
     "permissions_are_independent",
     "conditional_groups_are_complete",

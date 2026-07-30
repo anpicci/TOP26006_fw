@@ -199,6 +199,57 @@ def base_fields(mode: str) -> OrderedDict[str, object]:
     return fields
 
 
+def repository_branch_fields(
+    policies: dict[str, str] | None = None,
+) -> OrderedDict[str, object]:
+    fields = base_fields("coding")
+    policies = policies or {
+        "meta_repo": "continue_existing_branch",
+        "topeft": "read_only_current_branch",
+        "topcoffea": "read_only_current_branch",
+    }
+    fields["branch_policy"] = dict(policies)
+    fields["current_checked_out_branch"] = {
+        "meta_repo": "master",
+        "topeft": "run3_test_mmerged_anpicci",
+        "topcoffea": "run3_test_mmerged_anpicci",
+    }
+    fields["reference_branch"] = {
+        repository: (
+            "synthetic_reference"
+            if policy == "create_feature_branch_from_reference"
+            else "none"
+        )
+        for repository, policy in policies.items()
+    }
+    fields["target_branch"] = {
+        repository: (
+            "synthetic_target"
+            if policy
+            in (
+                "continue_existing_branch",
+                "commit_preparation_on_existing_branch",
+            )
+            else "none"
+        )
+        for repository, policy in policies.items()
+    }
+    fields["feature_branch"] = {
+        repository: (
+            "synthetic_feature"
+            if policy == "create_feature_branch_from_reference"
+            else "none"
+        )
+        for repository, policy in policies.items()
+    }
+    fields["current_baseline_branch"] = {
+        "meta_repo": "master",
+        "topeft": "current checked-out branch",
+        "topcoffea": "current checked-out branch",
+    }
+    return fields
+
+
 def contexts_for(case: dict[str, object]) -> dict[str, str]:
     contexts = {
         "continuation": "no",
@@ -465,6 +516,220 @@ class PromptContractValidatorTests(unittest.TestCase):
         self.assertNotIn('add_argument("--defaults"', source)
         self.assertNotIn("subprocess.run", source)
         self.assertNotIn("os.system", source)
+
+    def test_valid_scalar_branch_contract_unchanged(self) -> None:
+        fields = base_fields("coding")
+        fields["branch_policy"] = "continue_existing_branch"
+        fields["current_checked_out_branch"] = "master"
+        fields["reference_branch"] = "none"
+        fields["target_branch"] = "master"
+        fields["feature_branch"] = "none"
+        fields["current_baseline_branch"] = "master"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 0, payload["diagnostics"])
+        self.assertTrue(payload["valid_schema"])
+
+    def test_valid_three_repository_branch_contract(self) -> None:
+        fixture = (
+            SKILL_ROOT
+            / "tests/fixtures/valid/repository_scoped_skills002_style.md"
+        )
+        payload, exit_code = validate_bytes(fixture.read_bytes())
+        self.assertEqual(exit_code, 0, payload["diagnostics"])
+        self.assertTrue(payload["valid_schema"])
+        ids = {item["id"] for item in payload["diagnostics"]}
+        self.assertTrue(
+            {"VOC001", "BRANCH001", "BRANCH002", "XFLD001"}.isdisjoint(ids)
+        )
+
+        fields = repository_branch_fields()
+        fields["target_branch"]["topeft"] = "a_writable_branch"
+        invalid_payload, invalid_exit = validate_bytes(render_prompt(fields))
+        self.assertEqual(invalid_exit, 3)
+        matches = [
+            item
+            for item in invalid_payload["diagnostics"]
+            if item["id"] == "BRANCH002"
+            and item["field"] == "target_branch.topeft"
+        ]
+        self.assertEqual(len(matches), 1, invalid_payload["diagnostics"])
+
+    def test_valid_mixed_repository_policies(self) -> None:
+        policies = {
+            "meta_repo": "continue_existing_branch",
+            "topeft": "create_feature_branch_from_reference",
+            "topcoffea": "commit_preparation_on_existing_branch",
+        }
+        payload, exit_code = validate_bytes(
+            render_prompt(repository_branch_fields(policies))
+        )
+        self.assertEqual(exit_code, 0, payload["diagnostics"])
+
+    def test_invalid_repository_branch_policy_value(self) -> None:
+        fields = repository_branch_fields()
+        fields["branch_policy"]["topeft"] = "readonly"
+        content = render_prompt(fields)
+        expected_line = next(
+            index
+            for index, line in enumerate(content.decode().splitlines(), 1)
+            if line.strip() == "topeft: readonly"
+        )
+        payload, exit_code = validate_bytes(content)
+        self.assertEqual(exit_code, 3)
+        matches = [
+            item
+            for item in payload["diagnostics"]
+            if item["id"] == "VOC001"
+            and item["field"] == "branch_policy.topeft"
+        ]
+        self.assertEqual(matches[0]["line"], expected_line)
+
+    def test_missing_repository_in_branch_policy(self) -> None:
+        fields = repository_branch_fields()
+        del fields["branch_policy"]["topcoffea"]
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH001", "branch_policy.topcoffea"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_extra_repository_in_branch_policy(self) -> None:
+        fields = repository_branch_fields()
+        fields["branch_policy"]["extra_repo"] = "read_only_current_branch"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH002", "branch_policy.extra_repo"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_scalar_mapping_shape_conflict(self) -> None:
+        fields = repository_branch_fields()
+        fields["target_branch"] = "master"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("XFLD001", "target_branch"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_missing_repository_in_target_branch(self) -> None:
+        fields = repository_branch_fields()
+        del fields["target_branch"]["topeft"]
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH001", "target_branch.topeft"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_extra_repository_in_feature_branch(self) -> None:
+        fields = repository_branch_fields()
+        fields["feature_branch"]["extra_repo"] = "none"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH002", "feature_branch.extra_repo"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_per_repository_create_feature_conflict(self) -> None:
+        policies = {
+            "meta_repo": "continue_existing_branch",
+            "topeft": "create_feature_branch_from_reference",
+            "topcoffea": "read_only_current_branch",
+        }
+        fields = repository_branch_fields(policies)
+        fields["feature_branch"]["topeft"] = "none"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH001", "feature_branch.topeft"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_per_repository_continue_existing_conflict(self) -> None:
+        fields = repository_branch_fields()
+        fields["reference_branch"]["meta_repo"] = "unexpected_reference"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH002", "reference_branch.meta_repo"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_per_repository_read_only_conflict(self) -> None:
+        fields = repository_branch_fields()
+        fields["target_branch"]["topeft"] = "unexpected_target"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH002", "target_branch.topeft"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_per_repository_commit_preparation_conflict(self) -> None:
+        policies = {
+            "meta_repo": "continue_existing_branch",
+            "topeft": "read_only_current_branch",
+            "topcoffea": "commit_preparation_on_existing_branch",
+        }
+        fields = repository_branch_fields(policies)
+        fields["feature_branch"]["topcoffea"] = "unexpected_feature"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("BRANCH002", "feature_branch.topcoffea"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_placeholder_child_value(self) -> None:
+        fields = repository_branch_fields()
+        fields["current_checked_out_branch"]["topeft"] = (
+            "<author_must_supply_branch>"
+        )
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("REQ001", "current_checked_out_branch.topeft"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_unsupported_deeper_branch_mapping(self) -> None:
+        fields = repository_branch_fields()
+        fields["branch_policy"]["topeft"] = {
+            "nested_policy": "read_only_current_branch"
+        }
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn(
+            ("PARSE003", "branch_policy.topeft"),
+            {(item["id"], item["field"]) for item in payload["diagnostics"]},
+        )
+
+    def test_child_diagnostic_line_number(self) -> None:
+        fields = repository_branch_fields()
+        fields["target_branch"]["topcoffea"] = "unexpected_target"
+        content = render_prompt(fields)
+        target_heading_seen = False
+        expected_line = 0
+        for index, line in enumerate(content.decode().splitlines(), 1):
+            if line == "target_branch:":
+                target_heading_seen = True
+            elif target_heading_seen and line.strip() == "topcoffea: unexpected_target":
+                expected_line = index
+                break
+        payload, exit_code = validate_bytes(content)
+        self.assertEqual(exit_code, 3)
+        match = next(
+            item
+            for item in payload["diagnostics"]
+            if item["id"] == "BRANCH002"
+            and item["field"] == "target_branch.topcoffea"
+        )
+        self.assertGreater(expected_line, 0)
+        self.assertEqual(match["line"], expected_line)
 
 
 if __name__ == "__main__":

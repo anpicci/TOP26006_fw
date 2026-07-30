@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field as dataclass_field
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +48,14 @@ KEY_RE = re.compile(r"^(?P<indent> *)(?P<key>[A-Za-z_][A-Za-z0-9_]*):(?P<rest>.*
 UNSUPPORTED_RE = re.compile(
     r"(^|[\s:])(?:&[A-Za-z0-9_-]+|\*[A-Za-z0-9_-]+|![A-Za-z0-9_-]+|<<:)|\$\(|\{\{"
 )
+REPOSITORY_SCOPED_BRANCH_FIELDS = (
+    "branch_policy",
+    "current_checked_out_branch",
+    "reference_branch",
+    "target_branch",
+    "feature_branch",
+    "current_baseline_branch",
+)
 
 
 @dataclass(frozen=True)
@@ -67,6 +75,17 @@ class FieldRecord:
     value: str
     raw: str
     line: int
+    children: dict[str, "ChildRecord"] = dataclass_field(default_factory=dict)
+    is_mapping: bool = False
+
+
+@dataclass(frozen=True)
+class ChildRecord:
+    child_key: str
+    child_value: str
+    child_line: int
+    raw_child_text: str
+    has_nested_structure: bool = False
 
 
 class InputFailure(Exception):
@@ -112,6 +131,88 @@ def value_is_missing(record: FieldRecord | None) -> bool:
         return True
     text = (record.value + "\n" + record.raw).strip()
     return not text or bool(PLACEHOLDER_RE.search(text))
+
+
+def child_value_is_missing(record: ChildRecord | None) -> bool:
+    if record is None:
+        return True
+    text = (record.child_value + "\n" + record.raw_child_text).strip()
+    return not text or bool(PLACEHOLDER_RE.search(text))
+
+
+def parse_child_records(
+    parent_key: str,
+    child_lines: list[tuple[int, str]],
+    diagnostics: list[Diagnostic],
+) -> tuple[dict[str, ChildRecord], bool]:
+    meaningful = [
+        (line_number, line)
+        for line_number, line in child_lines
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if not meaningful:
+        return {}, False
+    first_match = KEY_RE.match(meaningful[0][1])
+    if not first_match or len(first_match.group("indent")) == 0:
+        return {}, False
+    child_indent = len(first_match.group("indent"))
+    children: dict[str, ChildRecord] = {}
+    index = 0
+    while index < len(child_lines):
+        line_number, line = child_lines[index]
+        match = KEY_RE.match(line)
+        if not match or len(match.group("indent")) != child_indent:
+            index += 1
+            continue
+        child_key = match.group("key")
+        rest = match.group("rest").strip()
+        start = index + 1
+        end = start
+        while end < len(child_lines):
+            candidate = KEY_RE.match(child_lines[end][1])
+            if candidate and len(candidate.group("indent")) == child_indent:
+                break
+            end += 1
+        nested_lines = child_lines[start:end]
+        nested_text = "\n".join(nested for _, nested in nested_lines).strip()
+        if rest in ("|", ">"):
+            child_value = "\n".join(
+                nested.lstrip() for _, nested in nested_lines
+            ).strip()
+            has_nested_structure = False
+        elif rest:
+            child_value = normalize_scalar(rest)
+            has_nested_structure = bool(nested_text)
+        else:
+            child_value = nested_text
+            has_nested_structure = bool(nested_text)
+        raw_child_text = (
+            rest + (("\n" + nested_text) if nested_text else "")
+        ).strip()
+        child_path = f"{parent_key}.{child_key}"
+        if child_key in children:
+            diagnostics.append(
+                Diagnostic(
+                    "PARSE002",
+                    "error",
+                    "parse_error",
+                    child_path,
+                    line_number,
+                    "The structured child field is defined more than once.",
+                    "CPC.md sections 2 and 4",
+                    "Keep one explicit repository entry; do not infer which duplicate should win.",
+                )
+            )
+        else:
+            children[child_key] = ChildRecord(
+                child_key=child_key,
+                child_value=child_value,
+                child_line=line_number,
+                raw_child_text=raw_child_text,
+                has_nested_structure=has_nested_structure,
+            )
+        index = end
+    return children, True
 
 
 def parse_mapping_block(
@@ -168,12 +269,17 @@ def parse_mapping_block(
             end += 1
         children = block_lines[start:end]
         child_text = "\n".join(child for _, child in children)
+        child_records: dict[str, ChildRecord] = {}
+        is_mapping = False
         if rest in ("|", ">"):
             value = "\n".join(child.lstrip() for _, child in children).strip()
         elif rest:
             value = normalize_scalar(rest)
         else:
             value = child_text.strip()
+            child_records, is_mapping = parse_child_records(
+                key, children, diagnostics
+            )
         raw = (rest + ("\n" + child_text if child_text else "")).strip()
         if key in fields:
             diagnostics.append(
@@ -189,7 +295,13 @@ def parse_mapping_block(
                 )
             )
         else:
-            fields[key] = FieldRecord(value=value, raw=raw, line=line_number)
+            fields[key] = FieldRecord(
+                value=value,
+                raw=raw,
+                line=line_number,
+                children=child_records,
+                is_mapping=is_mapping,
+            )
         index = end
     return fields
 
@@ -348,6 +460,23 @@ class PromptValidator:
         record = self.fields.get(field)
         return record.raw if record else ""
 
+    def children(self, field: str) -> dict[str, ChildRecord]:
+        record = self.fields.get(field)
+        return record.children if record and record.is_mapping else {}
+
+    def is_mapping(self, field: str) -> bool:
+        record = self.fields.get(field)
+        return bool(record and record.is_mapping)
+
+    def branch_policy_values(self) -> list[str]:
+        if self.is_mapping("branch_policy"):
+            return [
+                normalize_scalar(record.child_value).strip()
+                for record in self.children("branch_policy").values()
+            ]
+        policy = self.scalar("branch_policy")
+        return [policy] if policy else []
+
     def permission_values(self, name: str) -> list[tuple[str, str]]:
         values: list[tuple[str, str]] = []
         if name in self.fields:
@@ -395,7 +524,16 @@ class PromptValidator:
 
     def validate_common(self) -> None:
         for field in self.schema["common_required_fields"]:
-            if value_is_missing(self.fields.get(field)):
+            record = self.fields.get(field)
+            if (
+                record is not None
+                and record.is_mapping
+                and field in REPOSITORY_SCOPED_BRANCH_FIELDS
+            ):
+                missing = not record.children
+            else:
+                missing = value_is_missing(record)
+            if missing:
                 self.add(
                     "REQ001",
                     "missing_required_field",
@@ -404,17 +542,53 @@ class PromptValidator:
                     "CPC.md section 4",
                     "Supply the governing decision explicitly.",
                 )
+            elif (
+                record is not None
+                and record.is_mapping
+                and field in REPOSITORY_SCOPED_BRANCH_FIELDS
+            ):
+                for repository, child in record.children.items():
+                    if child_value_is_missing(child):
+                        self.add(
+                            "REQ001",
+                            "missing_required_field",
+                            f"{field}.{repository}",
+                            "A repository-scoped branch decision is missing or still a placeholder.",
+                            "CPC.md sections 4 and 7",
+                            "Supply this repository decision explicitly.",
+                            line=child.child_line,
+                        )
         for field, vocabulary in self.schema["closed_vocabularies"].items():
-            if field in self.fields and not value_is_missing(self.fields[field]):
-                if self.scalar(field) not in vocabulary:
-                    self.add(
-                        "VOC001",
-                        "invalid_closed_vocabulary",
-                        field,
-                        "The value is not in the live bound vocabulary.",
-                        self.schema["governance_locators"]["closed_vocabularies"],
-                        "Choose and supply one published value.",
-                    )
+            if field not in self.fields:
+                continue
+            if field == "branch_policy" and self.is_mapping(field):
+                for repository, child in self.children(field).items():
+                    if child.has_nested_structure or child_value_is_missing(child):
+                        continue
+                    if normalize_scalar(child.child_value).strip() not in vocabulary:
+                        self.add(
+                            "VOC001",
+                            "invalid_closed_vocabulary",
+                            f"{field}.{repository}",
+                            "The repository branch-policy value is not in the live bound vocabulary.",
+                            self.schema["governance_locators"][
+                                "closed_vocabularies"
+                            ],
+                            "Choose and supply one published value for this repository.",
+                            line=child.child_line,
+                        )
+            elif (
+                not value_is_missing(self.fields[field])
+                and self.scalar(field) not in vocabulary
+            ):
+                self.add(
+                    "VOC001",
+                    "invalid_closed_vocabulary",
+                    field,
+                    "The value is not in the live bound vocabulary.",
+                    self.schema["governance_locators"]["closed_vocabularies"],
+                    "Choose and supply one published value.",
+                )
 
     def validate_unknown_fields(self) -> None:
         known = set(self.schema["common_required_fields"])
@@ -470,7 +644,7 @@ class PromptValidator:
                     severity="error" if self.strict_unknown else "warning",
                 )
 
-    def validate_branch(self) -> None:
+    def validate_scalar_branch(self) -> None:
         policy = self.scalar("branch_policy")
         target = self.scalar("target_branch")
         feature = self.scalar("feature_branch")
@@ -513,6 +687,15 @@ class PromptValidator:
                     "AGENTS.md section 7",
                     "Resolve the branch policy/value conflict explicitly.",
                 )
+            if not none_like(reference):
+                self.add(
+                    "BRANCH002",
+                    "branch_contract_inconsistency",
+                    "reference_branch",
+                    "This existing-branch policy forbids a reference-branch value.",
+                    "AGENTS.md section 7",
+                    "Mark the field inapplicable or choose a different explicit policy.",
+                )
         elif policy == "read_only_current_branch":
             for field, value in (
                 ("target_branch", target),
@@ -528,6 +711,217 @@ class PromptValidator:
                         "AGENTS.md section 7",
                         "Mark the field inapplicable or choose a different explicit policy.",
                     )
+
+    def add_repository_key_diagnostic(
+        self,
+        diagnostic_id: str,
+        field: str,
+        repository: str,
+        message: str,
+        *,
+        child: ChildRecord | None = None,
+    ) -> None:
+        self.add(
+            diagnostic_id,
+            "branch_contract_inconsistency",
+            f"{field}.{repository}",
+            message,
+            "AGENTS.md section 7; CPC.md sections 4 and 7",
+            "Supply an explicit repository entry without inheritance or inference.",
+            line=(
+                child.child_line
+                if child is not None
+                else self.fields.get(field, FieldRecord("", "", 0)).line
+            ),
+        )
+
+    def validate_repository_policy(
+        self,
+        repository: str,
+        policy: str,
+        values: dict[str, ChildRecord],
+    ) -> None:
+        missing_or_nested = {
+            field
+            for field, record in values.items()
+            if child_value_is_missing(record) or record.has_nested_structure
+        }
+        def check_required(field: str, message: str) -> None:
+            record = values[field]
+            if field not in missing_or_nested and none_like(record.child_value):
+                self.add_repository_key_diagnostic(
+                    "BRANCH001",
+                    field,
+                    repository,
+                    message,
+                    child=record,
+                )
+
+        def check_none_like(field: str, message: str) -> None:
+            record = values[field]
+            if field not in missing_or_nested and not none_like(record.child_value):
+                self.add_repository_key_diagnostic(
+                    "BRANCH002",
+                    field,
+                    repository,
+                    message,
+                    child=record,
+                )
+
+        if policy == "create_feature_branch_from_reference":
+            check_required(
+                "reference_branch",
+                "Feature-branch creation requires an explicit reference branch.",
+            )
+            check_required(
+                "feature_branch",
+                "Feature-branch creation requires an explicit feature branch.",
+            )
+            check_none_like(
+                "target_branch",
+                "A target branch conflicts with feature-branch creation.",
+            )
+        elif policy in (
+            "continue_existing_branch",
+            "commit_preparation_on_existing_branch",
+        ):
+            check_required(
+                "target_branch",
+                "This existing-branch policy requires an explicit target branch.",
+            )
+            check_none_like(
+                "feature_branch",
+                "This existing-branch policy forbids a feature-branch value.",
+            )
+            check_none_like(
+                "reference_branch",
+                "This existing-branch policy forbids a reference-branch value.",
+            )
+        elif policy == "read_only_current_branch":
+            for field in ("target_branch", "feature_branch", "reference_branch"):
+                check_none_like(
+                    field,
+                    "Read-only current-branch work forbids branch switching or creation values.",
+                )
+
+    def validate_repository_branch(self) -> None:
+        policy_children = self.children("branch_policy")
+        repo_location_record = self.fields.get("repo_locations")
+        if repo_location_record is None or not repo_location_record.is_mapping:
+            self.add(
+                "XFLD001",
+                "cross_field_conflict",
+                "repo_locations",
+                "Repository-scoped branch policy requires repo_locations to be a one-level mapping.",
+                "CPC.md sections 4 and 7",
+                "Supply explicit repository locations; do not infer repository keys.",
+            )
+            return
+
+        repository_keys = list(repo_location_record.children)
+        policy_keys = list(policy_children)
+        for repository in repository_keys:
+            if repository not in policy_children:
+                self.add_repository_key_diagnostic(
+                    "BRANCH001",
+                    "branch_policy",
+                    repository,
+                    "The branch-policy mapping is missing a repository declared by repo_locations.",
+                )
+        for repository, child in policy_children.items():
+            if repository not in repo_location_record.children:
+                self.add_repository_key_diagnostic(
+                    "BRANCH002",
+                    "branch_policy",
+                    repository,
+                    "The branch-policy mapping contains a repository not declared by repo_locations.",
+                    child=child,
+                )
+
+        branch_value_fields = REPOSITORY_SCOPED_BRANCH_FIELDS[1:]
+        usable_fields: set[str] = set()
+        for field in branch_value_fields:
+            record = self.fields.get(field)
+            if record is None or not record.is_mapping:
+                self.add(
+                    "XFLD001",
+                    "cross_field_conflict",
+                    field,
+                    "Repository-scoped branch policy requires this field to be a one-level repository mapping.",
+                    "AGENTS.md section 7; CPC.md sections 4 and 7",
+                    "Use the same explicit repository keys as branch_policy.",
+                )
+                continue
+            usable_fields.add(field)
+            for repository in policy_keys:
+                if repository not in record.children:
+                    self.add_repository_key_diagnostic(
+                        "BRANCH001",
+                        field,
+                        repository,
+                        "The repository-scoped branch field is missing a branch-policy repository.",
+                    )
+            for repository, child in record.children.items():
+                if repository not in policy_children:
+                    self.add_repository_key_diagnostic(
+                        "BRANCH002",
+                        field,
+                        repository,
+                        "The repository-scoped branch field contains an extra repository.",
+                        child=child,
+                    )
+
+        for field in REPOSITORY_SCOPED_BRANCH_FIELDS:
+            for repository, child in self.children(field).items():
+                if child.has_nested_structure:
+                    self.add(
+                        "PARSE003",
+                        "parse_error",
+                        f"{field}.{repository}",
+                        "Branch-contract mappings support exactly one repository level with scalar child values.",
+                        "CPC.md sections 2, 4, and 7",
+                        "Replace the deeper structure with one explicit scalar repository value.",
+                        line=child.child_line,
+                    )
+
+        required_fields = set(branch_value_fields)
+        for repository in repository_keys:
+            policy_record = policy_children.get(repository)
+            if (
+                policy_record is None
+                or policy_record.has_nested_structure
+                or child_value_is_missing(policy_record)
+                or required_fields != usable_fields
+            ):
+                continue
+            values: dict[str, ChildRecord] = {}
+            if any(repository not in self.children(field) for field in branch_value_fields):
+                continue
+            for field in branch_value_fields:
+                values[field] = self.children(field)[repository]
+            policy = normalize_scalar(policy_record.child_value).strip()
+            self.validate_repository_policy(repository, policy, values)
+
+    def validate_branch(self) -> None:
+        if self.is_mapping("branch_policy"):
+            self.validate_repository_branch()
+            return
+        mapping_fields = [
+            field
+            for field in REPOSITORY_SCOPED_BRANCH_FIELDS[1:]
+            if self.is_mapping(field)
+        ]
+        for field in mapping_fields:
+            self.add(
+                "XFLD001",
+                "cross_field_conflict",
+                field,
+                "A scalar branch policy conflicts with a repository-scoped branch-value mapping.",
+                "AGENTS.md section 7; CPC.md sections 4 and 7",
+                "Use either the scalar form for all branch fields or the repository-scoped form for all branch fields.",
+            )
+        if not mapping_fields:
+            self.validate_scalar_branch()
 
     def validate_commit(self) -> None:
         do_not = self.scalar("do_not_commit").lower()
@@ -571,8 +965,9 @@ class PromptValidator:
                     "Supply the override reason or choose a different commit contract.",
                 )
         if mode == "commit_preparation":
+            branch_policies = self.branch_policy_values()
             if (
-                self.scalar("branch_policy") != "commit_preparation_on_existing_branch"
+                "commit_preparation_on_existing_branch" not in branch_policies
                 or do_not != "no"
                 or expected != "yes"
             ):
