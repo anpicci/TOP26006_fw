@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnostics Execution Copy"
+  short_description: "Prepare bounded provenance-rich diagnostic copies"
+  default_prompt: "Use $correction-lib-diagnostics-execution-copy to validate or materialize an explicit diagnostics copy without executing copied files."

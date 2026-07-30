@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "renderer_version": "1.0.0",
+  "manifest_version": "1.0.0",
+  "projection_status": "derived_workflow_material_not_normative",
+  "normative_sources": ["AGENTS.md", "CPC.md"],
+  "required_top_level_fields": [
+    "manifest_version", "copy_id", "title", "source_roots",
+    "destination_root", "entries", "limits", "secret_policy",
+    "provenance", "execution_boundary"
+  ],
+  "allowed_top_level_fields": [
+    "manifest_version", "copy_id", "title", "source_roots",
+    "destination_root", "entries", "limits", "secret_policy",
+    "provenance", "execution_boundary"
+  ],
+  "entry_required_fields": [
+    "entry_id", "source_path", "destination_path", "copy_mode",
+    "expected_source_sha256", "expected_source_state", "transformations",
+    "preserve_executable_bit"
+  ],
+  "entry_allowed_fields": [
+    "entry_id", "source_path", "destination_path", "copy_mode",
+    "expected_source_sha256", "expected_source_state", "transformations",
+    "preserve_executable_bit"
+  ],
+  "copy_modes": ["exact_copy", "declared_text_transform"],
+  "expected_source_states": [
+    "tracked_clean", "tracked_modified", "untracked", "outside_git",
+    "any_recorded"
+  ],
+  "transformation_operations": ["exact_text_replacement"],
+  "hard_limits": {
+    "source_roots": 8,
+    "entries": 64,
+    "max_file_bytes": 16777216,
+    "max_total_bytes": 67108864,
+    "transformations_per_entry": 16
+  },
+  "secret_policy_mode": "block_documented_matches_no_redaction",
+  "execution_boundary": {
+    "copy_preparation_authorized": true,
+    "execution_not_authorized": true,
+    "render_execution_command": false
+  },
+  "diagnostic_ids": {
+    "PATH001": "source_outside_roots",
+    "PATH002": "destination_escape",
+    "PATH003": "source_destination_conflict",
+    "PATH004": "traversal_or_symlink",
+    "TYPE001": "unsupported_file_type",
+    "TYPE002": "not_strict_utf8",
+    "TYPE003": "hard_link",
+    "SIZE001": "per_file_limit",
+    "SIZE002": "entry_or_total_limit",
+    "COLLISION001": "final_destination_exists",
+    "COLLISION002": "staging_collision",
+    "TRANSFORM001": "unsupported_transform",
+    "TRANSFORM002": "match_count_mismatch",
+    "TRANSFORM003": "transform_failure",
+    "HASH001": "source_hash_mismatch_or_change",
+    "HASH002": "destination_hash_mismatch",
+    "SECRET001": "forbidden_path",
+    "SECRET002": "private_key_header",
+    "SECRET003": "credential_filename",
+    "PROVENANCE001": "required_provenance_or_expected_state",
+    "PROVENANCE002": "optional_git_unavailable",
+    "EXECUTION001": "execution_surface",
+    "GOVERNANCE001": "governance_hash_mismatch",
+    "GOVERNANCE002": "invalid_binding",
+    "RENDER001": "publication_failure",
+    "RENDER002": "generated_artifact_failure"
+  },
+  "exit_codes": {
+    "success": 0,
+    "manifest_or_schema_error": 2,
+    "blocking_validation_error": 3,
+    "governance_error": 4,
+    "render_error": 5
+  }
+}

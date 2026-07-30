@@ -1,0 +1,38 @@
+{
+  "manifest_version": "1.0.0",
+  "copy_id": "replace_with_explicit_copy_id",
+  "title": "Replace with the bounded diagnostics copy purpose",
+  "source_roots": ["/replace/with/absolute/source/root"],
+  "destination_root": "/replace/with/authorized/diagnostics/root",
+  "entries": [
+    {
+      "entry_id": "replace_with_entry_id",
+      "source_path": "/replace/with/absolute/source/file",
+      "destination_path": "replace_with_relative_destination.txt",
+      "copy_mode": "exact_copy",
+      "expected_source_sha256": "replace_with_lowercase_sha256",
+      "expected_source_state": "any_recorded",
+      "transformations": [],
+      "preserve_executable_bit": false
+    }
+  ],
+  "limits": {
+    "max_entries": 64,
+    "max_file_bytes": 16777216,
+    "max_total_bytes": 67108864
+  },
+  "secret_policy": {
+    "mode": "block_documented_matches_no_redaction",
+    "additional_forbidden_path_components": []
+  },
+  "provenance": {
+    "record_git_when_available": true,
+    "require_working_tree_sha256": true,
+    "require_source_mode": true
+  },
+  "execution_boundary": {
+    "copy_preparation_authorized": true,
+    "execution_not_authorized": true,
+    "render_execution_command": false
+  }
+}

@@ -1451,3 +1451,14 @@ normative_sources: live AGENTS.md and CPC.md
 ```
 
 Skill availability does not authorize production execution.
+
+```text
+logical_id: diagnostics_execution_copy
+skill_name: correction-lib-diagnostics-execution-copy
+path: .agents/skills/correction-lib-diagnostics-execution-copy/SKILL.md
+version: 1.0.0
+trigger: validate or materialize a bounded provenance-rich diagnostics copy
+normative_sources: live AGENTS.md and CPC.md
+```
+
+Skill availability does not authorize execution of copied files.
