@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "renderer_version": "1.0.0",
+  "renderer_version": "1.0.1",
   "projection_status": "derived_workflow_material_not_normative",
   "normative_sources": ["AGENTS.md", "CPC.md"],
   "required_top_level_fields": [
@@ -82,6 +82,9 @@
     "STATUS003": "ambiguous_interruption_blocks_wrapper",
     "OUTPUT001": "invalid_output_identity",
     "OUTPUT002": "existing_output_without_qualification",
+    "OUTPUT003": "runnable_output_collision_behavior",
+    "OUTPUT004": "completed_valid_incomplete_qualification",
+    "OUTPUT005": "collision_behavior_status_mismatch",
     "LOG001": "incomplete_logging_contract",
     "CWD001": "invalid_working_directory_contract",
     "PROV001": "enforcement_without_recorded_value",

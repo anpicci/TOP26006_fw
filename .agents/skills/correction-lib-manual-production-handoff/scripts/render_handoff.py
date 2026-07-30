@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 
-RENDERER_VERSION = "1.0.0"
+RENDERER_VERSION = "1.0.1"
 SCHEMA_VERSION = "1.0.0"
 EXIT_OK = 0
 EXIT_VALIDATION = 2
@@ -220,6 +220,7 @@ def validate_output(
     output: Any,
     path: str,
     schema: dict[str, Any],
+    command_status: str | None,
     command_evidence: list[str] | None,
     diagnostics: list[dict[str, str]],
 ) -> None:
@@ -272,6 +273,43 @@ def validate_output(
                 "allow_existing_qualified requires qualification artifacts and accepted command evidence",
             )
         )
+    if command_status in {"pending", "not_started", "failed_known"}:
+        if behavior != "must_be_absent":
+            diagnostics.append(
+                diagnostic(
+                    "OUTPUT003",
+                    f"{path}.collision_behavior",
+                    "runnable commands require collision_behavior=must_be_absent",
+                )
+            )
+    elif command_status == "completed_valid":
+        if behavior == "allow_existing_qualified" and (
+            not artifacts or not command_evidence
+        ):
+            diagnostics.append(
+                diagnostic(
+                    "OUTPUT004",
+                    path,
+                    "completed_valid allow_existing_qualified outputs require command evidence and output qualification artifacts",
+                )
+            )
+        elif behavior == "informational_only":
+            diagnostics.append(
+                diagnostic(
+                    "OUTPUT005",
+                    f"{path}.collision_behavior",
+                    "informational_only is inconsistent with completed_valid status",
+                )
+            )
+    elif command_status == "interrupted_ambiguous":
+        if behavior != "informational_only":
+            diagnostics.append(
+                diagnostic(
+                    "OUTPUT005",
+                    f"{path}.collision_behavior",
+                    "interrupted_ambiguous outputs require informational_only collision behavior",
+                )
+            )
 
 
 def validate_command(
@@ -378,6 +416,7 @@ def validate_command(
                 output,
                 f"{path}.expected_outputs[{output_index}]",
                 schema,
+                status,
                 command_evidence,
                 diagnostics,
             )
@@ -799,32 +838,14 @@ def render_collision_checks(command: dict[str, Any]) -> list[str]:
     command_id = command["command_id"]
     for output in command["expected_outputs"]:
         output_path = shell_quote(output["path"])
-        behavior = output["collision_behavior"]
-        if behavior == "must_be_absent":
-            lines.extend(
-                [
-                    f"if [[ -e {output_path} ]]; then",
-                    f"  printf 'Refusing {command_id}: output collision: %s\\n' {output_path} >&2",
-                    "  exit 73",
-                    "fi",
-                ]
-            )
-        elif behavior == "allow_existing_qualified":
-            lines.extend(
-                [
-                    f"if [[ -e {output_path} ]]; then",
-                    f"  printf 'Accepted pre-qualified existing output for {command_id}: %s\\n' {output_path}",
-                    "fi",
-                ]
-            )
-        else:
-            lines.extend(
-                [
-                    f"if [[ -e {output_path} ]]; then",
-                    f"  printf 'Informational existing output for {command_id}: %s\\n' {output_path}",
-                    "fi",
-                ]
-            )
+        lines.extend(
+            [
+                f"if [[ -e {output_path} ]]; then",
+                f"  printf 'Refusing {command_id}: output collision: %s\\n' {output_path} >&2",
+                "  exit 73",
+                "fi",
+            ]
+        )
     return lines
 
 
@@ -902,14 +923,14 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
         lines.extend(
             [
                 '  local log_path="${log_dir}/${command_id}.log"',
-                "  local pipeline_status",
+                "  local command_status",
+                "  local tee_status",
             ]
         )
         redirect = '  } 2>&1 | tee -a "${log_path}"' if logging["tee_to_console"] else '  } >>"${log_path}" 2>&1'
         lines.extend(
             [
                 "  {",
-                "    local command_status",
                 "    printf 'start_time: %s\\n' \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
                 "    printf 'command:'",
                 "    printf ' %q' \"$@\"",
@@ -927,8 +948,15 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
         if logging["tee_to_console"]:
             lines.extend(
                 [
-                    '  pipeline_status="${PIPESTATUS[0]}"',
-                    '  return "${pipeline_status}"',
+                    '  command_status="${PIPESTATUS[0]}" tee_status="${PIPESTATUS[1]}"',
+                    '  if (( command_status != 0 )); then',
+                    '    return "${command_status}"',
+                    "  fi",
+                    '  if (( tee_status != 0 )); then',
+                    '    printf "Logging failure for %s: tee exited with status %s while writing %s\\n" "${command_id}" "${tee_status}" "${log_path}" >&2',
+                    '    return "${tee_status}"',
+                    "  fi",
+                    "  return 0",
                 ]
             )
         else:
@@ -1102,6 +1130,9 @@ def render_runbook(
             f"- One log per command: `{str(logging['one_log_per_command']).lower()}`",
             f"- Tee to console: `{str(logging['tee_to_console']).lower()}`",
             "- Each enabled command log records exact argv, start time, end time, and exit code.",
+            "- With `tee_to_console=true`, stdout and stderr are merged, the merged stream is displayed live, and the merged stream is saved to the command log.",
+            "- `tee_to_console=true` does not preserve child TTY detection and may disable or degrade in-place progress bars.",
+            f"- TTY-preserving logging is not supported in renderer version {RENDERER_VERSION}; it requires a separate explicit design and implementation round.",
             "",
             "## Interruption policy",
             "",

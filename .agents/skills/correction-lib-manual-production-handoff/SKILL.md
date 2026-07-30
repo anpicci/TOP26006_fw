@@ -69,15 +69,27 @@ Required decisions include:
 Classify commands only from accepted evidence or explicit user input:
 
 - `completed_valid`: require qualification evidence; omit from execution.
-- `pending` and `not_started`: execute in manifest order.
+- `pending` and `not_started`: execute in manifest order; every expected output
+  must use `must_be_absent`.
 - `failed_known`: execute only with `retry_authorized: true` and a nonempty
-  `retry_reason`.
+  `retry_reason`; every expected output must use `must_be_absent`.
 - `interrupted_ambiguous`: block wrapper rendering; render a runbook and stop
   for classification.
 
-For `allow_existing_qualified`, supply both explicit qualification artifacts
-for the output and accepted qualification evidence for the command. File
-existence alone is never qualification.
+Only `completed_valid` commands may use `allow_existing_qualified`. Supply both
+explicit qualification artifacts for every such output and accepted
+qualification evidence for the command. File existence alone is never
+qualification. A reusable pre-existing artifact that is an input must not be
+modeled as a runnable command's expected output.
+
+Stable output diagnostics:
+
+- `OUTPUT003`: a runnable command uses a collision behavior other than
+  `must_be_absent`.
+- `OUTPUT004`: a `completed_valid` command uses
+  `allow_existing_qualified` without complete command evidence and output
+  qualification artifacts.
+- `OUTPUT005`: a collision behavior is inconsistent with command status.
 
 ## Select a working-directory mode
 
@@ -140,6 +152,12 @@ Confirm the wrapper:
 - stops on the first nonzero exit;
 - contains no deletion, cleanup, automatic retry, undeclared environment
   dependency, unrequested Git gate, or unrequested `cd`.
+
+For renderer version `1.0.1`, `tee_to_console=true` merges stdout and stderr,
+displays the merged stream live, and saves it to the command log. This pipeline
+does not preserve child TTY detection and may disable or degrade in-place
+progress bars. TTY-preserving logging is not supported; it requires a separate
+explicit design and implementation round.
 
 Do not execute the wrapper as part of using this skill. Synthetic skill tests
 are the only exception and must use inert commands and temporary directories.

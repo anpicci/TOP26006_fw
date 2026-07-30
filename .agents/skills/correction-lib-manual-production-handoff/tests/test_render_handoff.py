@@ -17,6 +17,7 @@ VALID = SKILL_ROOT / "tests/fixtures/valid"
 INVALID = SKILL_ROOT / "tests/fixtures/invalid"
 BINDING = SKILL_ROOT / "references/governance_binding.json"
 SCHEMA = SKILL_ROOT / "references/handoff_schema.json"
+TEMPLATE = SKILL_ROOT / "assets/handoff_manifest_template.json"
 
 
 class RenderHandoffTests(unittest.TestCase):
@@ -63,8 +64,12 @@ class RenderHandoffTests(unittest.TestCase):
 
     def test_schema_versions(self) -> None:
         schema = json.loads(SCHEMA.read_text())
+        binding = json.loads(BINDING.read_text())
+        template = json.loads(TEMPLATE.read_text())
         self.assertEqual(schema["schema_version"], "1.0.0")
-        self.assertEqual(schema["renderer_version"], "1.0.0")
+        self.assertEqual(schema["renderer_version"], "1.0.1")
+        self.assertEqual(binding["renderer_version"], "1.0.1")
+        self.assertEqual(template["manifest_version"], "1.0.0")
 
     def test_all_valid_fixtures(self) -> None:
         for fixture in sorted(VALID.glob("*.json")):
@@ -96,7 +101,13 @@ class RenderHandoffTests(unittest.TestCase):
             "interrupted_ambiguous_runnable_request.json": "STATUS003",
             "failed_known_without_retry_authorization.json": "STATUS002",
             "automatic_retry_true.json": "RETRY001",
-            "existing_output_allowed_without_qualification.json": "OUTPUT002",
+            "pending_allow_existing_qualified.json": "OUTPUT003",
+            "not_started_allow_existing_qualified.json": "OUTPUT003",
+            "failed_known_allow_existing_qualified.json": "OUTPUT003",
+            "runnable_informational_only.json": "OUTPUT003",
+            "completed_valid_missing_command_qualification.json": "OUTPUT004",
+            "completed_valid_missing_output_qualification_artifacts.json": "OUTPUT004",
+            "completed_valid_informational_only.json": "OUTPUT005",
             "logging_enabled_without_directory_or_default.json": "LOG001",
             "fixed_cwd_without_absolute_path.json": "CWD001",
             "script_relative_without_relative_target.json": "CWD001",
@@ -211,14 +222,23 @@ class RenderHandoffTests(unittest.TestCase):
         self.assertIn("2222222222222222222222222222222222222222", wrapper)
 
     def test_completed_valid_is_excluded(self) -> None:
-        wrapper = self.wrapper_for("completed_valid_then_pending_continuation.json")
-        self.assertNotIn("already_done", wrapper)
-        self.assertNotIn("accepted evidence row done", wrapper)
-        self.assertIn("run_next", wrapper)
+        wrapper = self.wrapper_for(
+            "completed_valid_allow_existing_qualified_then_pending.json"
+        )
+        self.assertNotIn("already_qualified", wrapper)
+        self.assertNotIn("accepted qualification record Q1", wrapper)
+        self.assertIn("run_pending", wrapper)
         inventory = json.loads(
             (self.temp_path / "rendered/handoff_commands.json").read_text()
         )
-        self.assertEqual(inventory["commands_to_execute"], ["run_next"])
+        self.assertEqual(inventory["commands_to_execute"], ["run_pending"])
+
+    def test_completed_valid_allow_existing_qualified_is_valid(self) -> None:
+        result = self.run_cli(
+            VALID / "completed_valid_allow_existing_qualified_then_pending.json"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertTrue(self.payload(result)["schema_valid"])
 
     def test_runnable_order_is_preserved(self) -> None:
         self.wrapper_for("multiple_commands_exact_order.json")
@@ -252,10 +272,41 @@ class RenderHandoffTests(unittest.TestCase):
 
     def test_output_existence_is_not_qualification(self) -> None:
         result = self.run_cli(
-            INVALID / "existing_output_allowed_without_qualification.json"
+            INVALID / "pending_allow_existing_qualified.json"
         )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("OUTPUT002", result.stdout)
+        self.assertIn("OUTPUT003", result.stdout)
+
+    def test_runnable_allow_existing_qualified_is_invalid(self) -> None:
+        for name in (
+            "pending_allow_existing_qualified.json",
+            "not_started_allow_existing_qualified.json",
+            "failed_known_allow_existing_qualified.json",
+        ):
+            with self.subTest(fixture=name):
+                result = self.run_cli(INVALID / name, output_name=f"invalid_{name}")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("OUTPUT003", result.stdout)
+
+    def test_runnable_informational_only_is_invalid(self) -> None:
+        result = self.run_cli(INVALID / "runnable_informational_only.json")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("OUTPUT003", result.stdout)
+
+    def test_completed_valid_qualification_must_be_complete(self) -> None:
+        for name in (
+            "completed_valid_missing_command_qualification.json",
+            "completed_valid_missing_output_qualification_artifacts.json",
+        ):
+            with self.subTest(fixture=name):
+                result = self.run_cli(INVALID / name, output_name=f"invalid_{name}")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("OUTPUT004", result.stdout)
+
+    def test_collision_behavior_must_match_completed_status(self) -> None:
+        result = self.run_cli(INVALID / "completed_valid_informational_only.json")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("OUTPUT005", result.stdout)
 
     def test_collision_checks_are_manifest_derived(self) -> None:
         wrapper = self.wrapper_for("caller_managed_no_git_gates.json")
@@ -307,6 +358,91 @@ class RenderHandoffTests(unittest.TestCase):
             self.assertIn("end_time:", content)
             self.assertIn("exit_code: 0", content)
             self.assertIn("command:", content)
+
+    def test_successful_command_and_successful_tee_return_zero(self) -> None:
+        self.wrapper_for("successful_tee_logging.json")
+        result = subprocess.run(
+            ["bash", str(self.temp_path / "rendered/handoff_wrapper.sh")],
+            cwd=self.temp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertTrue(
+            (self.temp_path / "handoff_logs/successful_tee.log").is_file()
+        )
+
+    def test_command_failure_with_tee_propagates_command_status(self) -> None:
+        self.wrapper_for("command_failure_with_tee.json")
+        result = subprocess.run(
+            ["bash", str(self.temp_path / "rendered/handoff_wrapper.sh")],
+            cwd=self.temp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("exit_code: 1", result.stdout)
+
+    def test_tee_write_failure_returns_nonzero_and_stops_later_commands(self) -> None:
+        manifest = json.loads(
+            (VALID / "multiple_commands_exact_order.json").read_text()
+        )
+        marker = self.temp_path / "later_after_tee_failure"
+        manifest["handoff_id"] = "tee_failure_stops_later"
+        manifest["commands"] = [
+            {
+                "command_id": "first_command",
+                "status": "pending",
+                "argv": ["printf", "%s\n", "first"],
+                "description": "Succeed while tee cannot open its log path.",
+                "expected_outputs": [
+                    {
+                        "path": str(self.temp_path / "first.marker"),
+                        "role": "synthetic marker",
+                        "collision_behavior": "must_be_absent",
+                        "qualification_artifacts": [],
+                    }
+                ],
+                "qualification_evidence": [],
+            },
+            {
+                "command_id": "later_command",
+                "status": "not_started",
+                "argv": [
+                    sys.executable,
+                    "-c",
+                    f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+                ],
+                "description": "Would create a temporary marker.",
+                "expected_outputs": [
+                    {
+                        "path": str(marker),
+                        "role": "synthetic marker",
+                        "collision_behavior": "must_be_absent",
+                        "qualification_artifacts": [],
+                    }
+                ],
+                "qualification_evidence": [],
+            },
+        ]
+        manifest_path = self.temp_path / "tee_failure.json"
+        manifest_path.write_text(json.dumps(manifest))
+        rendered = self.run_cli(manifest_path)
+        self.assertEqual(rendered.returncode, 0, rendered.stderr + rendered.stdout)
+        blocked_log_path = self.temp_path / "handoff_logs/first_command.log"
+        blocked_log_path.mkdir(parents=True)
+        executed = subprocess.run(
+            ["bash", str(self.temp_path / "rendered/handoff_wrapper.sh")],
+            cwd=self.temp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertNotEqual(executed.returncode, 0)
+        self.assertIn("Logging failure for first_command", executed.stderr)
+        self.assertFalse(marker.exists())
 
     def test_nonzero_command_stops_later_commands(self) -> None:
         manifest = json.loads(
@@ -363,6 +499,7 @@ class RenderHandoffTests(unittest.TestCase):
         )
         self.assertEqual(executed.returncode, 7)
         self.assertFalse(marker.exists())
+        self.assertIn("exit_code: 7", executed.stdout)
 
     def test_runbook_only_renders_without_wrapper(self) -> None:
         result = self.run_cli(
@@ -374,7 +511,9 @@ class RenderHandoffTests(unittest.TestCase):
         self.assertFalse((self.temp_path / "rendered/handoff_wrapper.sh").exists())
 
     def test_runbook_contains_required_sections(self) -> None:
-        self.wrapper_for("completed_valid_then_pending_continuation.json")
+        self.wrapper_for(
+            "completed_valid_allow_existing_qualified_then_pending.json"
+        )
         runbook = (self.temp_path / "rendered/handoff_runbook.md").read_text()
         for heading in (
             "Scope",
@@ -394,6 +533,37 @@ class RenderHandoffTests(unittest.TestCase):
         ):
             self.assertIn(f"## {heading}", runbook)
         self.assertIn("Codex did not execute", runbook)
+
+    def test_runbook_documents_tee_as_non_tty_preserving(self) -> None:
+        self.wrapper_for("successful_tee_logging.json")
+        runbook = (self.temp_path / "rendered/handoff_runbook.md").read_text()
+        self.assertIn("stdout and stderr are merged", runbook)
+        self.assertIn("does not preserve child TTY detection", runbook)
+        self.assertIn(
+            "TTY-preserving logging is not supported in renderer version 1.0.1",
+            runbook,
+        )
+
+    def test_generated_runnable_wrapper_has_no_accepted_existing_output_branch(
+        self,
+    ) -> None:
+        self.assertNotIn(
+            "Accepted pre-qualified existing output", RENDERER.read_text()
+        )
+        for fixture in sorted(VALID.glob("*.json")):
+            if fixture.name == "runbook_only_with_ambiguous_command.json":
+                continue
+            with self.subTest(fixture=fixture.name):
+                wrapper = self.wrapper_for(
+                    fixture.name, output_name=f"no_accept_{fixture.stem}"
+                )
+                self.assertNotIn("Accepted pre-qualified existing output", wrapper)
+                self.assertNotIn("Informational existing output", wrapper)
+
+    def test_wrapper_captures_both_pipeline_statuses(self) -> None:
+        wrapper = self.wrapper_for("successful_tee_logging.json")
+        self.assertIn('command_status="${PIPESTATUS[0]}"', wrapper)
+        self.assertIn('tee_status="${PIPESTATUS[1]}"', wrapper)
 
     def test_generated_bash_passes_syntax_validation(self) -> None:
         for fixture in sorted(VALID.glob("*.json")):

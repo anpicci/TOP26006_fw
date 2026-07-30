@@ -2,9 +2,9 @@
   "binding_version": "1.0.0",
   "schema_version": "1.0.0",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "f77f7d1b4ad0c6b8545a95b148e578151b1f4084d607e4ca6626c0a4ed2b47a9",
+  "agents_sha256": "bd4ed79ded489b857bf4abe1c9af93796c6a354bd988e25845700b52221e2558",
   "cpc_path": "CPC.md",
   "cpc_sha256": "22408b5f27940463e4c31a355cfcd32287bc9e28ef0d2ddbddf6ce3d51fe34d7",
-  "generated_at": "2026-07-29",
-  "reviewed_by": "SKILLS002 implementation review"
+  "generated_at": "2026-07-30",
+  "reviewed_by": "governance binding refresh"
 }
