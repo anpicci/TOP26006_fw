@@ -1,0 +1,8 @@
+{
+  "fixture_id": "hard_link_added_before_publication",
+  "validity": "invalid",
+  "scenario": "A second hard link is added to a source after preflight and before publication.",
+  "expected_diagnostics": [
+    "TYPE003"
+  ]
+}

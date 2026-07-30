@@ -2,6 +2,7 @@ import contextlib
 import csv
 import hashlib
 import importlib.util
+import inspect
 import io
 import json
 import os
@@ -66,9 +67,19 @@ class CopyTests(unittest.TestCase):
             self.assertEqual(caught.exception.exit_code, code)
         return caught.exception
 
-    def test_versions(self):
+    def test_renderer_version_is_1_0_1(self):
+        self.assertEqual(tool.RENDERER_VERSION, "1.0.1")
+        binding = json.loads(
+            (ROOT / "references/governance_binding.json").read_text()
+        )
+        self.assertEqual(binding["renderer_version"], "1.0.1")
+
+    def test_schema_and_manifest_versions_remain_1_0_0(self):
         schema = json.loads((ROOT / "references/copy_schema.json").read_text())
-        self.assertEqual([schema[x] for x in ("schema_version", "renderer_version", "manifest_version")], ["1.0.0"] * 3)
+        self.assertEqual(tool.SCHEMA_VERSION, "1.0.0")
+        self.assertEqual(tool.MANIFEST_VERSION, "1.0.0")
+        self.assertEqual(schema["schema_version"], "1.0.0")
+        self.assertEqual(schema["manifest_version"], "1.0.0")
 
     def test_additional_property(self):
         m = self.manifest(); m["extra"] = True
@@ -211,6 +222,104 @@ class CopyTests(unittest.TestCase):
         m = self.manifest(); self.execute(m)
         self.diag(m, "COLLISION001", 3)
 
+    def _final_collision_race(self, object_kind):
+        original = tool._rename_noreplace_at
+        final = self.dst / "copy_one"
+        state = {}
+
+        def inject(directory_fd, staging_name, destination_name):
+            if object_kind == "directory":
+                final.mkdir()
+                state["inode"] = final.lstat().st_ino
+            else:
+                target = self.base / "race_target"
+                target.write_text("unchanged\n")
+                final.symlink_to(target)
+                state["target"] = os.readlink(final)
+                state["target_bytes"] = target.read_bytes()
+            return original(directory_fd, staging_name, destination_name)
+
+        with mock.patch.object(tool, "_rename_noreplace_at", side_effect=inject):
+            error = self.diag(self.manifest(), "COLLISION001", 5, False)
+        return error, final, state
+
+    def test_final_publication_collision_race_does_not_replace_empty_directory(self):
+        _, final, state = self._final_collision_race("directory")
+        self.assertTrue(final.is_dir())
+        self.assertEqual(final.lstat().st_ino, state["inode"])
+        self.assertEqual(list(final.iterdir()), [])
+
+    def test_final_publication_collision_race_does_not_replace_symlink(self):
+        _, final, state = self._final_collision_race("symlink")
+        self.assertTrue(final.is_symlink())
+        self.assertEqual(os.readlink(final), state["target"])
+        self.assertEqual(final.resolve().read_bytes(), state["target_bytes"])
+
+    def test_final_publication_collision_preserves_incomplete_tree(self):
+        error, _, _ = self._final_collision_race("directory")
+        incomplete = Path(error.summary["incomplete_root"])
+        self.assertTrue(incomplete.is_dir())
+        validation = json.loads((incomplete / "copy_validation.json").read_text())
+        self.assertFalse(validation["materialization_completed"])
+        self.assertEqual(validation["diagnostics"][0]["diagnostic_id"], "COLLISION001")
+
+    def test_final_publication_collision_returns_exit_5(self):
+        error, _, _ = self._final_collision_race("directory")
+        self.assertEqual(error.exit_code, 5)
+
+    def test_rename_noreplace_unavailable_fails_closed(self):
+        with mock.patch.object(
+            tool.ctypes,
+            "CDLL",
+            side_effect=OSError("renameat2 unavailable"),
+        ):
+            error = self.diag(self.manifest(), "RENDER001", 5, False)
+        self.assertTrue(Path(error.summary["incomplete_root"]).is_dir())
+        self.assertFalse((self.dst / "copy_one").exists())
+
+    def test_no_ordinary_rename_fallback(self):
+        source = inspect.getsource(tool._rename_noreplace_at)
+        self.assertNotIn("os.rename", source)
+        self.assertNotIn("os.replace", source)
+        materialize_source = inspect.getsource(tool.materialize)
+        self.assertIn("_rename_noreplace_at", materialize_source)
+        self.assertNotIn("os.rename(", materialize_source)
+
+    def _hard_link_race(self):
+        original = tool._recheck_source
+        link = self.src / "late_link"
+
+        def inject(prepared):
+            if not link.exists():
+                os.link(self.file, link)
+            return original(prepared)
+
+        with mock.patch.object(tool, "_recheck_source", side_effect=inject):
+            error = self.diag(self.manifest(), "TYPE003", 5, False)
+        return error, link
+
+    def test_hard_link_added_before_publication_is_rejected(self):
+        error, link = self._hard_link_race()
+        self.assertEqual(error.exit_code, 5)
+        self.assertTrue(link.exists())
+        self.assertFalse((self.dst / "copy_one").exists())
+
+    def test_hard_link_race_preserves_incomplete_tree(self):
+        error, _ = self._hard_link_race()
+        incomplete = Path(error.summary["incomplete_root"])
+        self.assertTrue(incomplete.is_dir())
+        validation = json.loads((incomplete / "copy_validation.json").read_text())
+        self.assertFalse(validation["copy_materialization_completed"])
+        self.assertEqual(validation["diagnostics"][0]["diagnostic_id"], "TYPE003")
+
+    def test_read_stability_includes_nlink(self):
+        self.assertIn('"st_nlink"', inspect.getsource(tool._read_stable))
+
+    def test_prepublication_checks_nlink(self):
+        source = inspect.getsource(tool._recheck_source)
+        self.assertIn("info.st_nlink != 1", source)
+        self.assertIn('"TYPE003"', source)
+
     def test_staging_collision(self):
         (self.dst / ".staging_copy_one_dead").mkdir()
         with mock.patch.object(tool.secrets, "token_hex", return_value="dead"):
@@ -334,6 +443,8 @@ class CopyTests(unittest.TestCase):
             "invalid_oversize", "invalid_too_many_files", "invalid_private_key_path",
             "invalid_private_key_header", "invalid_destination_inside_source",
             "invalid_source_equals_destination", "invalid_undeclared_execution",
+            "final_publication_collision_race",
+            "hard_link_added_before_publication",
         }
         self.assertTrue(required <= fixtures)
 

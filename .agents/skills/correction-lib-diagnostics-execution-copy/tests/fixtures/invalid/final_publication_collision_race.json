@@ -1,0 +1,8 @@
+{
+  "fixture_id": "final_publication_collision_race",
+  "validity": "invalid",
+  "scenario": "A final destination object appears after preflight and before atomic publication.",
+  "expected_diagnostics": [
+    "COLLISION001"
+  ]
+}

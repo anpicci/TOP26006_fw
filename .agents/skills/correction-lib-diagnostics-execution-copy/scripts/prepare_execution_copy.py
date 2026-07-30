@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import ctypes
 import datetime as dt
 import difflib
+import errno
 import hashlib
 import io
 import json
@@ -20,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 SKILL_VERSION = "1.0.0"
-RENDERER_VERSION = "1.0.0"
+RENDERER_VERSION = "1.0.1"
 SCHEMA_VERSION = "1.0.0"
 MANIFEST_VERSION = "1.0.0"
 MAX_ROOTS = 8
@@ -361,7 +363,15 @@ def _read_stable(fd: int, max_bytes: int) -> Tuple[bytes, os.stat_result]:
         if total > max_bytes:
             break
     after = os.fstat(fd)
-    stable_fields = ("st_dev", "st_ino", "st_size", "st_mode", "st_mtime_ns", "st_ctime_ns")
+    stable_fields = (
+        "st_dev",
+        "st_ino",
+        "st_size",
+        "st_mode",
+        "st_nlink",
+        "st_mtime_ns",
+        "st_ctime_ns",
+    )
     if any(getattr(before, name) != getattr(after, name) for name in stable_fields):
         raise RuntimeError("source metadata changed during read")
     return b"".join(chunks), after
@@ -630,6 +640,59 @@ def _write_exclusive_at(root_fd: int, relative: str, data: bytes, mode: int) -> 
         os.close(parent_fd)
 
 
+def _rewrite_regular_file_at(root_fd: int, relative: str, data: bytes, mode: int) -> None:
+    parts = PurePosixPath(relative).parts
+    parent_fd = _mkdirs_at(root_fd, parts[:-1])
+    try:
+        fd = os.open(
+            parts[-1],
+            os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise OSError(errno.EINVAL, "generated artifact is not a regular file")
+            os.fchmod(fd, mode)
+            offset = 0
+            while offset < len(data):
+                offset += os.write(fd, data[offset:])
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    finally:
+        os.close(parent_fd)
+
+
+def _rename_noreplace_at(directory_fd: int, source_name: str, destination_name: str) -> None:
+    """Atomically rename within one directory without replacing the target."""
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+    except (AttributeError, OSError) as exc:
+        raise OSError(errno.ENOSYS, "libc renameat2 is unavailable") from exc
+
+    renameat2.argtypes = [
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_int,
+        ctypes.c_char_p,
+        ctypes.c_uint,
+    ]
+    renameat2.restype = ctypes.c_int
+    ctypes.set_errno(0)
+    result = renameat2(
+        directory_fd,
+        os.fsencode(source_name),
+        directory_fd,
+        os.fsencode(destination_name),
+        1,  # Linux RENAME_NOREPLACE
+    )
+    if result != 0:
+        error_number = ctypes.get_errno() or errno.EIO
+        raise OSError(error_number, os.strerror(error_number))
+
+
 def _read_at(root_fd: int, relative: str) -> Tuple[bytes, int]:
     parts = PurePosixPath(relative).parts
     parent_fd = _mkdirs_at(root_fd, parts[:-1])
@@ -661,6 +724,24 @@ def _recheck_source(prepared: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             os.close(fd)
     except (OSError, RuntimeError):
         return make_diag("HASH001", "Source could not be reopened stably before publication.", entry_id=prepared["entry"]["entry_id"], field="source_path", safe_path=str(source))
+    if not stat.S_ISREG(info.st_mode):
+        return make_diag(
+            "TYPE001",
+            "Source is no longer a regular file before publication.",
+            entry_id=prepared["entry"]["entry_id"],
+            field="source_path",
+            safe_path=str(source),
+            locator="source_safety.pre_publication_recheck",
+        )
+    if info.st_nlink != 1:
+        return make_diag(
+            "TYPE003",
+            "Source no longer has exactly one hard link before publication.",
+            entry_id=prepared["entry"]["entry_id"],
+            field="source_path",
+            safe_path=str(source),
+            locator="source_safety.pre_publication_recheck",
+        )
     if (
         info.st_dev != prepared["source_device"]
         or info.st_ino != prepared["source_inode"]
@@ -796,10 +877,6 @@ def materialize(
             if sha256_bytes(actual) != item["destination_sha256"] or mode != item["destination_mode"]:
                 raise CopyError(5, [make_diag("HASH002", "Materialized file hash or mode failed independent reopening.", entry_id=item["entry"]["entry_id"], field="destination_path", safe_path=relative)])
             artifact_hashes[relative] = sha256_bytes(actual)
-        for item in prepared:
-            source_diag = _recheck_source(item)
-            if source_diag:
-                raise CopyError(5, [source_diag])
         validation = {
             "valid_schema": True,
             "materialization_requested": True,
@@ -822,8 +899,94 @@ def materialize(
         os.fsync(staging_fd)
         os.close(staging_fd)
         staging_fd = -1
-        os.rename(staging_name, manifest["copy_id"], src_dir_fd=destination_fd, dst_dir_fd=destination_fd)
+        for item in prepared:
+            source_diag = _recheck_source(item)
+            if source_diag:
+                raise CopyError(5, [source_diag])
+        try:
+            _rename_noreplace_at(destination_fd, staging_name, manifest["copy_id"])
+        except OSError as exc:
+            if exc.errno in {errno.EEXIST, errno.ENOTEMPTY}:
+                raise CopyError(
+                    5,
+                    [
+                        make_diag(
+                            "COLLISION001",
+                            (
+                                "Final destination appeared during materialization; "
+                                "atomic no-replace publication refused to replace it."
+                            ),
+                            field="copy_id",
+                            safe_path=str(
+                                Path(manifest["destination_root"])
+                                / manifest["copy_id"]
+                            ),
+                            locator="destination_safety.final_root",
+                        )
+                    ],
+                ) from exc
+            unsupported_errors = {
+                errno.ENOSYS,
+                errno.EINVAL,
+                getattr(errno, "EOPNOTSUPP", errno.ENOSYS),
+                getattr(errno, "ENOTSUP", errno.ENOSYS),
+            }
+            raise CopyError(
+                5,
+                [
+                    make_diag(
+                        "RENDER001",
+                        (
+                            "Atomic no-replace publication is unavailable on this "
+                            "platform."
+                            if exc.errno in unsupported_errors
+                            else f"Atomic no-replace publication failed: {exc}."
+                        ),
+                        field="destination_root",
+                        safe_path=manifest["destination_root"],
+                        locator="destination_safety.atomic_publication",
+                    )
+                ],
+            ) from exc
         staging_created = False
+        try:
+            os.stat(staging_name, dir_fd=destination_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise CopyError(
+                5,
+                [
+                    make_diag(
+                        "RENDER001",
+                        "Staging name remained after atomic publication.",
+                        field="destination_root",
+                        safe_path=manifest["destination_root"],
+                        locator="destination_safety.atomic_publication",
+                    )
+                ],
+            )
+        final_info = os.stat(
+            manifest["copy_id"],
+            dir_fd=destination_fd,
+            follow_symlinks=False,
+        )
+        if not stat.S_ISDIR(final_info.st_mode):
+            raise CopyError(
+                5,
+                [
+                    make_diag(
+                        "RENDER001",
+                        "Published final root is not a directory.",
+                        field="copy_id",
+                        safe_path=str(
+                            Path(manifest["destination_root"])
+                            / manifest["copy_id"]
+                        ),
+                        locator="destination_safety.atomic_publication",
+                    )
+                ],
+            )
         return validation
     except CopyError as exc:
         if staging_fd >= 0:
@@ -861,10 +1024,18 @@ def _preserve_incomplete(destination_fd: int, staging_name: str, incomplete_name
                 "final_root": str(Path(manifest["destination_root"]) / manifest["copy_id"]),
                 "incomplete_root": str(Path(manifest["destination_root"]) / incomplete_name),
             }
+            validation_bytes = (
+                json.dumps(validation, indent=2, sort_keys=True).encode("utf-8")
+                + b"\n"
+            )
             try:
-                _write_exclusive_at(stage_fd, "copy_validation.json", json.dumps(validation, indent=2, sort_keys=True).encode("utf-8") + b"\n", 0o640)
+                _write_exclusive_at(
+                    stage_fd, "copy_validation.json", validation_bytes, 0o640
+                )
             except FileExistsError:
-                pass
+                _rewrite_regular_file_at(
+                    stage_fd, "copy_validation.json", validation_bytes, 0o640
+                )
         finally:
             os.close(stage_fd)
         os.rename(staging_name, incomplete_name, src_dir_fd=destination_fd, dst_dir_fd=destination_fd)
@@ -947,7 +1118,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         # Reopen the schema to ensure the installed derived contract is valid.
         schema = json.loads(args.schema.read_text(encoding="utf-8"))
-        if schema.get("schema_version") != SCHEMA_VERSION or schema.get("renderer_version") != RENDERER_VERSION:
+        if (
+            schema.get("schema_version") != SCHEMA_VERSION
+            or schema.get("renderer_version") != "1.0.0"
+            or schema.get("manifest_version") != MANIFEST_VERSION
+        ):
             raise CopyError(2, [_type_error("--schema", "Schema version metadata is invalid.")])
         summary = validate_and_prepare(args.manifest, args.governance_binding, args.validate_only)
         diagnostics = summary.get("diagnostics", [])

@@ -72,14 +72,19 @@ Exit codes:
 
 The renderer opens source and destination components using descriptor-relative
 no-follow operations. It records device and inode, checks source stability
-during the read, and reopens every source before publication. It performs all
-preflight checks before staging.
+during the read including link count, and reopens every source before
+publication. Immediately before publication, every source must still be a
+regular file with exactly one hard link, the same device and inode, the same
+size and mode class, and the same SHA-256. It performs all preflight checks
+before staging.
 
 Final `<destination_root>/<copy_id>` must be absent. The renderer creates one
 exclusive sibling staging directory, writes normalized `0640` or `0750` files,
 reopens all copied bytes and generated artifacts, rechecks sources, and
-atomically renames the staging directory. A post-staging failure is preserved
-as `.incomplete_<copy_id>_<nonce>` with blocking validation evidence when
+publishes the staging directory with a Linux atomic no-replace primitive.
+Renderer version `1.0.1` fails closed when that primitive is unavailable and
+never falls back to a replacing rename. A post-staging failure is preserved as
+`.incomplete_<copy_id>_<nonce>` with blocking validation evidence when
 possible; it is never resumed or classified as complete.
 
 ## Review output
