@@ -1440,3 +1440,14 @@ normative_sources: live AGENTS.md and CPC.md
 ```
 
 Skill availability does not authorize its use or any underlying task action.
+
+```text
+logical_id: manual_production_handoff
+skill_name: correction-lib-manual-production-handoff
+path: .agents/skills/correction-lib-manual-production-handoff/SKILL.md
+version: 1.0.0
+trigger: prepare or validate a non-executing user-run production handoff
+normative_sources: live AGENTS.md and CPC.md
+```
+
+Skill availability does not authorize production execution.

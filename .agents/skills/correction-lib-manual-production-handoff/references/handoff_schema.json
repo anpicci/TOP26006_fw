@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0.0",
+  "renderer_version": "1.0.0",
+  "projection_status": "derived_workflow_material_not_normative",
+  "normative_sources": ["AGENTS.md", "CPC.md"],
+  "required_top_level_fields": [
+    "manifest_version",
+    "handoff_id",
+    "title",
+    "execution_owner",
+    "execution_cwd",
+    "execution_cwd_mode",
+    "environment_requirements",
+    "commands",
+    "logging",
+    "output_collision_policy",
+    "interruption_policy",
+    "evidence_return_contract",
+    "provenance"
+  ],
+  "execution_cwd_modes": ["caller_managed", "fixed", "script_relative"],
+  "command_required_fields": [
+    "command_id",
+    "status",
+    "argv",
+    "description",
+    "expected_outputs",
+    "qualification_evidence"
+  ],
+  "command_optional_fields": [
+    "retry_authorized",
+    "retry_reason",
+    "working_directory_override",
+    "environment_overrides"
+  ],
+  "command_statuses": [
+    "completed_valid",
+    "pending",
+    "failed_known",
+    "interrupted_ambiguous",
+    "not_started"
+  ],
+  "output_required_fields": [
+    "path",
+    "role",
+    "collision_behavior",
+    "qualification_artifacts"
+  ],
+  "collision_behaviors": [
+    "must_be_absent",
+    "allow_existing_qualified",
+    "informational_only"
+  ],
+  "output_collision_policies": ["fail_closed"],
+  "ambiguous_interruption_actions": ["stop_and_classify"],
+  "logging_required_fields": [
+    "enabled",
+    "directory",
+    "default_directory",
+    "one_log_per_command",
+    "capture_start_time",
+    "capture_end_time",
+    "capture_exit_code",
+    "tee_to_console"
+  ],
+  "logging_optional_fields": ["directory_env_override"],
+  "provenance_record_fields": [
+    "branch",
+    "commit",
+    "configuration_hashes"
+  ],
+  "provenance_enforce_fields": ["branch", "commit"],
+  "diagnostic_ids": {
+    "JSON001": "invalid_json",
+    "TYPE001": "invalid_type",
+    "REQ001": "missing_required_field",
+    "ENUM001": "invalid_enumerated_value",
+    "CMD001": "invalid_command_representation",
+    "CMD002": "duplicate_command_id",
+    "STATUS001": "completed_valid_without_evidence",
+    "STATUS002": "failed_known_without_retry_authorization",
+    "STATUS003": "ambiguous_interruption_blocks_wrapper",
+    "OUTPUT001": "invalid_output_identity",
+    "OUTPUT002": "existing_output_without_qualification",
+    "LOG001": "incomplete_logging_contract",
+    "CWD001": "invalid_working_directory_contract",
+    "PROV001": "enforcement_without_recorded_value",
+    "RETRY001": "automatic_retry_forbidden",
+    "ENV001": "undeclared_environment_dependency",
+    "SECRET001": "credential_like_content",
+    "SAFE001": "empty_execution_set",
+    "SHELL001": "unsafe_shell_construct",
+    "OK000": "valid_manifest"
+  }
+}

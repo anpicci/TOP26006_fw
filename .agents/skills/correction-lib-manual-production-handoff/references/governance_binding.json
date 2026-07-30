@@ -1,0 +1,12 @@
+{
+  "binding_version": "1.0.0",
+  "schema_version": "1.0.0",
+  "renderer_version": "1.0.0",
+  "workspace_root": "/users/apiccine/work/correction-lib",
+  "agents_path": "AGENTS.md",
+  "agents_sha256": "bd4ed79ded489b857bf4abe1c9af93796c6a354bd988e25845700b52221e2558",
+  "cpc_path": "CPC.md",
+  "cpc_sha256": "22408b5f27940463e4c31a355cfcd32287bc9e28ef0d2ddbddf6ce3d51fe34d7",
+  "generated_at": "2026-07-30",
+  "reviewed_by": "manual production handoff implementation review"
+}

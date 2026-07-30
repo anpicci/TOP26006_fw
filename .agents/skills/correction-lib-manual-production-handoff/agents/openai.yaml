@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manual Production Handoff"
+  short_description: "Prepare safe user-run production handoffs"
+  default_prompt: "Use $correction-lib-manual-production-handoff to validate and render this explicit production plan without executing it."

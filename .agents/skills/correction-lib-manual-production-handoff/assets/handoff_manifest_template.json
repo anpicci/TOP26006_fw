@@ -1,0 +1,58 @@
+{
+  "manifest_version": "1.0.0",
+  "handoff_id": "replace_with_explicit_handoff_id",
+  "title": "Replace with the validated production plan title",
+  "execution_owner": "user",
+  "execution_cwd": ".",
+  "execution_cwd_mode": "caller_managed",
+  "environment_requirements": [
+    "Replace with explicitly validated executable or environment requirements; do not invent activation commands."
+  ],
+  "commands": [
+    {
+      "command_id": "replace_with_explicit_command_id",
+      "status": "not_started",
+      "argv": ["printf", "%s\\n", "replace with exact validated argv"],
+      "description": "Replace with the command purpose.",
+      "expected_outputs": [
+        {
+          "path": "replace_with_exact_output_identity",
+          "role": "replace_with_output_role",
+          "collision_behavior": "must_be_absent",
+          "qualification_artifacts": []
+        }
+      ],
+      "qualification_evidence": []
+    }
+  ],
+  "logging": {
+    "enabled": true,
+    "directory": null,
+    "default_directory": "handoff_logs",
+    "one_log_per_command": true,
+    "capture_start_time": true,
+    "capture_end_time": true,
+    "capture_exit_code": true,
+    "tee_to_console": true
+  },
+  "output_collision_policy": "fail_closed",
+  "interruption_policy": {
+    "stop_on_first_failure": true,
+    "automatic_retry": false,
+    "ambiguous_interruption_action": "stop_and_classify"
+  },
+  "evidence_return_contract": [
+    "Return each persistent command log and the explicit qualification artifacts requested by the validated plan."
+  ],
+  "provenance": {
+    "record": {
+      "branch": null,
+      "commit": null,
+      "configuration_hashes": {}
+    },
+    "enforce": {
+      "branch": false,
+      "commit": false
+    }
+  }
+}
