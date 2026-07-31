@@ -5,9 +5,9 @@
   "renderer_version": "1.0.1",
   "workspace_root": "/users/apiccine/work/correction-lib",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "a5838e77024852bc465cdd74003163db0cea512972dc87fef3260c8afb2d1cec",
+  "agents_sha256": "03614ea055a96ab8d0bf88ff08e9bffa1425443351af05485aac61a824f9e92b",
   "cpc_path": "CPC.md",
   "cpc_sha256": "22408b5f27940463e4c31a355cfcd32287bc9e28ef0d2ddbddf6ce3d51fe34d7",
-  "generated_at": "2026-07-30",
-  "reviewed_by": "diagnostic copy publication race review"
+  "generated_at": "2026-07-31",
+  "reviewed_by": "evidence package review skill registry implementation"
 }

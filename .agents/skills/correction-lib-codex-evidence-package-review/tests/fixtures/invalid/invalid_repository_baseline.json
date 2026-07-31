@@ -1,0 +1,8 @@
+{
+  "contract_elements": "repository baseline",
+  "expected_diagnostics": "BASELINE002",
+  "fixture_id": "invalid_repository_baseline",
+  "implementation_priority": "P0",
+  "scenario": "Live or supplied baseline differs from expected HEAD",
+  "validity": "invalid"
+}

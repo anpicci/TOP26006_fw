@@ -1,0 +1,8 @@
+{
+  "contract_elements": "patch kind consistency",
+  "expected_diagnostics": "PATCH003",
+  "fixture_id": "invalid_empty_patch_nonempty",
+  "implementation_priority": "P0",
+  "scenario": "empty_no_changes patch contains bytes",
+  "validity": "invalid"
+}

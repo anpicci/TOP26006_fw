@@ -1,0 +1,8 @@
+{
+  "contract_elements": "self-certification",
+  "expected_diagnostics": "SELF_CERTIFICATION001;SELF_CERTIFICATION002",
+  "fixture_id": "invalid_package_self_verdict_only",
+  "implementation_priority": "P0",
+  "scenario": "Acceptance relies only on package-authored verdict",
+  "validity": "invalid"
+}

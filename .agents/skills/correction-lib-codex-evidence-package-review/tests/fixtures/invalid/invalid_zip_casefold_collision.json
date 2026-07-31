@@ -1,0 +1,8 @@
+{
+  "contract_elements": "archive collision policy",
+  "expected_diagnostics": "ARCHIVE005",
+  "fixture_id": "invalid_zip_casefold_collision",
+  "implementation_priority": "P0",
+  "scenario": "ZIP members collide after case folding",
+  "validity": "invalid"
+}

@@ -1,0 +1,8 @@
+{
+  "contract_elements": "encryption rejection",
+  "expected_diagnostics": "ARCHIVE006",
+  "fixture_id": "invalid_encrypted_archive",
+  "implementation_priority": "P0",
+  "scenario": "ZIP encrypted flag is set",
+  "validity": "invalid"
+}

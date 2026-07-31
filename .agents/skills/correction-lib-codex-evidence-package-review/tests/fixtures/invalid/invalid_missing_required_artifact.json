@@ -1,0 +1,8 @@
+{
+  "contract_elements": "artifact completeness",
+  "expected_diagnostics": "ARTIFACT001",
+  "fixture_id": "invalid_missing_required_artifact",
+  "implementation_priority": "P0",
+  "scenario": "Required manifest artifact is absent",
+  "validity": "invalid"
+}

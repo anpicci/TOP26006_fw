@@ -1,0 +1,8 @@
+{
+  "contract_elements": "archive type policy",
+  "expected_diagnostics": "PATH003",
+  "fixture_id": "invalid_zip_symlink",
+  "implementation_priority": "P0",
+  "scenario": "ZIP external attributes identify a symlink",
+  "validity": "invalid"
+}

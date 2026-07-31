@@ -1,0 +1,8 @@
+{
+  "contract_elements": "manual gate; evidence locator",
+  "expected_diagnostics": "none",
+  "fixture_id": "valid_declared_manual_gate_resolved",
+  "implementation_priority": "P0",
+  "scenario": "Required manual gate has explicit reviewer resolution and locator",
+  "validity": "valid"
+}

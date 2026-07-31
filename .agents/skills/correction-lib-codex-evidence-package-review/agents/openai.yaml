@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evidence Package Review"
+  short_description: "Review local evidence packages safely"
+  default_prompt: "Use $correction-lib-codex-evidence-package-review to review a local evidence package against an external manifest."

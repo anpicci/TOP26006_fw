@@ -1,0 +1,8 @@
+{
+  "contract_elements": "self-certification",
+  "expected_diagnostics": "CONTRADICTION001",
+  "fixture_id": "invalid_report_test_contradiction",
+  "implementation_priority": "P0",
+  "scenario": "Report claims pass while transcript contains failure",
+  "validity": "invalid"
+}

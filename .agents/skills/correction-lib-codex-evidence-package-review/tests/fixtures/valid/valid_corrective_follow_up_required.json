@@ -1,0 +1,8 @@
+{
+  "contract_elements": "probe; finding; corrective verdict",
+  "expected_diagnostics": "none",
+  "fixture_id": "valid_corrective_follow_up_required",
+  "implementation_priority": "P0",
+  "scenario": "Package is complete but reviewer-recomputed probe identifies a new blocking defect",
+  "validity": "valid"
+}

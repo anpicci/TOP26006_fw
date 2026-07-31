@@ -1,0 +1,8 @@
+{
+  "contract_elements": "nested archive rejection",
+  "expected_diagnostics": "ARCHIVE007",
+  "fixture_id": "invalid_nested_archive",
+  "implementation_priority": "P0",
+  "scenario": "ZIP member has archive signature or nested archive suffix",
+  "validity": "invalid"
+}

@@ -1,0 +1,8 @@
+{
+  "contract_elements": "artifact hashing",
+  "expected_diagnostics": "HASH002",
+  "fixture_id": "invalid_artifact_hash",
+  "implementation_priority": "P0",
+  "scenario": "Artifact bytes differ from declared SHA-256",
+  "validity": "invalid"
+}

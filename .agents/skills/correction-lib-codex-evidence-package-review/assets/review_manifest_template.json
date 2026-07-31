@@ -1,0 +1,101 @@
+{
+  "manifest_version": "1.0.0",
+  "review_id": "replace_review_id",
+  "title": "Replace with review title",
+  "authorizing_prompt": {
+    "path": "/absolute/path/to/authorizing_prompt.md",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "prompt_contract_validation_path": "/absolute/path/to/prompt_contract_validation.json",
+    "prompt_contract_validation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_prompt_id": "REPLACE",
+    "expected_prompt_mode": "validation_only",
+    "expected_commit_policy": {"commit_expected": false, "do_not_commit": true, "expected_subject": null},
+    "expected_allowed_paths": ["replace/path"],
+    "expected_forbidden_actions": ["reviewed_code_execution"],
+    "expected_validation_ceiling": "static_inspection_only",
+    "expected_patch_kind": "empty_no_changes"
+  },
+  "repositories": [{
+    "repository_id": "meta_repo",
+    "repository_path": "/absolute/path/to/repository",
+    "expected_branch_before": null,
+    "expected_head_before": null,
+    "expected_branch_after": null,
+    "expected_head_after": null,
+    "mutation_expected": false,
+    "commit_expected": false,
+    "expected_commit_subject": null,
+    "allowed_changed_paths": [],
+    "declared_preexisting_changes": [],
+    "verification_mode": "package_claim_only"
+  }],
+  "package": {
+    "package_id": "evidence_package",
+    "package_title": "Replace with package title",
+    "package_format": "extracted_directory",
+    "carrier_path": "/absolute/path/to/carrier",
+    "carrier_sha256": null,
+    "package_root": "package_root",
+    "package_inventory_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "authoring_round_id": "REPLACE",
+    "implementation_round_id": "REPLACE",
+    "created_at_claim": null,
+    "reviewed_repository_ids": ["meta_repo"]
+  },
+  "artifacts": [{
+    "artifact_id": "empty_patch",
+    "relative_path": "empty.patch",
+    "media_type": "text/x-diff",
+    "required": true,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size_bytes": 0,
+    "parser": "empty_file",
+    "semantic_role": "patch",
+    "authoritative_for": ["patch_scope"]
+  }],
+  "patch_contract": {
+    "artifact_id": "empty_patch",
+    "patch_kind": "empty_no_changes",
+    "baseline_repository_id": "meta_repo",
+    "baseline_head": null,
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "commit_requirement": "forbidden",
+    "expected_empty": true,
+    "scope_interpretation": "focused",
+    "allow_renames": false,
+    "allow_copies": false,
+    "allow_mode_changes": false,
+    "allow_deletions": false
+  },
+  "declared_gates": [],
+  "independent_checks": [],
+  "finding_policy": {
+    "allowed_nonblocking_preexisting_categories": [],
+    "preexisting_proof_required": true,
+    "package_claim_only_blocks_acceptance": true
+  },
+  "verdict_policy": {
+    "allowed_verdicts": ["accepted", "accepted_with_nonblocking_findings", "corrective_follow_up_required", "blocked_incomplete_package", "blocked_prompt_traceability", "blocked_baseline_mismatch", "blocked_patch_scope", "blocked_validation_evidence", "blocked_declared_gate", "blocked_self_certification", "blocked_review"],
+    "package_authored_verdict_authoritative": false,
+    "derive_after_all_diagnostics": true
+  },
+  "limits": {
+    "maximum_member_count": 512,
+    "maximum_member_uncompressed_bytes": 16777216,
+    "maximum_total_uncompressed_bytes": 67108864,
+    "maximum_compression_ratio": 100,
+    "maximum_patch_bytes": 16777216,
+    "maximum_patch_lines": 200000
+  },
+  "execution_boundary": {
+    "reviewed_code_execution": false,
+    "arbitrary_validation_command_execution": false,
+    "source_mutation": false,
+    "patch_application": false,
+    "automatic_skill_chaining": false,
+    "automatic_fix": false,
+    "remote_operations": false,
+    "production_inspection": false
+  }
+}

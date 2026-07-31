@@ -1462,3 +1462,15 @@ normative_sources: live AGENTS.md and CPC.md
 ```
 
 Skill availability does not authorize execution of copied files.
+
+```text
+logical_id: codex_evidence_package_review
+installed_skill: correction-lib-codex-evidence-package-review
+path: .agents/skills/correction-lib-codex-evidence-package-review/SKILL.md
+version: 1.0.0
+trigger: review a returned local Codex evidence package against an external manifest
+normative_sources: live AGENTS.md and CPC.md
+```
+
+Skill availability does not authorize reviewed work, reviewed-code execution,
+patch application, independent test execution, fixes, or publication.

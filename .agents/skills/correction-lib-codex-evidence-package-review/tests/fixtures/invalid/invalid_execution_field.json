@@ -1,0 +1,8 @@
+{
+  "contract_elements": "schema execution boundary",
+  "expected_diagnostics": "SCHEMA003",
+  "fixture_id": "invalid_execution_field",
+  "implementation_priority": "P0",
+  "scenario": "Review manifest contains execute shell argv or callback property",
+  "validity": "invalid"
+}

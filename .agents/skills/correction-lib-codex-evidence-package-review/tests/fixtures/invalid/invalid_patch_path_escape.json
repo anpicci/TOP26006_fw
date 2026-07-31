@@ -1,0 +1,8 @@
+{
+  "contract_elements": "patch path safety",
+  "expected_diagnostics": "SCOPE001",
+  "fixture_id": "invalid_patch_path_escape",
+  "implementation_priority": "P0",
+  "scenario": "Unified diff path is absolute or traversing",
+  "validity": "invalid"
+}

@@ -1,0 +1,515 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://correction-lib.local/schemas/codex-evidence-package-review/1.0.0",
+  "title": "Correction-lib Codex evidence-package review manifest",
+  "description": "Version 1.0.0 external reviewer-owned manifest. Validation authorizes no execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "review_id",
+    "title",
+    "authorizing_prompt",
+    "repositories",
+    "package",
+    "artifacts",
+    "patch_contract",
+    "declared_gates",
+    "independent_checks",
+    "finding_policy",
+    "verdict_policy",
+    "limits",
+    "execution_boundary"
+  ],
+  "properties": {
+    "manifest_version": {"const": "1.0.0"},
+    "review_id": {"$ref": "#/$defs/snake_id"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+    "authorizing_prompt": {"$ref": "#/$defs/authorizing_prompt"},
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/repository"}
+    },
+    "package": {"$ref": "#/$defs/package"},
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "patch_contract": {"$ref": "#/$defs/patch_contract"},
+    "declared_gates": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/gate"}
+    },
+    "independent_checks": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/independent_check"}
+    },
+    "finding_policy": {"$ref": "#/$defs/finding_policy"},
+    "verdict_policy": {"$ref": "#/$defs/verdict_policy"},
+    "limits": {"$ref": "#/$defs/limits"},
+    "execution_boundary": {"$ref": "#/$defs/execution_boundary"}
+  },
+  "$defs": {
+    "snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+      "maxLength": 96
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "absolute_path": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[^/]+(?:/[^/]+)*$"
+    },
+    "nullable_sha": {
+      "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+    },
+    "authorizing_prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "prompt_contract_validation_path",
+        "prompt_contract_validation_sha256",
+        "expected_prompt_id",
+        "expected_prompt_mode",
+        "expected_commit_policy",
+        "expected_allowed_paths",
+        "expected_forbidden_actions",
+        "expected_validation_ceiling",
+        "expected_patch_kind"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/absolute_path"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_contract_validation_path": {"$ref": "#/$defs/absolute_path"},
+        "prompt_contract_validation_sha256": {"$ref": "#/$defs/sha256"},
+        "expected_prompt_id": {"type": "string", "minLength": 1, "maxLength": 96},
+        "expected_prompt_mode": {
+          "enum": [
+            "investigation_only",
+            "coding",
+            "validation_only",
+            "test_alignment_only",
+            "documentation_only",
+            "commit_preparation",
+            "pr_preparation",
+            "pr_publication",
+            "production_execution"
+          ]
+        },
+        "expected_commit_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit_expected", "do_not_commit", "expected_subject"],
+          "properties": {
+            "commit_expected": {"type": "boolean"},
+            "do_not_commit": {"type": "boolean"},
+            "expected_subject": {"type": ["string", "null"], "maxLength": 200}
+          }
+        },
+        "expected_allowed_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "expected_forbidden_actions": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 160}
+        },
+        "expected_validation_ceiling": {
+          "enum": [
+            "static_inspection_only",
+            "lightweight_import_or_cli_probe",
+            "targeted_unit_test",
+            "workflow_dry_run_or_config_validation",
+            "production_execution"
+          ]
+        },
+        "expected_patch_kind": {"$ref": "#/$defs/patch_kind"}
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "repository_path",
+        "expected_branch_before",
+        "expected_head_before",
+        "expected_branch_after",
+        "expected_head_after",
+        "mutation_expected",
+        "commit_expected",
+        "expected_commit_subject",
+        "allowed_changed_paths",
+        "declared_preexisting_changes",
+        "verification_mode"
+      ],
+      "properties": {
+        "repository_id": {"$ref": "#/$defs/snake_id"},
+        "repository_path": {"$ref": "#/$defs/absolute_path"},
+        "expected_branch_before": {"type": ["string", "null"], "maxLength": 255},
+        "expected_head_before": {"$ref": "#/$defs/nullable_sha"},
+        "expected_branch_after": {"type": ["string", "null"], "maxLength": 255},
+        "expected_head_after": {"$ref": "#/$defs/nullable_sha"},
+        "mutation_expected": {"type": "boolean"},
+        "commit_expected": {"type": "boolean"},
+        "expected_commit_subject": {"type": ["string", "null"], "maxLength": 200},
+        "allowed_changed_paths": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "declared_preexisting_changes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "verification_mode": {
+          "enum": [
+            "package_claim_only",
+            "reviewer_recomputed_live_read_only",
+            "reviewer_recomputed_patch_and_baseline",
+            "not_safely_generic"
+          ]
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_id",
+        "package_title",
+        "package_format",
+        "carrier_path",
+        "carrier_sha256",
+        "package_root",
+        "package_inventory_sha256",
+        "authoring_round_id",
+        "implementation_round_id",
+        "created_at_claim",
+        "reviewed_repository_ids"
+      ],
+      "properties": {
+        "package_id": {"$ref": "#/$defs/snake_id"},
+        "package_title": {"type": "string", "minLength": 1, "maxLength": 200},
+        "package_format": {"enum": ["extracted_directory", "zip_archive"]},
+        "carrier_path": {"$ref": "#/$defs/absolute_path"},
+        "carrier_sha256": {"$ref": "#/$defs/nullable_sha"},
+        "package_root": {"$ref": "#/$defs/relative_path"},
+        "package_inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "authoring_round_id": {"type": "string", "minLength": 1, "maxLength": 96},
+        "implementation_round_id": {"type": "string", "minLength": 1, "maxLength": 96},
+        "created_at_claim": {"type": ["string", "null"], "format": "date-time"},
+        "reviewed_repository_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/snake_id"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"package_format": {"const": "zip_archive"}}},
+          "then": {"properties": {"carrier_sha256": {"$ref": "#/$defs/sha256"}}},
+          "else": {"properties": {"carrier_sha256": {"type": "null"}}}
+        }
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "relative_path",
+        "media_type",
+        "required",
+        "sha256",
+        "size_bytes",
+        "parser",
+        "semantic_role",
+        "authoritative_for"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/snake_id"},
+        "relative_path": {"$ref": "#/$defs/relative_path"},
+        "media_type": {
+          "enum": ["application/json", "text/csv", "text/markdown", "text/plain", "text/x-diff"]
+        },
+        "required": {"type": "boolean"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 16777216},
+        "parser": {"enum": ["json", "csv", "markdown", "text", "unified_diff", "empty_file"]},
+        "semantic_role": {
+          "enum": [
+            "report",
+            "evidence",
+            "validation_summary",
+            "test_results",
+            "patch",
+            "generated_examples",
+            "fixture_results",
+            "probe_results",
+            "decision_matrix",
+            "other_declared_text"
+          ]
+        },
+        "authoritative_for": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 160}
+        }
+      }
+    },
+    "patch_kind": {
+      "enum": [
+        "source_change",
+        "prompt_local",
+        "binding_only",
+        "diagnostics_only",
+        "empty_no_changes",
+        "cumulative_feature",
+        "corrective_follow_up"
+      ]
+    },
+    "patch_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "patch_kind",
+        "baseline_repository_id",
+        "baseline_head",
+        "allowed_paths",
+        "forbidden_paths",
+        "commit_requirement",
+        "expected_empty",
+        "scope_interpretation",
+        "allow_renames",
+        "allow_copies",
+        "allow_mode_changes",
+        "allow_deletions"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/snake_id"},
+        "patch_kind": {"$ref": "#/$defs/patch_kind"},
+        "baseline_repository_id": {"$ref": "#/$defs/snake_id"},
+        "baseline_head": {"$ref": "#/$defs/nullable_sha"},
+        "allowed_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "forbidden_paths": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "commit_requirement": {"enum": ["required", "forbidden", "not_applicable"]},
+        "expected_empty": {"type": "boolean"},
+        "scope_interpretation": {"enum": ["focused", "cumulative"]},
+        "allow_renames": {"type": "boolean"},
+        "allow_copies": {"type": "boolean"},
+        "allow_mode_changes": {"type": "boolean"},
+        "allow_deletions": {"type": "boolean"}
+      }
+    },
+    "evidence_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "locator_type",
+        "locator_value",
+        "expected_hash_or_value",
+        "observed_hash_or_value",
+        "reviewer_recomputed"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/snake_id"},
+        "locator_type": {
+          "enum": [
+            "markdown_section",
+            "csv_row",
+            "json_pointer",
+            "text_pattern",
+            "file_whole",
+            "patch_hunk",
+            "test_name",
+            "probe_name"
+          ]
+        },
+        "locator_value": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "expected_hash_or_value": {},
+        "observed_hash_or_value": {},
+        "reviewer_recomputed": {"type": "boolean"}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_id",
+        "title",
+        "description",
+        "severity",
+        "required",
+        "evidence_requirements",
+        "evaluator",
+        "accepted_values",
+        "comparison_operator",
+        "expected_count",
+        "source_of_authority",
+        "blocking_when",
+        "manual_resolution"
+      ],
+      "properties": {
+        "gate_id": {"$ref": "#/$defs/snake_id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 160},
+        "description": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "severity": {"enum": ["info", "warning", "error", "blocker"]},
+        "required": {"type": "boolean"},
+        "evidence_requirements": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/evidence_locator"}
+        },
+        "evaluator": {
+          "enum": [
+            "artifact_present",
+            "hash_equals",
+            "json_pointer_equals",
+            "json_pointer_in_set",
+            "csv_row_count",
+            "csv_value_equals",
+            "text_pattern_present",
+            "text_pattern_absent",
+            "test_summary_equals",
+            "probe_field_equals",
+            "patch_path_subset",
+            "commit_subject_equals",
+            "repository_head_equals",
+            "manual_reviewer_decision_required"
+          ]
+        },
+        "accepted_values": {"type": "array", "minItems": 1},
+        "comparison_operator": {"enum": ["equals", "in_set", "present", "absent", "subset", "count_equals", "manual_equals"]},
+        "expected_count": {"type": ["integer", "null"], "minimum": 0},
+        "source_of_authority": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "blocking_when": {"enum": ["required_and_not_satisfied", "value_not_accepted", "manual_unresolved", "always_on_mismatch"]},
+        "manual_resolution": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["decision", "reviewer", "evidence_locator"],
+          "properties": {
+            "decision": {},
+            "reviewer": {"type": "string", "minLength": 1, "maxLength": 160},
+            "evidence_locator": {"$ref": "#/$defs/evidence_locator"}
+          }
+        }
+      }
+    },
+    "independent_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "title", "purpose", "required_evidence", "owner", "state", "result_artifact_id"],
+      "properties": {
+        "check_id": {"$ref": "#/$defs/snake_id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 160},
+        "purpose": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "required_evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "owner": {"enum": ["reviewer", "user", "separately_authorized_tool"]},
+        "state": {"enum": ["independent_external_test_result", "planned_but_not_run_check", "manual_reviewer_decision"]},
+        "result_artifact_id": {"oneOf": [{"$ref": "#/$defs/snake_id"}, {"type": "null"}]}
+      }
+    },
+    "finding_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_nonblocking_preexisting_categories", "preexisting_proof_required", "package_claim_only_blocks_acceptance"],
+      "properties": {
+        "allowed_nonblocking_preexisting_categories": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 160}
+        },
+        "preexisting_proof_required": {"const": true},
+        "package_claim_only_blocks_acceptance": {"const": true}
+      }
+    },
+    "verdict_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_verdicts", "package_authored_verdict_authoritative", "derive_after_all_diagnostics"],
+      "properties": {
+        "allowed_verdicts": {
+          "type": "array",
+          "const": [
+            "accepted",
+            "accepted_with_nonblocking_findings",
+            "corrective_follow_up_required",
+            "blocked_incomplete_package",
+            "blocked_prompt_traceability",
+            "blocked_baseline_mismatch",
+            "blocked_patch_scope",
+            "blocked_validation_evidence",
+            "blocked_declared_gate",
+            "blocked_self_certification",
+            "blocked_review"
+          ]
+        },
+        "package_authored_verdict_authoritative": {"const": false},
+        "derive_after_all_diagnostics": {"const": true}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_member_count",
+        "maximum_member_uncompressed_bytes",
+        "maximum_total_uncompressed_bytes",
+        "maximum_compression_ratio",
+        "maximum_patch_bytes",
+        "maximum_patch_lines"
+      ],
+      "properties": {
+        "maximum_member_count": {"type": "integer", "minimum": 1, "maximum": 512},
+        "maximum_member_uncompressed_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
+        "maximum_total_uncompressed_bytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "maximum_compression_ratio": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+        "maximum_patch_bytes": {"type": "integer", "minimum": 0, "maximum": 16777216},
+        "maximum_patch_lines": {"type": "integer", "minimum": 0, "maximum": 200000}
+      }
+    },
+    "execution_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewed_code_execution",
+        "arbitrary_validation_command_execution",
+        "source_mutation",
+        "patch_application",
+        "automatic_skill_chaining",
+        "automatic_fix",
+        "remote_operations",
+        "production_inspection"
+      ],
+      "properties": {
+        "reviewed_code_execution": {"const": false},
+        "arbitrary_validation_command_execution": {"const": false},
+        "source_mutation": {"const": false},
+        "patch_application": {"const": false},
+        "automatic_skill_chaining": {"const": false},
+        "automatic_fix": {"const": false},
+        "remote_operations": {"const": false},
+        "production_inspection": {"const": false}
+      }
+    }
+  }
+}

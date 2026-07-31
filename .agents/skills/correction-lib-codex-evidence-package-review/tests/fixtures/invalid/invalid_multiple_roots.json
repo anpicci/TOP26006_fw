@@ -1,0 +1,8 @@
+{
+  "contract_elements": "single-root rule",
+  "expected_diagnostics": "PATH002",
+  "fixture_id": "invalid_multiple_roots",
+  "implementation_priority": "P0",
+  "scenario": "ZIP members resolve under two top-level roots",
+  "validity": "invalid"
+}
