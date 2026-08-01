@@ -2,6 +2,8 @@
   "contract_elements": "archive path policy",
   "expected_diagnostics": "PATH001",
   "fixture_id": "invalid_zip_path_traversal",
+  "scenario_kind": "invalid_zip_path_traversal",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "ZIP member contains dot-dot traversal",
   "validity": "invalid"

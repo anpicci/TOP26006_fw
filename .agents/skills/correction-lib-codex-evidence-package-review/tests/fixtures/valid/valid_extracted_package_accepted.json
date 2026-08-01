@@ -2,6 +2,8 @@
   "contract_elements": "directory; prompt; baseline; artifacts; patch; gates; verdict",
   "expected_diagnostics": "none",
   "fixture_id": "valid_extracted_package_accepted",
+  "scenario_kind": "valid_extracted_package_accepted",
+  "expected_verdict": "accepted",
   "implementation_priority": "P0",
   "scenario": "Complete extracted-directory package with all mechanical and declared gates satisfied",
   "validity": "valid"

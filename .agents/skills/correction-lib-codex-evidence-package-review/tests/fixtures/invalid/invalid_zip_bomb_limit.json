@@ -2,6 +2,8 @@
   "contract_elements": "archive limits",
   "expected_diagnostics": "ARCHIVE002;ARCHIVE003",
   "fixture_id": "invalid_zip_bomb_limit",
+  "scenario_kind": "invalid_zip_bomb_limit",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "ZIP exceeds member total or ratio ceiling",
   "validity": "invalid"

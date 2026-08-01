@@ -2,6 +2,8 @@
   "contract_elements": "encryption rejection",
   "expected_diagnostics": "ARCHIVE006",
   "fixture_id": "invalid_encrypted_archive",
+  "scenario_kind": "invalid_encrypted_archive",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "ZIP encrypted flag is set",
   "validity": "invalid"

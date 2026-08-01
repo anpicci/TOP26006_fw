@@ -2,6 +2,8 @@
   "contract_elements": "declared gates",
   "expected_diagnostics": "GATE004",
   "fixture_id": "invalid_undeclared_domain_gate",
+  "scenario_kind": "invalid_undeclared_domain_gate",
+  "expected_verdict": "blocked_declared_gate",
   "implementation_priority": "P0",
   "scenario": "Package report uses a semantic gate absent from external manifest",
   "validity": "invalid"

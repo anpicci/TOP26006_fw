@@ -2,6 +2,8 @@
   "contract_elements": "prompt traceability",
   "expected_diagnostics": "PROMPT001",
   "fixture_id": "invalid_prompt_hash",
+  "scenario_kind": "invalid_prompt_hash",
+  "expected_verdict": "blocked_prompt_traceability",
   "implementation_priority": "P0",
   "scenario": "Prompt bytes differ from expected SHA-256",
   "validity": "invalid"

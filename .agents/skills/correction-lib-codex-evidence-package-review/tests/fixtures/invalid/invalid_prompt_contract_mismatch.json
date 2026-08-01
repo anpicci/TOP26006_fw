@@ -2,6 +2,8 @@
   "contract_elements": "prompt traceability",
   "expected_diagnostics": "PROMPT002;PROMPT003",
   "fixture_id": "invalid_prompt_contract_mismatch",
+  "scenario_kind": "invalid_prompt_contract_mismatch",
+  "expected_verdict": "blocked_prompt_traceability",
   "implementation_priority": "P0",
   "scenario": "Prompt-contract JSON input hash or metadata differs",
   "validity": "invalid"

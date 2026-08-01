@@ -2,6 +2,8 @@
   "contract_elements": "self-certification",
   "expected_diagnostics": "CONTRADICTION001",
   "fixture_id": "invalid_report_test_contradiction",
+  "scenario_kind": "invalid_report_test_contradiction",
+  "expected_verdict": "blocked_self_certification",
   "implementation_priority": "P0",
   "scenario": "Report claims pass while transcript contains failure",
   "validity": "invalid"

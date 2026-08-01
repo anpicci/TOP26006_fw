@@ -2,6 +2,8 @@
   "contract_elements": "archive integrity",
   "expected_diagnostics": "ARCHIVE008",
   "fixture_id": "invalid_zip_local_header_mismatch",
+  "scenario_kind": "invalid_zip_local_header_mismatch",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "Local header filename or size conflicts with central directory",
   "validity": "invalid"

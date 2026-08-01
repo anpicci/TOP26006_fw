@@ -1467,7 +1467,7 @@ Skill availability does not authorize execution of copied files.
 logical_id: codex_evidence_package_review
 installed_skill: correction-lib-codex-evidence-package-review
 path: .agents/skills/correction-lib-codex-evidence-package-review/SKILL.md
-version: 1.0.0
+version: 1.0.1
 trigger: review a returned local Codex evidence package against an external manifest
 normative_sources: live AGENTS.md and CPC.md
 ```

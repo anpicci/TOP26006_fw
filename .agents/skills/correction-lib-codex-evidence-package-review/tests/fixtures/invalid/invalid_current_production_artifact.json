@@ -2,6 +2,8 @@
   "contract_elements": "contradiction policy",
   "expected_diagnostics": "CONTRADICTION004",
   "fixture_id": "invalid_current_production_artifact",
+  "scenario_kind": "invalid_current_production_artifact",
+  "expected_verdict": "blocked_self_certification",
   "implementation_priority": "P0",
   "scenario": "Package claims noninterference but declares current production output",
   "validity": "invalid"

@@ -2,6 +2,8 @@
   "contract_elements": "patch path uniqueness",
   "expected_diagnostics": "SCOPE004",
   "fixture_id": "invalid_duplicate_normalized_patch_path",
+  "scenario_kind": "invalid_duplicate_normalized_patch_path",
+  "expected_verdict": "blocked_patch_scope",
   "implementation_priority": "P1",
   "scenario": "Two patch records normalize to the same destination path",
   "validity": "invalid"

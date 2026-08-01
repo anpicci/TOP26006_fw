@@ -2,6 +2,8 @@
   "contract_elements": "cumulative patch; baseline; evidence origins",
   "expected_diagnostics": "none",
   "fixture_id": "valid_final_integration_acceptance",
+  "scenario_kind": "valid_final_integration_acceptance",
+  "expected_verdict": "accepted",
   "implementation_priority": "P1",
   "scenario": "Cumulative package reconciles commits paths immutable evidence and current tests",
   "validity": "valid"

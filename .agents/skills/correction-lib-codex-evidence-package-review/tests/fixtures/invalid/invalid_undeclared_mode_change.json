@@ -2,6 +2,8 @@
   "contract_elements": "patch metadata",
   "expected_diagnostics": "PATCH004",
   "fixture_id": "invalid_undeclared_mode_change",
+  "scenario_kind": "invalid_undeclared_mode_change",
+  "expected_verdict": "blocked_patch_scope",
   "implementation_priority": "P1",
   "scenario": "Patch changes executable mode without exact permission",
   "validity": "invalid"

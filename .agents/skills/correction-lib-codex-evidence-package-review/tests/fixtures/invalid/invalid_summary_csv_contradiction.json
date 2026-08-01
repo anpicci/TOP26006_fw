@@ -2,6 +2,8 @@
   "contract_elements": "self-certification",
   "expected_diagnostics": "CONTRADICTION002",
   "fixture_id": "invalid_summary_csv_contradiction",
+  "scenario_kind": "invalid_summary_csv_contradiction",
+  "expected_verdict": "blocked_self_certification",
   "implementation_priority": "P0",
   "scenario": "Validation summary counts disagree with detailed CSV",
   "validity": "invalid"

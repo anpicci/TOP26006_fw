@@ -2,6 +2,8 @@
   "contract_elements": "patch kind; empty verification",
   "expected_diagnostics": "none",
   "fixture_id": "valid_empty_no_changes_patch",
+  "scenario_kind": "valid_empty_no_changes_patch",
+  "expected_verdict": "accepted",
   "implementation_priority": "P0",
   "scenario": "Declared empty_no_changes patch is exactly zero bytes",
   "validity": "valid"

@@ -2,6 +2,8 @@
   "contract_elements": "binary rejection",
   "expected_diagnostics": "PATCH002",
   "fixture_id": "invalid_binary_patch",
+  "scenario_kind": "invalid_binary_patch",
+  "expected_verdict": "blocked_patch_scope",
   "implementation_priority": "P0",
   "scenario": "Patch contains GIT binary patch or Binary files marker",
   "validity": "invalid"

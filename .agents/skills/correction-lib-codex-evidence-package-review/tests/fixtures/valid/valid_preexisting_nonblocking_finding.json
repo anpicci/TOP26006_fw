@@ -2,6 +2,8 @@
   "contract_elements": "finding status; pre-existing proof; verdict",
   "expected_diagnostics": "none",
   "fixture_id": "valid_preexisting_nonblocking_finding",
+  "scenario_kind": "valid_preexisting_nonblocking_finding",
+  "expected_verdict": "accepted_with_nonblocking_findings",
   "implementation_priority": "P0",
   "scenario": "Base and feature evidence prove the same permitted pre-existing failure",
   "validity": "valid"

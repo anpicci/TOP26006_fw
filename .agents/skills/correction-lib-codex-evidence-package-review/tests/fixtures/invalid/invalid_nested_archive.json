@@ -2,6 +2,8 @@
   "contract_elements": "nested archive rejection",
   "expected_diagnostics": "ARCHIVE007",
   "fixture_id": "invalid_nested_archive",
+  "scenario_kind": "invalid_nested_archive",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "ZIP member has archive signature or nested archive suffix",
   "validity": "invalid"

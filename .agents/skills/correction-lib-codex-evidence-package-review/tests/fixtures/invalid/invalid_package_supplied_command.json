@@ -2,6 +2,8 @@
   "contract_elements": "execution boundary",
   "expected_diagnostics": "SCHEMA003;GATE001",
   "fixture_id": "invalid_package_supplied_command",
+  "scenario_kind": "invalid_package_supplied_command",
+  "expected_verdict": "blocked_declared_gate",
   "implementation_priority": "P0",
   "scenario": "Package artifact declares a validation command as executable input",
   "validity": "invalid"

@@ -2,6 +2,8 @@
   "contract_elements": "archive duplicate policy",
   "expected_diagnostics": "ARCHIVE004",
   "fixture_id": "invalid_zip_duplicate_name",
+  "scenario_kind": "invalid_zip_duplicate_name",
+  "expected_verdict": "blocked_review",
   "implementation_priority": "P0",
   "scenario": "ZIP has duplicate normalized member names",
   "validity": "invalid"

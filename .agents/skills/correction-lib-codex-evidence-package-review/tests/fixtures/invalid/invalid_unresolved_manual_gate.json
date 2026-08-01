@@ -2,6 +2,8 @@
   "contract_elements": "manual gate",
   "expected_diagnostics": "GATE003",
   "fixture_id": "invalid_unresolved_manual_gate",
+  "scenario_kind": "invalid_unresolved_manual_gate",
+  "expected_verdict": "blocked_declared_gate",
   "implementation_priority": "P0",
   "scenario": "Required manual gate has no explicit reviewer resolution",
   "validity": "invalid"

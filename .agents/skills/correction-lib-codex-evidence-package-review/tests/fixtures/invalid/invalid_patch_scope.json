@@ -2,6 +2,8 @@
   "contract_elements": "patch scope",
   "expected_diagnostics": "SCOPE002",
   "fixture_id": "invalid_patch_scope",
+  "scenario_kind": "invalid_patch_scope",
+  "expected_verdict": "blocked_patch_scope",
   "implementation_priority": "P0",
   "scenario": "Patch changes a path outside the external allowlist",
   "validity": "invalid"

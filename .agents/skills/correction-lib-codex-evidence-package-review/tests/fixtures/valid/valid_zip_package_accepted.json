@@ -2,6 +2,8 @@
   "contract_elements": "ZIP limits; headers; extraction; hashes",
   "expected_diagnostics": "none",
   "fixture_id": "valid_zip_package_accepted",
+  "scenario_kind": "valid_zip_package_accepted",
+  "expected_verdict": "accepted",
   "implementation_priority": "P0",
   "scenario": "Bounded ZIP with one root and independently reopened members",
   "validity": "valid"
