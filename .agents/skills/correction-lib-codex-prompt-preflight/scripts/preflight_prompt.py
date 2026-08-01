@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
-"""Canonicalize and validate a visible correction-lib Markdown prompt.
+"""Preflight an inert visible correction-lib Markdown prompt.
 
-This module treats prompt text as inert UTF-8 data.  Its only subprocesses are
-fixed, shell-false Git reads and the fixed installed prompt-contract validator.
+Prompt text is data.  The only subprocesses are fixed, shell-false, read-only
+Git observations and the fixed installed prompt-contract validator.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
+import os
 import re
+import stat
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 
-SKILL_VERSION = "1.0.0"
-RENDERER_VERSION = "1.0.0"
-SCHEMA_VERSION = "1.0.0"
-OWNERSHIP_CONTRACT_VERSION = "1.0.0"
+SKILL_VERSION = "1.0.1"
+RENDERER_VERSION = "1.0.1"
+SCHEMA_VERSION = "1.0.1"
+OWNERSHIP_CONTRACT_VERSION = "1.0.1"
 CONTEXT_VALUES = ("yes", "no", "unknown")
 EVIDENCE_SEQUENCE = (
     "collect_direct_evidence",
@@ -40,97 +43,74 @@ OUTPUT_NAMES = (
     "preflight_state.json",
     "preflight_report.md",
 )
+JSON_OUTPUTS = {
+    "section_manifest.json",
+    "shared_value_manifest.json",
+    "prompt_contract_validation.json",
+    "preflight_state.json",
+}
 FIELD_ORDER = (
-    "prompt_id",
-    "short_title",
-    "prompt_mode",
-    "preferred_codex_model",
-    "reasoning_level",
-    "delegation_policy",
-    "model_selection_rationale",
-    "workspace_root",
-    "repo_locations",
-    "allowed_to_modify",
-    "read_only",
-    "branch_policy",
-    "current_checked_out_branch",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "current_baseline_branch",
-    "comparison_baseline",
-    "integrated_baseline_mode",
-    "dirty_worktree_policy",
-    "preflight_profile",
-    "preflight_scope_paths",
-    "validation_ceiling",
-    "heavy_command_permissions",
-    "source_control_policy",
-    "do_not_commit",
-    "commit_expected",
-    "commit_message_policy",
-    "goal",
-    "decision_question",
-    "out_of_scope",
-    "report_path",
-    "patch_path",
-    "patch_kind_expected",
-    "final_chat_deliverable",
-    "accepted_prior_evidence",
-    "unresolved_checks_only",
-    "checks_not_to_repeat",
-    "evidence_requirements",
-    "classification_rules",
-    "anti_self_certification_rules",
-    "evidence_validation_method",
-    "execution_owner",
-    "overwrite_or_resume_policy",
-    "interruption_retry_policy",
-    "codex_post_run_interpretation",
+    "prompt_id", "short_title", "prompt_mode", "preferred_codex_model",
+    "reasoning_level", "delegation_policy", "model_selection_rationale",
+    "workspace_root", "repo_locations", "current_checked_out_branch",
+    "current_repository_heads", "allowed_to_modify", "read_only",
+    "branch_policy", "reference_branch", "target_branch", "feature_branch",
+    "current_baseline_branch", "comparison_baseline",
+    "integrated_baseline_mode", "dirty_worktree_policy", "preflight_profile",
+    "preflight_scope_paths", "validation_ceiling", "heavy_command_permissions",
+    "source_control_policy", "do_not_commit", "commit_expected",
+    "commit_message_policy", "goal", "decision_question", "out_of_scope",
+    "diagnostics_root", "report_path", "patch_path", "patch_kind_expected",
+    "final_chat_deliverable", "accepted_prior_evidence",
+    "unresolved_checks_only", "checks_not_to_repeat", "evidence_requirements",
+    "classification_rules", "anti_self_certification_rules",
+    "evidence_validation_method", "governance_binding_expectations",
+    "execution_owner", "overwrite_or_resume_policy",
+    "interruption_retry_policy", "codex_post_run_interpretation",
 )
 AUTHOR_SEMANTIC_FIELDS = {
-    "prompt_id",
-    "short_title",
-    "prompt_mode",
-    "preferred_codex_model",
-    "reasoning_level",
-    "delegation_policy",
-    "model_selection_rationale",
-    "allowed_to_modify",
-    "read_only",
-    "branch_policy",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "comparison_baseline",
-    "integrated_baseline_mode",
-    "dirty_worktree_policy",
-    "preflight_profile",
-    "preflight_scope_paths",
-    "validation_ceiling",
-    "heavy_command_permissions",
-    "do_not_commit",
-    "commit_expected",
-    "commit_message_policy",
-    "goal",
-    "decision_question",
-    "out_of_scope",
+    "prompt_id", "short_title", "prompt_mode", "preferred_codex_model",
+    "reasoning_level", "delegation_policy", "model_selection_rationale",
+    "allowed_to_modify", "read_only", "branch_policy", "reference_branch",
+    "target_branch", "feature_branch", "current_baseline_branch",
+    "comparison_baseline", "integrated_baseline_mode", "dirty_worktree_policy",
+    "preflight_profile", "preflight_scope_paths", "validation_ceiling",
+    "heavy_command_permissions", "do_not_commit", "commit_expected",
+    "commit_message_policy", "goal", "decision_question", "out_of_scope",
 }
-REPAIRABLE_FIELDS = {
-    "workspace_root",
-    "repo_locations",
-    "current_checked_out_branch",
-    "current_baseline_branch",
-    "report_path",
-    "patch_path",
-    "patch_kind_expected",
-    "source_control_policy",
-    "final_chat_deliverable",
-    "evidence_requirements",
-    "classification_rules",
-    "anti_self_certification_rules",
-    "evidence_validation_method",
+FIXED_SKILL_FIELDS = {
+    "workspace_root", "repo_locations", "current_checked_out_branch",
+    "current_repository_heads", "evidence_requirements",
+    "evidence_validation_method", "diagnostics_root", "report_path",
+    "patch_path", "patch_kind_expected", "source_control_policy",
+    "final_chat_deliverable", "classification_rules",
+    "anti_self_certification_rules", "governance_binding_expectations",
 }
+REQUIRED_AUTHOR_FIELDS = {
+    "prompt_id", "short_title", "prompt_mode", "preferred_codex_model",
+    "reasoning_level", "delegation_policy", "model_selection_rationale",
+    "allowed_to_modify", "read_only", "branch_policy",
+    "current_baseline_branch", "comparison_baseline", "integrated_baseline_mode",
+    "dirty_worktree_policy", "preflight_profile", "preflight_scope_paths",
+    "validation_ceiling", "heavy_command_permissions", "do_not_commit",
+    "commit_expected", "goal", "decision_question", "out_of_scope",
+}
+SUPPORTED_BRANCH_POLICIES = {
+    "continue_existing_branch",
+    "read_only_current_branch",
+}
+UNSUPPORTED_BRANCH_POLICIES = {
+    "create_feature_branch_from_reference",
+    "commit_preparation_on_existing_branch",
+}
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+DIAGNOSTIC_IDS = tuple(
+    [f"PROMPT-PREFLIGHT-E{index:03d}" for index in range(1, 21)]
+    + [f"PROMPT-PREFLIGHT-W{index:03d}" for index in range(1, 5)]
+)
+# PROMPT-PREFLIGHT-E013 is the stable reopening-failure identity; enforced
+# schema reopening reports E019 with E013 retained for catalog compatibility.
 
 
 @dataclass(frozen=True)
@@ -155,6 +135,16 @@ class Section:
     @property
     def sha256(self) -> str:
         return sha256_text(self.raw)
+
+
+@dataclass(frozen=True)
+class MappingOccurrence:
+    semantic_path: tuple[str, ...]
+    key: str
+    value: str
+    line: int
+    indent: int
+    raw_line: str
 
 
 class PreflightInputError(Exception):
@@ -209,13 +199,44 @@ def build_registry(registry: dict[str, Any]) -> tuple[dict[str, tuple[str, str]]
         canonical_key = normalized_heading(canonical)
         if alias_key in lookup or canonical_key not in lookup:
             errors.append(alias)
-            continue
-        lookup[alias_key] = (lookup[canonical_key][0], lookup[canonical_key][1])
+        else:
+            lookup[alias_key] = lookup[canonical_key]
     return lookup, errors
 
 
 def _line_without_ending(line: str) -> str:
-    return line[:-2] if line.endswith("\r\n") else line[:-1] if line.endswith("\n") else line
+    if line.endswith("\r\n"):
+        return line[:-2]
+    if line.endswith("\n"):
+        return line[:-1]
+    return line
+
+
+def _permission_normal_form(text: str) -> str:
+    text = re.sub(r"[`*_~]", "", text.casefold())
+    return re.sub(r"[^a-z0-9_]+", " ", text)
+
+
+def unknown_is_normative(heading: str, raw: str, registry: dict[str, Any]) -> bool:
+    normal = _permission_normal_form(heading + "\n" + raw)
+    if re.search(r"\b(?:do\s+not|never|must\s+not|shall\s+not)\b", normal):
+        return True
+    modal = r"(?:may|can|must|should|shall|permitted|allowed|forbidden|required|optional)"
+    action = r"(?:edit|modify|change|write|delete|remove|create|stage|commit|push|publish|merge|switch|reset|restore|clean|install|execute|run|inspect|access|read)s?"
+    governed = r"(?:files?|paths?|repositories|repository|repos?|branches|refs?|heads?|baselines?|commits?|networks?|internet|environments?|dependencies|production|schedulers?|workers?|work\s+queues?|logs?|outputs?|pkls?|sidecars?)"
+    if re.search(rf"\b{modal}\b", normal):
+        return True
+    if re.search(rf"\b{action}\b(?:\s+\w+){{0,5}}\s+\b{governed}\b", normal):
+        return True
+    for line in raw.splitlines():
+        bullet = _permission_normal_form(line).strip()
+        if re.match(rf"^(?:[-+]\s*)?{action}\b", bullet):
+            return True
+    governed_keys = {item.casefold() for item in registry.get("governance_mapping_keys", [])}
+    for match in re.finditer(r"(?m)^\s*([A-Za-z_][A-Za-z0-9_]*):", raw):
+        if match.group(1).casefold() in governed_keys:
+            return True
+    return False
 
 
 def parse_sections(text: str, registry: dict[str, Any]) -> tuple[list[Section], list[Diagnostic], str]:
@@ -227,7 +248,6 @@ def parse_sections(text: str, registry: dict[str, Any]) -> tuple[list[Section], 
     lookup, registry_errors = build_registry(registry)
     if registry_errors:
         diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E003", "error", "The ownership registry contains duplicate or ambiguous aliases.", ", ".join(registry_errors), 0))
-
     starts: list[tuple[int, str]] = []
     fence_character = ""
     fence_length = 0
@@ -251,10 +271,10 @@ def parse_sections(text: str, registry: dict[str, Any]) -> tuple[list[Section], 
             starts.append((index, heading.group(1)))
     if fence_character:
         diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E002", "error", "The Markdown fence is not closed.", "<fence>", fence_line))
-
+    if not starts:
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", "The prompt has no level-2 structured task section.", "<prompt>", 0))
     sections: list[Section] = []
     seen: dict[str, str] = {}
-    permission_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in registry["permission_bearing_patterns"]]
     for position, (start, heading) in enumerate(starts):
         end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
         raw = "".join(lines[start:end])
@@ -268,59 +288,108 @@ def parse_sections(text: str, registry: dict[str, Any]) -> tuple[list[Section], 
             seen[duplicate_key] = heading
         else:
             canonical, ownership, alias_applied = heading, "author_owned", False
-            if any(pattern.search(heading + "\n" + raw) for pattern in permission_patterns):
-                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E004", "error", "An unknown section attempts to define permission-bearing semantics.", heading, start + 1))
+            if unknown_is_normative(heading, raw, registry):
+                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E004", "error", "An unknown section contains normative, capability, or permission semantics and requires classification.", heading, start + 1))
             else:
-                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-W003", "warning", "An unknown safe section is preserved as author-owned.", heading, start + 1))
+                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-W003", "warning", "An unknown descriptive section is preserved as author-owned.", heading, start + 1))
         sections.append(Section(heading, canonical, ownership, start + 1, end, raw, alias_applied))
     preamble_end = starts[0][0] if starts else len(lines)
     return sections, diagnostics, "".join(lines[:preamble_end])
 
 
 def section_body(section: Section) -> str:
-    lines = section.raw.splitlines(keepends=True)
-    return "".join(lines[1:])
+    return "".join(section.raw.splitlines(keepends=True)[1:])
 
 
-def mapping_payload(section: Section) -> str:
-    body = section_body(section)
-    lines = body.splitlines()
+def mapping_lines(section: Section) -> list[tuple[int, str]]:
+    body = section_body(section).splitlines()
     inside = False
-    fence = ""
-    collected: list[str] = []
-    found_fence = False
-    for line in lines:
+    fence_character = ""
+    fence_length = 0
+    found = False
+    collected: list[tuple[int, str]] = []
+    for offset, line in enumerate(body, 1):
+        line_number = section.start_line + offset
         if not inside:
             opening = re.match(r"^ {0,3}([`~]{3,})(?:text|yaml)?[ \t]*$", line, re.IGNORECASE)
-            if opening:
+            if opening and len(set(opening.group(1))) == 1:
                 inside = True
-                fence = opening.group(1)
-                found_fence = True
-            elif line.strip():
-                collected.append(line)
-        elif re.match(rf"^ {{0,3}}{re.escape(fence)}[ \t]*$", line):
-            inside = False
+                found = True
+                fence_character = opening.group(1)[0]
+                fence_length = len(opening.group(1))
+            elif not found:
+                collected.append((line_number, line))
         else:
-            collected.append(line)
-    return "\n".join(collected if found_fence else body.splitlines())
+            close = re.match(r"^ {0,3}([`~]+)[ \t]*$", line)
+            if close and close.group(1)[0] == fence_character and len(close.group(1)) == fence_length:
+                inside = False
+            else:
+                collected.append((line_number, line))
+    return collected
+
+
+def parse_mapping_occurrences(section: Section, diagnostics: list[Diagnostic]) -> list[MappingOccurrence]:
+    lines = mapping_lines(section)
+    occurrences: list[MappingOccurrence] = []
+    stack: dict[int, str] = {}
+    seen: dict[tuple[str, ...], int] = {}
+    for index, (line_number, line) in enumerate(lines):
+        if not line.strip() or line.lstrip().startswith(("#", "- ")):
+            continue
+        if "\t" in line[: len(line) - len(line.lstrip(" \t"))]:
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E017", "error", "Tabs are forbidden in structured mapping indentation.", section.source_heading, line_number))
+            continue
+        match = re.match(r"^( *)([A-Za-z_][A-Za-z0-9_]*):[ \t]*(.*)$", line)
+        if not match:
+            continue
+        indent = len(match.group(1))
+        if indent % 2 or (indent and indent - 2 not in stack):
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E017", "error", "Malformed indentation changes the structured semantic path.", section.source_heading, line_number))
+            continue
+        for level in list(stack):
+            if level >= indent:
+                del stack[level]
+        parents = tuple(stack[level] for level in sorted(stack) if level < indent)
+        key = match.group(2)
+        value = match.group(3).strip().strip("\"'")
+        if not value:
+            for _next_number, next_line in lines[index + 1:]:
+                if not next_line.strip():
+                    continue
+                next_indent = len(next_line) - len(next_line.lstrip(" "))
+                if next_indent <= indent:
+                    break
+                if re.match(r"^ *[A-Za-z_][A-Za-z0-9_]*:", next_line):
+                    break
+                value = next_line.strip().strip("\"'")
+                break
+        path = parents + (key,)
+        if path in seen:
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E016", "error", f"Duplicate semantic path {'.'.join(path)!r}; first line {seen[path]}, duplicate line {line_number}.", section.source_heading, line_number))
+        else:
+            seen[path] = line_number
+        occurrences.append(MappingOccurrence(path, key, value, line_number, indent, line))
+        stack[indent] = key
+    return occurrences
 
 
 def parse_top_level_fields(mapping: str) -> dict[str, str]:
     lines = mapping.splitlines()
-    starts: list[tuple[int, str]] = []
-    for index, line in enumerate(lines):
-        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):(?:.*)$", line)
-        if match:
-            starts.append((index, match.group(1)))
+    starts = [(index, match.group(1)) for index, line in enumerate(lines) if (match := re.match(r"^([A-Za-z_][A-Za-z0-9_]*):", line))]
     fields: dict[str, str] = {}
     for position, (start, key) in enumerate(starts):
         end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
-        fields.setdefault(key, "\n".join(lines[start:end]).rstrip())
+        if key not in fields:
+            fields[key] = "\n".join(lines[start:end]).rstrip()
     return fields
 
 
+def mapping_payload(section: Section) -> str:
+    return "\n".join(line for _number, line in mapping_lines(section))
+
+
 def scalar(field_block: str | None) -> str:
-    if not field_block:
+    if not field_block or ":" not in field_block.splitlines()[0]:
         return ""
     first, *rest = field_block.splitlines()
     value = first.split(":", 1)[1].strip()
@@ -342,14 +411,9 @@ def child_scalars(field_block: str | None) -> dict[str, str]:
 
 def fixed_git_read(repository: Path, *arguments: str) -> str:
     completed = subprocess.run(
-        ["git", "-C", str(repository), *arguments],
-        check=False,
-        shell=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        timeout=15,
+        ["git", "-C", str(repository), *arguments], check=False, shell=False,
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, timeout=15,
     )
     if completed.returncode:
         raise PreflightInputError(f"fixed Git read failed for {repository}: {completed.stderr.strip()}")
@@ -357,52 +421,50 @@ def fixed_git_read(repository: Path, *arguments: str) -> str:
 
 
 def live_repository_state(workspace_root: Path) -> dict[str, dict[str, str]]:
-    locations = {
-        "meta_repo": workspace_root,
-        "topeft": workspace_root / "topeft",
-        "topcoffea": workspace_root / "topcoffea",
-    }
-    return {
-        name: {
+    locations = {"meta_repo": workspace_root, "topeft": workspace_root / "topeft", "topcoffea": workspace_root / "topcoffea"}
+    state: dict[str, dict[str, str]] = {}
+    for name, path in locations.items():
+        if not path.is_dir() or not (path / ".git").exists():
+            raise PreflightInputError(f"governed repository is missing or not Git-backed: {name} at {path}")
+        state[name] = {
             "path": str(path),
             "branch": fixed_git_read(path, "branch", "--show-current"),
             "head": fixed_git_read(path, "rev-parse", "HEAD"),
+            "subject": fixed_git_read(path, "show", "-s", "--format=%s", "HEAD"),
         }
-        for name, path in locations.items()
-    }
+    return state
 
 
-def binding_diagnostics(workspace_root: Path, skill_root: Path) -> list[Diagnostic]:
-    binding_path = skill_root / "references/governance_binding.json"
-    if not binding_path.is_file():
-        return [Diagnostic("PROMPT-PREFLIGHT-E011", "error", "The prompt-preflight governance binding is missing.", "Governance-binding evidence", 0)]
-    binding = load_json(binding_path)
-    agents_hash = sha256_bytes((workspace_root / "AGENTS.md").read_bytes())
-    cpc_hash = sha256_bytes((workspace_root / "CPC.md").read_bytes())
-    if binding.get("agents_sha256") != agents_hash or binding.get("cpc_sha256") != cpc_hash:
-        return [Diagnostic("PROMPT-PREFLIGHT-E011", "error", "The prompt-preflight governance binding is stale.", "Governance-binding evidence", 0)]
-    return []
-
-
-def merge_semantic_fields(sections: list[Section]) -> tuple[dict[str, str], list[dict[str, Any]]]:
+def merge_semantic_fields(sections: list[Section], diagnostics: list[Diagnostic] | None = None) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    diagnostics = diagnostics if diagnostics is not None else []
     fields: dict[str, str] = {}
     records: list[dict[str, Any]] = []
+    global_paths: dict[tuple[str, ...], tuple[str, int]] = {}
     for section in sections:
         if section.ownership != "shared_structured" and section.canonical_heading != "Metadata and governance":
             continue
-        for key, block in parse_top_level_fields(mapping_payload(section)).items():
-            record = {
-                "field": key,
-                "source_section": section.source_heading,
-                "source_text": block,
-                "source_sha256": sha256_text(block),
-            }
-            if key in fields and fields[key] != block:
-                record["conflict"] = True
+        payload = mapping_payload(section)
+        top_fields = parse_top_level_fields(payload)
+        occurrences = parse_mapping_occurrences(section, diagnostics)
+        for occurrence in occurrences:
+            if occurrence.semantic_path in global_paths:
+                old_section, old_line = global_paths[occurrence.semantic_path]
+                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E016", "error", f"Duplicate semantic path {'.'.join(occurrence.semantic_path)!r}; first at {old_section}:{old_line}.", section.source_heading, occurrence.line))
             else:
-                fields.setdefault(key, block)
-                record["conflict"] = False
-            records.append(record)
+                global_paths[occurrence.semantic_path] = (section.source_heading, occurrence.line)
+            records.append({
+                "semantic_path": ".".join(occurrence.semantic_path),
+                "path_components": list(occurrence.semantic_path),
+                "field": occurrence.semantic_path[0],
+                "source_section": section.source_heading,
+                "source_line": occurrence.line,
+                "source_value": occurrence.value,
+                "source_text": occurrence.raw_line,
+                "source_sha256": sha256_text(occurrence.raw_line),
+            })
+        for key, block in top_fields.items():
+            if key not in fields:
+                fields[key] = block
     return fields, records
 
 
@@ -425,397 +487,483 @@ def mapping_block(name: str, values: dict[str, str]) -> str:
     return name + ":\n" + "\n".join(f"  {key}: {value}" for key, value in values.items())
 
 
-def add_repair(diagnostics: list[Diagnostic], repairs: list[dict[str, str]], field: str, reason: str) -> None:
+def nested_mapping_block(name: str, values: dict[str, dict[str, str]]) -> str:
+    lines = [name + ":"]
+    for outer, inner in values.items():
+        lines.append(f"  {outer}:")
+        lines.extend(f"    {key}: {value}" for key, value in inner.items())
+    return "\n".join(lines)
+
+
+def add_repair(diagnostics: list[Diagnostic], repairs: list[dict[str, str]], field: str, reason: str, replacement: bool = False) -> None:
     repairs.append({"field": field, "reason": reason})
-    diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-W002", "warning", f"Mechanical skill-owned repair applied: {reason}.", field, 0))
+    diagnostic_id = "PROMPT-PREFLIGHT-W004" if replacement else "PROMPT-PREFLIGHT-W002"
+    diagnostics.append(Diagnostic(diagnostic_id, "warning", reason + ".", field, 0))
 
 
-def complete_fields(
-    fields: dict[str, str],
-    sections: list[Section],
-    prompt_id: str,
-    workspace_root: Path,
-    live_state: dict[str, dict[str, str]],
-    contexts: dict[str, str],
-    diagnostics: list[Diagnostic],
-) -> tuple[dict[str, str], list[dict[str, str]]]:
+def records_by_path(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    output: dict[str, list[dict[str, Any]]] = {}
+    for record in records:
+        output.setdefault(record["semantic_path"], []).append(record)
+    return output
+
+
+def validate_branch_and_baseline(fields: dict[str, str], records: list[dict[str, Any]], live: dict[str, dict[str, str]], diagnostics: list[Diagnostic]) -> None:
+    paths = records_by_path(records)
+    repositories = set(live)
+    policies = child_scalars(fields.get("branch_policy"))
+    for unknown in sorted(set(policies) - repositories):
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Unknown repository in branch policy: {unknown}.", "branch_policy", 0))
+    if set(policies) != repositories:
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", "branch_policy must contain the complete governed repository set.", "branch_policy", 0))
+    branch_fields = {name: child_scalars(fields.get(name)) for name in ("current_checked_out_branch", "current_baseline_branch", "reference_branch", "target_branch", "feature_branch")}
+    for repository, state in live.items():
+        policy = policies.get(repository, "")
+        if policy in UNSUPPORTED_BRANCH_POLICIES or policy not in SUPPORTED_BRANCH_POLICIES:
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Unsupported prompt-preflight branch policy for {repository}: {policy or '<missing>'}.", "branch_policy", 0))
+            continue
+        expected = {
+            "current_checked_out_branch": state["branch"],
+            "current_baseline_branch": state["branch"],
+            "reference_branch": "none",
+            "feature_branch": "none",
+            "target_branch": state["branch"] if policy == "continue_existing_branch" else "none",
+        }
+        for field, expected_value in expected.items():
+            observed = branch_fields[field].get(repository, "")
+            if observed != expected_value:
+                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"{policy} requires {field}.{repository}={expected_value!r}; observed {observed or '<missing>'!r}.", field, 0))
+    comparison = scalar(fields.get("comparison_baseline"))
+    expected_baselines: dict[str, dict[str, str]] = {}
+    if comparison and COMMIT_RE.fullmatch(comparison):
+        if len(live) == 1:
+            only = next(iter(live))
+            expected_baselines[only] = {"expected_head": comparison}
+        else:
+            expected_baselines["meta_repo"] = {"expected_head": comparison}
+    else:
+        for repository in live:
+            prefix = f"comparison_baseline.{repository}."
+            expected_baselines[repository] = {}
+            for key in ("expected_head", "expected_subject"):
+                items = paths.get(prefix + key, [])
+                if items:
+                    expected_baselines[repository][key] = items[0]["source_value"]
+    for unknown_path in paths:
+        if unknown_path.startswith("comparison_baseline."):
+            parts = unknown_path.split(".")
+            if len(parts) > 1 and parts[1] not in live:
+                diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Unknown repository in comparison_baseline: {parts[1]}.", "comparison_baseline", 0))
+    for repository, state in live.items():
+        expected = expected_baselines.get(repository, {})
+        head = expected.get("expected_head", "")
+        if not COMMIT_RE.fullmatch(head):
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"comparison_baseline.{repository}.expected_head must be a full 40-hex commit.", "comparison_baseline", 0))
+        elif head != state["head"]:
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Stale baseline for {repository}: expected {head}, live {state['head']}.", "comparison_baseline", 0))
+        subject = expected.get("expected_subject")
+        if subject is not None and subject != state["subject"]:
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Baseline subject mismatch for {repository}: expected {subject!r}, live {state['subject']!r}.", "comparison_baseline", 0))
+
+
+def complete_fields(fields: dict[str, str], sections: list[Section], prompt_id: str, workspace_root: Path, live_state: dict[str, dict[str, str]], contexts: dict[str, str], diagnostics: list[Diagnostic], records: list[dict[str, Any]] | None = None) -> tuple[dict[str, str], list[dict[str, str]]]:
+    del contexts
     completed = dict(fields)
     repairs: list[dict[str, str]] = []
-    if not scalar(completed.get("goal")):
-        value = author_section_value(sections, "Goal")
-        if value:
-            completed["goal"] = field_block("goal", value)
-    if not scalar(completed.get("decision_question")):
-        value = author_section_value(sections, "Decision question")
-        if value:
-            completed["decision_question"] = field_block("decision_question", value)
-    if "out_of_scope" not in completed:
-        value = author_section_value(sections, "Out of scope")
-        if value:
-            completed["out_of_scope"] = field_block("out_of_scope", value)
-
+    for field, section_name in (("goal", "Goal"), ("decision_question", "Decision question"), ("out_of_scope", "Out of scope")):
+        if not scalar(completed.get(field)):
+            value = author_section_value(sections, section_name)
+            if value:
+                completed[field] = field_block(field, value)
+    short_title = scalar(completed.get("short_title")) or "unresolved_short_title"
+    safe_title = re.sub(r"[^A-Za-z0-9_.-]+", "_", short_title).strip("_") or "prompt"
+    diagnostics_root = workspace_root / "reports" / "diagnostics" / f"{prompt_id}_{safe_title}"
+    agents_hash = sha256_bytes((workspace_root / "AGENTS.md").read_bytes())
+    cpc_hash = sha256_bytes((workspace_root / "CPC.md").read_bytes())
+    prompt_mode = scalar(completed.get("prompt_mode"))
+    patch_kind = "prompt_local" if not prompt_mode or prompt_mode in {"coding", "documentation_only", "test_alignment_only", "commit_preparation"} else "empty_no_changes"
     fixed = {
         "workspace_root": field_block("workspace_root", str(workspace_root)),
         "repo_locations": mapping_block("repo_locations", {name: item["path"] for name, item in live_state.items()}),
         "current_checked_out_branch": mapping_block("current_checked_out_branch", {name: item["branch"] for name, item in live_state.items()}),
-        "current_baseline_branch": mapping_block("current_baseline_branch", {name: item["branch"] for name, item in live_state.items()}),
+        "current_repository_heads": mapping_block("current_repository_heads", {name: item["head"] for name, item in live_state.items()}),
+        "diagnostics_root": field_block("diagnostics_root", str(diagnostics_root)),
+        "report_path": field_block("report_path", str(diagnostics_root / f"{prompt_id}_report.md")),
+        "patch_path": field_block("patch_path", str(diagnostics_root / f"{prompt_id}_worktree_diff.patch")),
+        "patch_kind_expected": field_block("patch_kind_expected", patch_kind),
         "source_control_policy": "source_control_policy:\n  - inherit live AGENTS defaults\n  - stage exact authorized paths only\n  - no remote mutation without explicit authority",
-        "report_path": field_block("report_path", str(workspace_root / "reports/diagnostics" / prompt_id / f"{prompt_id}_report.md")),
-        "patch_path": field_block("patch_path", str(workspace_root / "reports/diagnostics" / prompt_id / f"{prompt_id}_worktree_diff.patch")),
-        "final_chat_deliverable": "final_chat_deliverable:\n  final_status, decision_question, branch and HEAD, files changed, validation results, report path, patch path, commit hash, caveats, recommended next action, and final cleanliness",
+        "final_chat_deliverable": "final_chat_deliverable:\n  final status, decision question, live branch and HEAD observations, files changed, validation, report, patch, commit, caveats, next action, and cleanliness",
+        "evidence_requirements": "evidence_requirements:\n  ordered_method:\n" + "\n".join(f"    - {phase}" for phase in EVIDENCE_SEQUENCE),
+        "evidence_validation_method": field_block("evidence_validation_method", EVIDENCE_COMPACT),
+        "classification_rules": "classification_rules:\n  - preserve author-owned content exactly\n  - validate shared intent without invention\n  - generate fixed skill-owned governance from live state",
+        "anti_self_certification_rules": "anti_self_certification_rules:\n  - reopen serialized artifacts\n  - compare source and canonical hashes\n  - reject task action before readiness",
+        "governance_binding_expectations": "governance_binding_expectations:\n  agents_sha256: " + agents_hash + "\n  cpc_sha256: " + cpc_hash,
     }
     for name, block in fixed.items():
-        if name not in completed or not scalar(completed.get(name)):
-            completed[name] = block
-            add_repair(diagnostics, repairs, name, f"generated missing {name}")
-
-    valid_patch_kinds = {"prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes"}
-    if scalar(completed.get("patch_kind_expected")) not in valid_patch_kinds:
-        completed["patch_kind_expected"] = "patch_kind_expected: prompt_local"
-        add_repair(diagnostics, repairs, "patch_kind_expected", "used prompt-contract vocabulary prompt_local")
-
-    branch_policy = completed.get("branch_policy")
-    if branch_policy and not child_scalars(branch_policy):
-        value = scalar(branch_policy)
-        if value:
-            completed["branch_policy"] = mapping_block("branch_policy", {name: value for name in live_state})
-            add_repair(diagnostics, repairs, "branch_policy", "expanded scalar branch policy into the repository triplet")
-    policies = child_scalars(completed.get("branch_policy"))
-    for field in ("reference_branch", "target_branch", "feature_branch"):
-        values = child_scalars(completed.get(field))
-        if not values and policies:
-            generated: dict[str, str] = {}
-            blocked = False
-            for repository, policy in policies.items():
-                if field == "target_branch" and policy in {"continue_existing_branch", "commit_preparation_on_existing_branch"}:
-                    diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", f"{field}.{repository} is an author decision and is missing.", field, 0))
-                    blocked = True
-                elif field == "feature_branch" and policy == "create_feature_branch_from_reference":
-                    diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", f"{field}.{repository} is an author decision and is missing.", field, 0))
-                    blocked = True
-                elif field == "reference_branch" and policy == "create_feature_branch_from_reference":
-                    diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", f"{field}.{repository} is an author decision and is missing.", field, 0))
-                    blocked = True
-                else:
-                    generated[repository] = "none"
-            if not blocked:
-                completed[field] = mapping_block(field, generated)
-                add_repair(diagnostics, repairs, field, f"completed inapplicable {field} repository triplet")
-
-    evidence_block = "evidence_requirements:\n  ordered_method:\n" + "\n".join(f"    - {phase}" for phase in EVIDENCE_SEQUENCE)
-    evidence_fixed = {
-        "evidence_requirements": evidence_block,
-        "classification_rules": "classification_rules:\n  - classify only after reopening serialized evidence",
-        "anti_self_certification_rules": "anti_self_certification_rules:\n  - do not copy expected values into observed evidence",
-        "evidence_validation_method": field_block("evidence_validation_method", EVIDENCE_COMPACT),
-    }
-    if contexts["evidence_round"] == "yes":
-        for name, block in evidence_fixed.items():
-            if name not in completed or (name == "evidence_validation_method" and scalar(completed.get(name)) != EVIDENCE_COMPACT):
-                completed[name] = block
-                add_repair(diagnostics, repairs, name, f"generated canonical {name}")
-
-    required = (
-        "prompt_id", "short_title", "prompt_mode", "preferred_codex_model",
-        "reasoning_level", "delegation_policy", "model_selection_rationale",
-        "allowed_to_modify", "read_only", "branch_policy", "comparison_baseline",
-        "integrated_baseline_mode", "dirty_worktree_policy", "preflight_profile",
-        "preflight_scope_paths", "validation_ceiling", "heavy_command_permissions",
-        "do_not_commit", "commit_expected", "commit_message_policy", "goal",
-        "decision_question", "out_of_scope",
-    )
-    for name in required:
-        if name not in completed or not scalar(completed.get(name)):
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", f"Required shared semantic decision {name!r} is missing.", name, 0))
-    if scalar(completed.get("do_not_commit")) == scalar(completed.get("commit_expected")) and scalar(completed.get("do_not_commit")) in {"yes", "no"}:
-        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E009", "error", "do_not_commit and commit_expected must be logical opposites.", "Commit policy", 0))
-
-    for repository, declared in child_scalars(completed.get("current_checked_out_branch")).items():
-        if repository in live_state and declared != live_state[repository]["branch"]:
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", f"Declared branch {declared!r} does not match the live read-only branch.", repository, 0))
+        previous = completed.get(name)
+        completed[name] = block
+        if previous != block:
+            add_repair(diagnostics, repairs, name, f"Generated authoritative skill-owned field {name}", replacement=bool(previous))
+    for required in sorted(REQUIRED_AUTHOR_FIELDS):
+        if not scalar(completed.get(required)) and not child_scalars(completed.get(required)):
+            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E005", "error", f"Required author semantic decision {required!r} is missing.", required, 0))
+    commit_expected = scalar(completed.get("commit_expected"))
+    do_not_commit = scalar(completed.get("do_not_commit"))
+    if commit_expected not in {"yes", "no"} or do_not_commit not in {"yes", "no"} or commit_expected == do_not_commit:
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E009", "error", "Commit policy is unsupported or contradictory.", "commit policy", 0))
+    validate_branch_and_baseline(fields, records or [], live_state, diagnostics)
     return completed, repairs
 
 
-def generated_skill_sections(
-    prompt_id: str,
-    workspace_root: Path,
-    live_state: dict[str, dict[str, str]],
-) -> dict[str, str]:
+def generated_skill_sections(prompt_id: str, workspace_root: Path, live_state: dict[str, dict[str, str]]) -> dict[str, str]:
     agents_sha = sha256_bytes((workspace_root / "AGENTS.md").read_bytes())
     cpc_sha = sha256_bytes((workspace_root / "CPC.md").read_bytes())
     return {
-        "Prompt preflight result": "## Prompt preflight result\n\nCanonicalization completed; execution remains gated on the retained prompt-contract result.\n",
+        "Prompt preflight result": "## Prompt preflight result\n\nThe canonical task contract is inert until the state reaches `ready_for_same_session_execution`.\n",
         "Repository envelope": "## Repository envelope\n\n" + "\n".join(f"- `{name}`: `{item['branch']}` at `{item['head']}`" for name, item in live_state.items()) + "\n",
-        "Standard execution boundaries": "## Standard execution boundaries\n\nNo task-specific action is authorized before `ready_for_same_session_execution`.\n",
+        "Standard execution boundaries": "## Standard execution boundaries\n\nNo task action, prompt-authored execution, nested Codex session, wrapper handoff, marker, or publication is performed by preflight.\n",
         "Evidence-order contract": "## Evidence-order contract\n\n" + "\n".join(f"{index}. `{phase}`" for index, phase in enumerate(EVIDENCE_SEQUENCE, 1)) + f"\n\n`{EVIDENCE_COMPACT}`\n",
-        "Source-control policy": "## Source-control policy\n\nFollow live `AGENTS.md`; stage exact authorized paths only and perform no remote mutation without explicit authority.\n",
-        "Diagnostics and publication paths": f"## Diagnostics and publication paths\n\nDiagnostics derive deterministically from `{prompt_id}`. Publication authority is never inferred.\n",
-        "Standard report sections": "## Standard report sections\n\nReport the decision, evidence, validation, files, patch, commit, caveats, next action, and final cleanliness required by live governance.\n",
-        "Standard final-response fields": "## Standard final-response fields\n\nReturn final status, decision question, branch and HEAD, validation, files changed, commit, artifact paths, caveats, next action, and cleanliness.\n",
+        "Source-control policy": "## Source-control policy\n\nFollow live `AGENTS.md`; stage exact authorized paths only and infer no remote authority.\n",
+        "Diagnostics and publication paths": f"## Diagnostics and publication paths\n\nDiagnostics derive from `{prompt_id}` under `{workspace_root / 'reports' / 'diagnostics'}`. Publication authority is never inferred.\n",
+        "Standard report sections": "## Standard report sections\n\nReport the decision, evidence, validation, changed files, patch, commit, caveats, next action, and final cleanliness.\n",
+        "Standard final-response fields": "## Standard final-response fields\n\nReturn final status, decision question, live branch and HEAD, validation, files, commit, artifact paths, caveats, next action, and cleanliness.\n",
         "Governance-binding evidence": f"## Governance-binding evidence\n\n- `AGENTS.md`: `{agents_sha}`\n- `CPC.md`: `{cpc_sha}`\n",
     }
 
 
-def canonicalize(
-    prompt_id: str,
-    short_title: str,
-    fields: dict[str, str],
-    sections: list[Section],
-    workspace_root: Path,
-    live_state: dict[str, dict[str, str]],
-    diagnostics: list[Diagnostic],
-) -> tuple[str, list[dict[str, Any]]]:
+def canonicalize(prompt_id: str, short_title: str, fields: dict[str, str], sections: list[Section], workspace_root: Path, live_state: dict[str, dict[str, str]], diagnostics: list[Diagnostic], preamble: str | None = None) -> tuple[str, list[dict[str, Any]]]:
+    del short_title
     metadata = "\n\n".join(fields[name] for name in FIELD_ORDER if name in fields)
     skill_sections = generated_skill_sections(prompt_id, workspace_root, live_state)
-    generated_parts = [f"# Prompt `{prompt_id}` — `{short_title}`\n\n## Metadata and governance\n\n```text\n{metadata}\n```\n"]
-    generated_parts.extend("\n" + skill_sections[name] for name in skill_sections)
-    preserved = [section.raw for section in sections if section.ownership != "skill_owned"]
-    canonical = "".join(generated_parts) + "\n" + "".join(preserved)
+    if preamble is None:
+        preamble = f"# Prompt `{prompt_id}`\n\n"
+    canonical = preamble + "## Metadata and governance\n\n```text\n" + metadata + "\n```\n\n"
+    canonical += "\n".join(skill_sections.values()) + "\n"
+    canonical += "".join(section.raw for section in sections if section.ownership != "skill_owned")
     if not canonical.endswith("\n"):
         canonical += "\n"
-
-    generated_hashes = {"Metadata and governance": sha256_text(f"## Metadata and governance\n\n```text\n{metadata}\n```\n")}
-    generated_hashes.update({name: sha256_text(raw) for name, raw in skill_sections.items()})
-    manifest: list[dict[str, Any]] = []
+    manifest: list[dict[str, Any]] = [{
+        "source_heading": "<preamble>", "canonical_heading": "<preamble>",
+        "ownership": "author_owned", "source_start_line": 1,
+        "source_end_line": len(preamble.splitlines()), "source_sha256": sha256_text(preamble),
+        "canonical_sha256": sha256_text(preamble), "preserved_exactly": canonical.startswith(preamble),
+        "alias_applied": False, "authoritative_in_canonical": True,
+    }]
+    if not manifest[0]["preserved_exactly"]:
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E007", "error", "The complete prompt preamble changed.", "<preamble>", 1))
+    generated_hashes = {name: sha256_text(raw) for name, raw in skill_sections.items()}
+    generated_hashes["Metadata and governance"] = sha256_text("## Metadata and governance\n\n```text\n" + metadata + "\n```\n")
     for section in sections:
         authoritative = section.ownership != "skill_owned"
-        if authoritative:
-            count = canonical.count(section.raw)
-            canonical_hash = section.sha256 if count == 1 else ""
-            preserved_exactly = count == 1 and canonical_hash == section.sha256
-        else:
-            canonical_hash = generated_hashes.get(section.canonical_heading, "")
-            preserved_exactly = False
+        count = canonical.count(section.raw) if authoritative else 0
+        canonical_hash = section.sha256 if count == 1 else generated_hashes.get(section.canonical_heading, "")
+        preserved = authoritative and count == 1 and canonical_hash == section.sha256
+        if section.ownership == "skill_owned":
             diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-W001", "warning", "Authored skill-owned content was replaced in the canonical prompt.", section.source_heading, section.start_line))
-        manifest.append({
-            "source_heading": section.source_heading,
-            "canonical_heading": section.canonical_heading,
-            "ownership": section.ownership,
-            "source_start_line": section.start_line,
-            "source_end_line": section.end_line,
-            "source_sha256": section.sha256,
-            "canonical_sha256": canonical_hash,
-            "preserved_exactly": preserved_exactly,
-            "alias_applied": section.alias_applied,
-            "authoritative_in_canonical": authoritative,
-        })
-        if section.ownership == "author_owned" and not preserved_exactly:
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E007", "error", "Author-owned section bytes changed or became ambiguous in the canonical prompt.", section.source_heading, section.start_line))
-        if section.ownership == "shared_structured" and not preserved_exactly:
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E008", "error", "Shared-structured source bytes changed or became ambiguous in the canonical prompt.", section.source_heading, section.start_line))
+        elif not preserved:
+            code = "PROMPT-PREFLIGHT-E007" if section.ownership == "author_owned" else "PROMPT-PREFLIGHT-E008"
+            diagnostics.append(Diagnostic(code, "error", "Owned source bytes changed or became ambiguous in canonical output.", section.source_heading, section.start_line))
+        manifest.append({"source_heading": section.source_heading, "canonical_heading": section.canonical_heading, "ownership": section.ownership, "source_start_line": section.start_line, "source_end_line": section.end_line, "source_sha256": section.sha256, "canonical_sha256": canonical_hash, "preserved_exactly": preserved, "alias_applied": section.alias_applied, "authoritative_in_canonical": authoritative})
     return canonical, manifest
 
 
 def transport_diagnostics(text: str) -> list[Diagnostic]:
-    lowered = text.casefold()
-    if "transport" not in lowered or "byte" not in lowered:
-        return []
-    safe = all(phrase in lowered for phrase in ("unavailable", "not required", "not claimed"))
-    claim = bool(re.search(r"(?:require|must|exact|identical|reproduce).{0,80}(?:transport|hidden).{0,40}bytes|(?:transport|hidden).{0,40}bytes.{0,80}(?:exact|identical|reproduce)", lowered, re.DOTALL))
-    return [] if safe or not claim else [Diagnostic("PROMPT-PREFLIGHT-E015", "error", "The prompt requires or claims inaccessible transport-byte identity.", "<prompt>", 0)]
+    normal = _permission_normal_form(text)
+    hidden = r"(?:hidden\s+)?(?:chat\s+transport|user\s+interface|composer|message\s+transport|unobservable\s+original)\s+bytes?"
+    requirement = r"(?:require|requires|required|must|verify|verifies|verified|claim|claims|claimed|condition|conditions|conditioned|exact|identical|identity)"
+    patterns = (rf"\b{requirement}\b(?:\s+\w+){{0,14}}\s+\b{hidden}\b", rf"\b{hidden}\b(?:\s+\w+){{0,14}}\s+\b{requirement}\b")
+    if any(re.search(pattern, normal) for pattern in patterns):
+        return [Diagnostic("PROMPT-PREFLIGHT-E015", "error", "The prompt requires, claims, verifies, or conditions acceptance on inaccessible transport-byte identity.", "<prompt>", 0)]
+    return []
 
 
-def invoke_prompt_contract(
-    workspace_root: Path,
-    canonical_path: Path,
-    contexts: dict[str, str],
-) -> tuple[dict[str, Any], int]:
+def binding_diagnostics(workspace_root: Path, skill_root: Path) -> list[Diagnostic]:
+    path = skill_root / "references/governance_binding.json"
+    if not path.is_file():
+        return [Diagnostic("PROMPT-PREFLIGHT-E011", "error", "The prompt-preflight governance binding is missing.", "Governance-binding evidence", 0)]
+    binding = load_json(path)
+    agents_hash = sha256_bytes((workspace_root / "AGENTS.md").read_bytes())
+    cpc_hash = sha256_bytes((workspace_root / "CPC.md").read_bytes())
+    if binding.get("agents_sha256") != agents_hash or binding.get("cpc_sha256") != cpc_hash:
+        return [Diagnostic("PROMPT-PREFLIGHT-E011", "error", "The prompt-preflight governance binding is stale.", "Governance-binding evidence", 0)]
+    return []
+
+
+def invoke_prompt_contract(workspace_root: Path, canonical_path: Path, contexts: dict[str, str]) -> tuple[dict[str, Any], int]:
     validator = workspace_root / ".agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py"
-    argv = [
-        sys.executable,
-        str(validator),
-        "--workspace-root", str(workspace_root),
-        "--continuation", contexts["continuation"],
-        "--evidence-round", contexts["evidence_round"],
-        "--user-run-handoff", contexts["user_run_handoff"],
-        "--format", "json",
-        str(canonical_path),
-    ]
-    completed = subprocess.run(
-        argv,
-        check=False,
-        shell=False,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        timeout=60,
-        cwd=workspace_root,
-    )
+    argv = [sys.executable, str(validator), "--workspace-root", str(workspace_root), "--continuation", contexts["continuation"], "--evidence-round", contexts["evidence_round"], "--user-run-handoff", contexts["user_run_handoff"], "--format", "json", str(canonical_path)]
+    completed = subprocess.run(argv, check=False, shell=False, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
     try:
-        payload = json.loads(completed.stdout)
+        validation = json.loads(completed.stdout)
     except json.JSONDecodeError:
-        payload = {
-            "valid_schema": False,
-            "error_count": 1,
-            "warning_count": 0,
-            "diagnostics": [],
-            "stderr": completed.stderr,
-        }
-    payload["invoked"] = True
-    payload["subprocess_returncode"] = completed.returncode
-    payload["canonical_sha256_recomputed"] = sha256_bytes(canonical_path.read_bytes())
-    payload["validator_input_sha256_matches_canonical"] = payload.get("input", {}).get("sha256") == payload["canonical_sha256_recomputed"]
-    return payload, completed.returncode
+        validation = {"valid_schema": False, "error_count": 1, "warning_count": 0, "diagnostics": [], "stderr": completed.stderr, "stdout": completed.stdout}
+    canonical_hash = sha256_bytes(canonical_path.read_bytes())
+    validator_hash = validation.get("input", {}).get("sha256", "")
+    validation["validator_input_sha256"] = validator_hash
+    validation["canonical_prompt_sha256"] = canonical_hash
+    validation["validator_input_sha256_matches_canonical"] = validator_hash == canonical_hash
+    if not validation["validator_input_sha256_matches_canonical"]:
+        validation["error_count"] = int(validation.get("error_count", 0)) + 1
+    return validation, completed.returncode
+
+
+def transition_state(states: list[str], next_state: str, registry: dict[str, Any], renderer_owned: bool = True) -> None:
+    current = states[-1]
+    edge = [current, next_state]
+    if edge not in registry["allowed_transitions"] or (renderer_owned and next_state == "execution_started"):
+        raise PreflightBlocked(Diagnostic("PROMPT-PREFLIGHT-E020", "error", f"Unregistered or renderer-forbidden state transition: {current} -> {next_state}.", "preflight_state", 0))
+    states.append(next_state)
+
+
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _has_symlink_component(path: Path, stop: Path) -> bool:
+    current = path
+    while current != stop and current != current.parent:
+        if current.exists() and current.is_symlink():
+            return True
+        current = current.parent
+    return stop.is_symlink()
+
+
+def validate_paths(source_path: Path, output_root: Path, workspace_root: Path) -> list[Diagnostic]:
+    diagnostics_root = (workspace_root / "reports" / "diagnostics").resolve()
+    source_absolute = source_path if source_path.is_absolute() else Path.cwd() / source_path
+    output_absolute = output_root if output_root.is_absolute() else Path.cwd() / output_root
+    try:
+        source_resolved = source_absolute.resolve(strict=True)
+    except OSError:
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Source capture does not resolve to an existing regular diagnostics file.", str(source_path), 0)]
+    if not _inside(source_absolute.absolute(), diagnostics_root) or not _inside(source_resolved, diagnostics_root):
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Source capture escapes the diagnostics root.", str(source_path), 0)]
+    source_mode = source_absolute.lstat().st_mode
+    if stat.S_ISLNK(source_mode) or not stat.S_ISREG(source_mode) or _has_symlink_component(source_absolute.parent, diagnostics_root):
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Source capture must be a regular nonsymlink diagnostics file.", str(source_path), 0)]
+    output_lexical = Path(os.path.abspath(str(output_absolute)))
+    if not _inside(output_lexical, diagnostics_root):
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Output root escapes the diagnostics root.", str(output_root), 0)]
+    if output_lexical.exists():
+        return [Diagnostic("PROMPT-PREFLIGHT-E012", "error", "The output root already exists; overwrite and resume are forbidden.", str(output_root), 0)]
+    parent = output_lexical.parent
+    try:
+        parent_resolved = parent.resolve(strict=True)
+    except OSError:
+        parent_resolved = parent.resolve(strict=False)
+    if not _inside(parent_resolved, diagnostics_root) or _has_symlink_component(parent, diagnostics_root):
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Output root has a resolved or symlink traversal outside diagnostics.", str(output_root), 0)]
+    if output_lexical == source_absolute.parent.absolute():
+        return [Diagnostic("PROMPT-PREFLIGHT-E018", "error", "Output root cannot equal the source parent.", str(output_root), 0)]
+    return []
 
 
 def report_text(state: dict[str, Any], diagnostics: list[Diagnostic]) -> str:
-    lines = [
-        "# Prompt preflight report",
-        "",
-        f"- final_state: `{state['current_state']}`",
-        f"- blocking_error_count: `{state['blocking_error_count']}`",
-        f"- warning_count: `{state['warning_count']}`",
-        f"- canonical_prompt_sha256: `{state.get('canonical_prompt_sha256', 'unavailable')}`",
-        f"- prompt_contract_invoked: `{str(state.get('prompt_contract_invoked', False)).lower()}`",
-        "",
-        "## Repairs",
-        "",
-    ]
-    if state["repairs"]:
-        lines.extend(f"- `{item['field']}`: {item['reason']}" for item in state["repairs"])
-    else:
+    lines = ["# Prompt preflight report", "", "## Preflight result", "", f"- current_state: `{state['current_state']}`", f"- source_sha256: `{state.get('source_sha256', '')}`", f"- canonical_prompt_sha256: `{state.get('canonical_prompt_sha256', '')}`", f"- blocking_error_count: `{state['blocking_error_count']}`", f"- warning_count: `{state['warning_count']}`", "", "## Repairs", ""]
+    lines.extend(f"- `{item['field']}`: {item['reason']}" for item in state.get("repairs", []))
+    if not state.get("repairs"):
         lines.append("- none")
     lines.extend(["", "## Diagnostics", ""])
-    if diagnostics:
-        lines.extend(f"- {item.severity} `{item.id}` {item.section} (line {item.line or 'global'}): {item.message}" for item in diagnostics)
-    else:
+    lines.extend(f"- `{item.id}` [{item.severity}] {item.message}" for item in diagnostics)
+    if not diagnostics:
         lines.append("- none")
-    lines.extend(["", "## Execution boundary", "", "The renderer did not execute the task or launch Codex. Same-session task action is allowed only from `ready_for_same_session_execution`.", ""])
+    lines.extend(["", "## Governance hashes", "", f"- AGENTS.md: `{state.get('agents_sha256', '')}`", f"- CPC.md: `{state.get('cpc_sha256', '')}`", ""])
     return "\n".join(lines)
+
+
+def validate_csv(path: Path, exact_headers: list[str]) -> list[str]:
+    try:
+        with path.open(newline="", encoding="utf-8") as stream:
+            reader = csv.reader(stream)
+            rows = list(reader)
+    except (OSError, UnicodeError, csv.Error) as exc:
+        return [str(exc)]
+    if not rows or rows[0] != exact_headers:
+        return ["CSV header mismatch"]
+    return [f"row {index} has {len(row)} columns, expected {len(exact_headers)}" for index, row in enumerate(rows[1:], 2) if len(row) != len(exact_headers)]
+
+
+def validate_generated_artifacts(output_root: Path, state: dict[str, Any], require_canonical: bool = True) -> list[Diagnostic]:
+    failures: list[str] = []
+    reopening_failures: list[str] = []
+    required = set(OUTPUT_NAMES if require_canonical else ("authored_prompt.md", "section_manifest.json", "shared_value_manifest.json", "prompt_contract_validation.json", "preflight_state.json", "preflight_report.md"))
+    for name in required:
+        path = output_root / name
+        if not path.is_file():
+            failures.append(f"missing {name}")
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+            if name in JSON_OUTPUTS:
+                value = json.loads(content)
+                if not isinstance(value, (dict, list)):
+                    failures.append(f"{name} top-level type")
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            reopening_failures.append(f"{name}: {exc}")
+    if reopening_failures:
+        return [Diagnostic("PROMPT-PREFLIGHT-E013", "error", "Generated artifact reopening failed: " + "; ".join(reopening_failures), str(output_root), 0)]
+    if failures:
+        return [Diagnostic("PROMPT-PREFLIGHT-E019", "error", "Generated artifact schema validation failed: " + "; ".join(failures), str(output_root), 0)]
+    authored_hash = sha256_bytes((output_root / "authored_prompt.md").read_bytes())
+    if authored_hash != state.get("source_sha256"):
+        failures.append("authored_prompt source hash mismatch")
+    manifest = load_json(output_root / "shared_value_manifest.json")
+    if not isinstance(manifest.get("records"), list) or not isinstance(manifest.get("author_semantic_invention_count"), int) or not isinstance(manifest.get("author_semantic_change_count"), int):
+        failures.append("shared_value_manifest required keys or types")
+    sections = json.loads((output_root / "section_manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(sections, list) or not sections:
+        failures.append("section_manifest must be a nonempty list")
+    else:
+        required_keys = {"source_heading", "canonical_heading", "ownership", "source_start_line", "source_end_line", "source_sha256", "canonical_sha256", "preserved_exactly", "alias_applied", "authoritative_in_canonical"}
+        for index, item in enumerate(sections):
+            if not isinstance(item, dict) or not required_keys.issubset(item):
+                failures.append(f"section_manifest row {index} keys")
+                continue
+            if not SHA256_RE.fullmatch(item["source_sha256"]) or (item["canonical_sha256"] and not SHA256_RE.fullmatch(item["canonical_sha256"])):
+                failures.append(f"section_manifest row {index} hash syntax")
+            if not isinstance(item["source_start_line"], int) or not isinstance(item["source_end_line"], int) or item["source_end_line"] < item["source_start_line"]:
+                failures.append(f"section_manifest row {index} line range")
+    persisted_state = load_json(output_root / "preflight_state.json")
+    if persisted_state.get("states_visited") != state.get("states_visited") or persisted_state.get("current_state") != state.get("current_state"):
+        failures.append("preflight_state sequence mismatch")
+    if not all(SHA256_RE.fullmatch(state.get(key, "")) for key in ("source_sha256", "agents_sha256", "cpc_sha256")):
+        failures.append("state governance/source hash syntax")
+    report = (output_root / "preflight_report.md").read_text(encoding="utf-8")
+    for heading in ("# Prompt preflight report", "## Preflight result", "## Diagnostics", "## Governance hashes"):
+        if heading not in report:
+            failures.append(f"report missing {heading}")
+    if state["source_sha256"] not in report or state["agents_sha256"] not in report or state["cpc_sha256"] not in report:
+        failures.append("report missing embedded hashes")
+    if require_canonical:
+        canonical_hash = sha256_bytes((output_root / "canonical_prompt.md").read_bytes())
+        if canonical_hash != state.get("canonical_prompt_sha256"):
+            failures.append("canonical prompt hash mismatch")
+        validation = load_json(output_root / "prompt_contract_validation.json")
+        if validation.get("canonical_prompt_sha256") != canonical_hash or not validation.get("validator_input_sha256_matches_canonical"):
+            failures.append("prompt-contract cross-artifact hash mismatch")
+    return [] if not failures else [Diagnostic("PROMPT-PREFLIGHT-E019", "error", "Generated artifact schema validation failed: " + "; ".join(failures), str(output_root), 0)]
+
+
+def _write_json(path: Path, value: Any) -> None:
+    path.write_text(json_text(value), encoding="utf-8")
+
+
+def _blocked_without_output(diagnostic: Diagnostic) -> tuple[dict[str, Any], int]:
+    return {"current_state": "blocked_semantic_ambiguity", "blocking_error_count": 1, "warning_count": 0, "diagnostics": [asdict(diagnostic)], "task_execution_performed": False, "nested_codex_launched": False}, 3
+
+
+def run_preflight(source_path: Path, output_root: Path, workspace_root: Path, contexts: dict[str, str]) -> tuple[dict[str, Any], int]:
+    path_diagnostics = validate_paths(source_path, output_root, workspace_root)
+    if path_diagnostics:
+        return _blocked_without_output(path_diagnostics[0])
+    source_bytes = source_path.read_bytes()
+    try:
+        source_text = source_bytes.decode("utf-8")
+    except UnicodeError as exc:
+        raise PreflightInputError(f"source capture is not UTF-8: {exc}") from exc
+    skill_root = Path(__file__).resolve().parents[1]
+    registry = load_json(skill_root / "references/section_ownership.json")
+    schema = load_json(skill_root / "references/preflight_schema.json")
+    if registry.get("prompt_section_ownership_version") != OWNERSHIP_CONTRACT_VERSION or schema.get("schema_version") != SCHEMA_VERSION:
+        raise PreflightInputError("skill schema or ownership-contract version mismatch")
+    output_root.mkdir(parents=False, exist_ok=False)
+    (output_root / "authored_prompt.md").write_bytes(source_bytes)
+    states = ["not_triggered"]
+    transition_state(states, "source_captured", registry)
+    sections, diagnostics, preamble = parse_sections(source_text, registry)
+    diagnostics.extend(transport_diagnostics(source_text))
+    diagnostics.extend(binding_diagnostics(workspace_root, skill_root))
+    fields, shared_records = merge_semantic_fields(sections, diagnostics)
+    transition_state(states, "classified", registry)
+    prompt_id = scalar(fields.get("prompt_id")) or "unresolved_prompt_id"
+    live_state = live_repository_state(workspace_root)
+    completed, repairs = complete_fields(fields, sections, prompt_id, workspace_root, live_state, contexts, diagnostics, shared_records)
+    agents_hash = sha256_bytes((workspace_root / "AGENTS.md").read_bytes())
+    cpc_hash = sha256_bytes((workspace_root / "CPC.md").read_bytes())
+    source_hash = sha256_bytes(source_bytes)
+    blocking = [item for item in diagnostics if item.severity == "error"]
+    if blocking:
+        transition_state(states, "blocked_semantic_ambiguity", registry)
+        state = {"skill_version": SKILL_VERSION, "renderer_version": RENDERER_VERSION, "ownership_contract_version": OWNERSHIP_CONTRACT_VERSION, "schema_version": SCHEMA_VERSION, "current_state": states[-1], "states_visited": states, "source_representation": "normalized_visible_message_utf8", "source_sha256": source_hash, "canonical_prompt_sha256": "", "agents_sha256": agents_hash, "cpc_sha256": cpc_hash, "blocking_error_count": len(blocking), "warning_count": sum(item.severity == "warning" for item in diagnostics), "diagnostics": [asdict(item) for item in diagnostics], "repairs": repairs, "prompt_contract_invoked": False, "task_execution_performed": False, "nested_codex_launched": False}
+        section_manifest = [{"source_heading": "<preamble>", "canonical_heading": "<preamble>", "ownership": "author_owned", "source_start_line": 1, "source_end_line": len(preamble.splitlines()), "source_sha256": sha256_text(preamble), "canonical_sha256": "", "preserved_exactly": False, "alias_applied": False, "authoritative_in_canonical": False}]
+        _write_json(output_root / "section_manifest.json", section_manifest)
+        _write_json(output_root / "shared_value_manifest.json", {"records": shared_records, "author_semantic_invention_count": 0, "author_semantic_change_count": 0})
+        _write_json(output_root / "prompt_contract_validation.json", {"invoked": False, "error_count": 0, "warning_count": 0, "canonical_prompt_sha256": "", "validator_input_sha256_matches_canonical": False})
+        _write_json(output_root / "preflight_state.json", state)
+        (output_root / "preflight_report.md").write_text(report_text(state, diagnostics), encoding="utf-8")
+        schema_diags = validate_generated_artifacts(output_root, state, require_canonical=False)
+        if schema_diags:
+            state["diagnostics"].extend(asdict(item) for item in schema_diags)
+            state["blocking_error_count"] += len(schema_diags)
+            _write_json(output_root / "preflight_state.json", state)
+        return state, 3
+    short_title = scalar(completed.get("short_title")) or "unresolved_short_title"
+    canonical, section_manifest = canonicalize(prompt_id, short_title, completed, sections, workspace_root, live_state, diagnostics, preamble)
+    transition_state(states, "canonicalized", registry)
+    canonical_path = output_root / "canonical_prompt.md"
+    canonical_path.write_text(canonical, encoding="utf-8")
+    canonical_hash = sha256_bytes(canonical_path.read_bytes())
+    validation, validator_exit = invoke_prompt_contract(workspace_root, canonical_path, contexts)
+    if validator_exit or validation.get("error_count", 0) or not validation.get("validator_input_sha256_matches_canonical"):
+        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E010", "error", "The authoritative prompt-contract validator rejected the canonical prompt.", "Metadata and governance", 0))
+        transition_state(states, "blocked_prompt_contract", registry)
+        exit_code = 3
+    else:
+        transition_state(states, "prompt_contract_passed", registry)
+        exit_code = 0
+    for record in shared_records:
+        semantic = record["field"] in AUTHOR_SEMANTIC_FIELDS
+        record["semantic_value_preserved"] = semantic
+        record["mechanical_replacement"] = record["field"] in FIXED_SKILL_FIELDS
+        record["canonical_value"] = record["source_value"] if semantic else ""
+        record["canonical_sha256"] = record["source_sha256"] if semantic else ""
+    blocking = [item for item in diagnostics if item.severity == "error"]
+    state = {"skill_version": SKILL_VERSION, "renderer_version": RENDERER_VERSION, "ownership_contract_version": OWNERSHIP_CONTRACT_VERSION, "schema_version": SCHEMA_VERSION, "current_state": states[-1], "states_visited": states, "source_representation": "normalized_visible_message_utf8", "source_sha256": source_hash, "canonical_prompt_sha256": canonical_hash, "agents_sha256": agents_hash, "cpc_sha256": cpc_hash, "blocking_error_count": len(blocking), "warning_count": sum(item.severity == "warning" for item in diagnostics) + int(validation.get("warning_count", 0)), "diagnostics": [asdict(item) for item in diagnostics], "repairs": repairs, "prompt_contract_invoked": True, "prompt_contract_error_count": int(validation.get("error_count", 0)), "task_execution_performed": False, "nested_codex_launched": False}
+    _write_json(output_root / "section_manifest.json", section_manifest)
+    _write_json(output_root / "shared_value_manifest.json", {"records": shared_records, "author_semantic_invention_count": 0, "author_semantic_change_count": 0})
+    _write_json(output_root / "prompt_contract_validation.json", validation)
+    _write_json(output_root / "preflight_state.json", state)
+    (output_root / "preflight_report.md").write_text(report_text(state, diagnostics), encoding="utf-8")
+    schema_diags = validate_generated_artifacts(output_root, state, require_canonical=True)
+    if schema_diags and state["current_state"] == "prompt_contract_passed":
+        diagnostics.extend(schema_diags)
+        transition_state(states, "blocked_prompt_contract", registry)
+        state["current_state"] = states[-1]
+        state["states_visited"] = states
+        state["blocking_error_count"] += len(schema_diags)
+        state["diagnostics"] = [asdict(item) for item in diagnostics]
+        exit_code = 3
+    elif state["current_state"] == "prompt_contract_passed":
+        candidate_states = list(states)
+        transition_state(candidate_states, "ready_for_same_session_execution", registry)
+        state["current_state"] = candidate_states[-1]
+        state["states_visited"] = candidate_states
+        _write_json(output_root / "preflight_state.json", state)
+        (output_root / "preflight_report.md").write_text(report_text(state, diagnostics), encoding="utf-8")
+        final_schema = validate_generated_artifacts(output_root, state, require_canonical=True)
+        if final_schema:
+            diagnostics.extend(final_schema)
+            transition_state(states, "blocked_prompt_contract", registry)
+            state["current_state"] = states[-1]
+            state["states_visited"] = states
+            state["blocking_error_count"] += len(final_schema)
+            state["diagnostics"] = [asdict(item) for item in diagnostics]
+            exit_code = 3
+        else:
+            states = candidate_states
+    _write_json(output_root / "preflight_state.json", state)
+    (output_root / "preflight_report.md").write_text(report_text(state, diagnostics), encoding="utf-8")
+    return state, exit_code
 
 
 def assert_ready_for_task_action(state_path: Path) -> None:
     state = load_json(state_path)
     if state.get("current_state") != "ready_for_same_session_execution" or state.get("blocking_error_count") != 0:
         raise PreflightBlocked(Diagnostic("PROMPT-PREFLIGHT-E014", "error", "Task action was attempted before preflight passed.", "preflight_state", 0))
-
-
-def run_preflight(
-    source_path: Path,
-    output_root: Path,
-    workspace_root: Path,
-    contexts: dict[str, str],
-) -> tuple[dict[str, Any], int]:
-    if output_root.exists():
-        diagnostic = Diagnostic("PROMPT-PREFLIGHT-E012", "error", "The output root already exists; overwrite and resume are forbidden.", str(output_root), 0)
-        return {"current_state": "blocked_semantic_ambiguity", "blocking_error_count": 1, "diagnostics": [asdict(diagnostic)]}, 3
-    try:
-        source_bytes = source_path.read_bytes()
-        source_text = source_bytes.decode("utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise PreflightInputError(f"cannot read UTF-8 prompt source: {exc}") from exc
-
-    skill_root = Path(__file__).resolve().parents[1]
-    registry = load_json(skill_root / "references/section_ownership.json")
-    schema = load_json(skill_root / "references/preflight_schema.json")
-    if registry.get("prompt_section_ownership_version") != OWNERSHIP_CONTRACT_VERSION or schema.get("schema_version") != SCHEMA_VERSION:
-        raise PreflightInputError("skill schema or ownership-contract version mismatch")
-
-    output_root.mkdir(parents=True, exist_ok=False)
-    (output_root / "authored_prompt.md").write_bytes(source_bytes)
-    states = ["not_triggered", "source_captured"]
-    sections, diagnostics, _preamble = parse_sections(source_text, registry)
-    diagnostics.extend(transport_diagnostics(source_text))
-    diagnostics.extend(binding_diagnostics(workspace_root, skill_root))
-    states.append("classified")
-    fields, shared_records = merge_semantic_fields(sections)
-    prompt_id = scalar(fields.get("prompt_id"))
-    if not prompt_id:
-        diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E001", "error", "The trigger matched but prompt_id is missing.", "Task metadata or Metadata and governance", 0))
-        prompt_id = "unresolved_prompt_id"
-    live_state = live_repository_state(workspace_root)
-    fields, repairs = complete_fields(fields, sections, prompt_id, workspace_root, live_state, contexts, diagnostics)
-    short_title = scalar(fields.get("short_title")) or "unresolved_short_title"
-    canonical, section_manifest = canonicalize(prompt_id, short_title, fields, sections, workspace_root, live_state, diagnostics)
-    states.append("canonicalized")
-    canonical_path = output_root / "canonical_prompt.md"
-    canonical_path.write_text(canonical, encoding="utf-8")
-
-    for record in shared_records:
-        generated = fields.get(record["field"], "")
-        record["canonical_text"] = generated
-        record["canonical_sha256"] = sha256_text(generated) if generated else ""
-        record["semantic_value_preserved"] = record["source_text"] == generated
-        record["mechanical_repair"] = record["field"] in REPAIRABLE_FIELDS and record["source_text"] != generated
-        if record["field"] in AUTHOR_SEMANTIC_FIELDS and not record["semantic_value_preserved"]:
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E008", "error", "An author-supplied shared semantic value changed.", record["field"], 0))
-        if record.get("conflict") and record["field"] in AUTHOR_SEMANTIC_FIELDS:
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E006", "error", "Conflicting shared branch, baseline, or task values were supplied.", record["field"], 0))
-
-    blocking = [item for item in diagnostics if item.severity == "error"]
-    validation: dict[str, Any]
-    if blocking:
-        states.append("blocked_semantic_ambiguity")
-        validation = {
-            "invoked": False,
-            "valid_schema": False,
-            "error_count": 0,
-            "warning_count": 0,
-            "reason": "semantic ambiguity blocked validator invocation",
-            "canonical_sha256_recomputed": sha256_bytes(canonical_path.read_bytes()),
-        }
-        exit_code = 3
-    else:
-        validation, validator_returncode = invoke_prompt_contract(workspace_root, canonical_path, contexts)
-        if validator_returncode or validation.get("error_count") or not validation.get("validator_input_sha256_matches_canonical"):
-            diagnostics.append(Diagnostic("PROMPT-PREFLIGHT-E010", "error", "The installed prompt-contract validator rejected the canonical prompt or its input hash did not match.", "Metadata and governance", 0))
-            states.append("blocked_prompt_contract")
-            exit_code = 3
-        else:
-            states.extend(["prompt_contract_passed", "ready_for_same_session_execution"])
-            exit_code = 0
-
-    diagnostics = sorted(diagnostics, key=lambda item: (item.line if item.line else 10**9, item.id, item.section, item.message))
-    state = {
-        "skill_version": SKILL_VERSION,
-        "renderer_version": RENDERER_VERSION,
-        "schema_version": SCHEMA_VERSION,
-        "ownership_contract_version": OWNERSHIP_CONTRACT_VERSION,
-        "transport_byte_identity_claimed": False,
-        "source_representation": "normalized_visible_message_utf8",
-        "states_visited": states,
-        "current_state": states[-1],
-        "allowed_execution_transition": ["prompt_contract_passed", "ready_for_same_session_execution", "execution_started"],
-        "blocking_error_count": sum(item.severity == "error" for item in diagnostics),
-        "warning_count": sum(item.severity == "warning" for item in diagnostics),
-        "repairs": repairs,
-        "diagnostics": [asdict(item) for item in diagnostics],
-        "source_sha256": sha256_bytes(source_bytes),
-        "canonical_prompt_sha256": sha256_bytes(canonical_path.read_bytes()),
-        "prompt_contract_invoked": validation.get("invoked", False),
-        "task_execution_performed": False,
-        "nested_codex_launched": False,
-    }
-    artifacts = {
-        "section_manifest.json": section_manifest,
-        "shared_value_manifest.json": {
-            "records": shared_records,
-            "author_semantic_invention_count": 0,
-            "author_semantic_change_count": sum(record["field"] in AUTHOR_SEMANTIC_FIELDS and not record["semantic_value_preserved"] for record in shared_records),
-        },
-        "prompt_contract_validation.json": validation,
-        "preflight_state.json": state,
-    }
-    for name, value in artifacts.items():
-        (output_root / name).write_text(json_text(value), encoding="utf-8")
-    (output_root / "preflight_report.md").write_text(report_text(state, diagnostics), encoding="utf-8")
-
-    try:
-        for name in OUTPUT_NAMES:
-            path = output_root / name
-            if name.endswith(".json"):
-                json.loads(path.read_text(encoding="utf-8"))
-            else:
-                path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        diagnostic = Diagnostic("PROMPT-PREFLIGHT-E013", "error", f"Generated artifact reopening failed: {exc}", str(output_root), 0)
-        state["diagnostics"].append(asdict(diagnostic))
-        state["blocking_error_count"] += 1
-        state["current_state"] = "blocked_prompt_contract"
-        (output_root / "preflight_state.json").write_text(json_text(state), encoding="utf-8")
-        return state, 3
-    return state, exit_code
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -832,18 +980,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    contexts = {
-        "continuation": args.continuation,
-        "evidence_round": args.evidence_round,
-        "user_run_handoff": args.user_run_handoff,
-    }
+    contexts = {"continuation": args.continuation, "evidence_round": args.evidence_round, "user_run_handoff": args.user_run_handoff}
     try:
-        state, exit_code = run_preflight(
-            args.source_prompt.resolve(),
-            args.output_root.resolve(),
-            args.workspace_root.resolve(),
-            contexts,
-        )
+        state, exit_code = run_preflight(args.source_prompt, args.output_root, args.workspace_root.resolve(), contexts)
     except PreflightInputError as exc:
         print(f"input_error: {exc}", file=sys.stderr)
         return 2

@@ -1,5 +1,5 @@
 {
-  "prompt_section_ownership_version": "1.0.0",
+  "prompt_section_ownership_version": "1.0.1",
   "author_owned": [
     "Context",
     "Goal",
@@ -48,19 +48,32 @@
   },
   "multiplicity": {},
   "unknown_default": "author_owned",
-  "permission_bearing_patterns": [
-    "allowed(?:_to_modify| modification| modifications)?",
-    "forbidden|read[-_ ]?only|writable|write scope",
-    "repository|branch|baseline|\\bref\\b|commit|staging|push|publication",
-    "network|package|environment|cleanup|retry|resume|execution permission",
-    "production|scheduler|worker|work queue|log access|output access|pkl|sidecar",
-    "validation ceiling|prompt[-_ ]artifact"
+  "governance_mapping_keys": [
+    "allowed_to_modify",
+    "read_only",
+    "branch_policy",
+    "reference_branch",
+    "target_branch",
+    "feature_branch",
+    "current_baseline_branch",
+    "comparison_baseline",
+    "commit_expected",
+    "do_not_commit",
+    "commit_message_policy",
+    "validation_ceiling",
+    "heavy_command_permissions",
+    "network_access",
+    "remote_git_write",
+    "pr_or_mr_write",
+    "pr_or_mr_merge",
+    "production_isolation_overrides",
+    "patch_kind_expected"
   ],
   "diagnostics": {
-    "PROMPT-PREFLIGHT-E001": "trigger matched but prompt_id is missing",
+    "PROMPT-PREFLIGHT-E001": "trigger matched but prompt_id is missing or the prompt title is invalid",
     "PROMPT-PREFLIGHT-E002": "malformed or unclosed Markdown fence",
     "PROMPT-PREFLIGHT-E003": "duplicate or ambiguous owned section",
-    "PROMPT-PREFLIGHT-E004": "unknown permission-bearing section",
+    "PROMPT-PREFLIGHT-E004": "unknown normative or permission-bearing section",
     "PROMPT-PREFLIGHT-E005": "missing shared authorization value",
     "PROMPT-PREFLIGHT-E006": "conflicting branch or baseline value",
     "PROMPT-PREFLIGHT-E007": "author-owned content changed",
@@ -72,9 +85,15 @@
     "PROMPT-PREFLIGHT-E013": "canonical output reopening failed",
     "PROMPT-PREFLIGHT-E014": "task action attempted before preflight pass",
     "PROMPT-PREFLIGHT-E015": "transport-byte identity was required or claimed",
+    "PROMPT-PREFLIGHT-E016": "duplicate structured semantic path",
+    "PROMPT-PREFLIGHT-E017": "malformed structured mapping indentation",
+    "PROMPT-PREFLIGHT-E018": "diagnostics path confinement failed",
+    "PROMPT-PREFLIGHT-E019": "generated artifact schema validation failed",
+    "PROMPT-PREFLIGHT-E020": "runtime state transition violated the closed graph",
     "PROMPT-PREFLIGHT-W001": "authored skill-owned section replaced in canonical output",
-    "PROMPT-PREFLIGHT-W002": "mechanical skill-owned repair applied",
-    "PROMPT-PREFLIGHT-W003": "unknown non-permission section preserved as author-owned"
+    "PROMPT-PREFLIGHT-W002": "missing skill-owned mechanical content generated",
+    "PROMPT-PREFLIGHT-W003": "unknown descriptive section preserved as author-owned",
+    "PROMPT-PREFLIGHT-W004": "authored fixed skill-owned value replaced"
   },
   "states": [
     "not_triggered",
@@ -90,11 +109,23 @@
   "allowed_transitions": [
     ["not_triggered", "source_captured"],
     ["source_captured", "classified"],
-    ["classified", "canonicalized"],
     ["classified", "blocked_semantic_ambiguity"],
-    ["canonicalized", "prompt_contract_passed"],
+    ["classified", "canonicalized"],
     ["canonicalized", "blocked_prompt_contract"],
+    ["canonicalized", "prompt_contract_passed"],
+    ["prompt_contract_passed", "blocked_prompt_contract"],
     ["prompt_contract_passed", "ready_for_same_session_execution"],
     ["ready_for_same_session_execution", "execution_started"]
-  ]
+  ],
+  "branch_policy_registry": {
+    "version": "1.0.1",
+    "supported": [
+      "continue_existing_branch",
+      "read_only_current_branch"
+    ],
+    "rejected_without_task_action": [
+      "create_feature_branch_from_reference",
+      "commit_preparation_on_existing_branch"
+    ]
+  }
 }

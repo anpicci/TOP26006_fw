@@ -1,4 +1,4 @@
 interface:
   display_name: "Correction-lib Prompt Preflight"
-  short_description: "Validate pasted Markdown prompts before task action"
+  short_description: "Validate and confine pasted Markdown prompts before task action"
   default_prompt: "Use $correction-lib-codex-prompt-preflight to preflight this pasted correction-lib Markdown prompt in the same session."

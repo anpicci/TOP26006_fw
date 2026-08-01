@@ -48,22 +48,32 @@ fragment.
 
 ## Ownership and ambiguity
 
-Read `references/section_ownership.json` for the complete version-1 registry,
-aliases, diagnostic catalog, permission-bearing terms, and state transitions.
+Read `references/section_ownership.json` for the complete version-1.0.1
+registry, aliases, diagnostic catalog, conservative unknown-section policy,
+closed branch tuples, and state transitions.
 Read `references/preflight_schema.json` when diagnosing generated artifacts.
 
-- Preserve every author-owned and safe unknown section exactly and in source
-  order. Never rewrite, summarize, normalize internally, or complete it.
+- Preserve the complete prompt preamble and every author-owned or safe unknown
+  section exactly and in source order. Never rewrite, summarize, normalize
+  internally, or complete them.
 - Preserve every shared-structured source section and semantic-value manifest.
   Validate values without inventing or silently changing them.
-- Generate only skill-owned sections. Replace authored skill-owned sections in
-  the canonical prompt and record the discrepancy.
+- Generate only skill-owned sections. Replace every fixed live observation and
+  authored skill-owned section in the canonical prompt and record the
+  discrepancy. Never use an authored branch, baseline, or permission value as
+  a live observation.
+- Reject duplicate structured semantic paths, malformed indentation, stale
+  repository baselines, incomplete branch tuples, transport-identity
+  requirements, and unknown normative or capability-bearing sections.
 - Block unknown permission-bearing sections and semantic ambiguity before any
   task-specific repository action.
 
 ## Outputs
 
-Require an absent output root. The renderer writes exactly:
+Require a regular nonsymlink source and an absent output root, both confined
+under the workspace diagnostics directory with no lexical, resolved, or
+symlink traversal. A canonical prompt is written only after semantic
+classification passes. A successful preflight writes exactly:
 
 ```text
 authored_prompt.md
@@ -75,10 +85,11 @@ preflight_state.json
 preflight_report.md
 ```
 
-Reopen every artifact. For every author-owned section require matching source
-and canonical SHA-256 and `preserved_exactly: true`. Require the installed
-prompt-contract validator's input SHA-256 to equal `canonical_prompt.md` and
-its error count to be zero.
+Reopen and schema-validate every artifact before publishing success. For the
+preamble and every author-owned section require matching source and canonical
+SHA-256 and `preserved_exactly: true`. Require the installed prompt-contract
+validator's input SHA-256 to equal `canonical_prompt.md` and its error count to
+be zero.
 
 ## Execution boundary
 
@@ -93,7 +104,8 @@ Do not refresh governance bindings automatically during preflight.
 
 ## Blocking handoff
 
-When blocked, retain the generated report and ask for clarification only after
-reporting the diagnostic IDs. Do not perform task-specific repository action.
-An existing output root is `PROMPT-PREFLIGHT-E012` and must not be overwritten
-or resumed.
+When blocked, retain diagnostic evidence and ask for clarification only after
+reporting the diagnostic IDs. A semantic block does not publish an executable
+canonical prompt. Do not perform task-specific repository action. An existing
+output root is `PROMPT-PREFLIGHT-E012`; path escape is
+`PROMPT-PREFLIGHT-E018`; neither may be overwritten, followed, or resumed.

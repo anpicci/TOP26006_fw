@@ -1492,7 +1492,7 @@ This trigger does not apply to ordinary conversation, quoted prompt excerpts
 whose first nonblank line is not `# Prompt`, file contents merely mentioned but
 not submitted as the current task prompt, or generated canonical prompts being
 reviewed as inert evidence. CPC.md
-`prompt_section_ownership_version: 1.0.0` is the sole detailed normative
+`prompt_section_ownership_version: 1.0.1` is the sole detailed normative
 ownership registry. The skill may narrowly invoke the fixed installed
 prompt-contract validator against its generated canonical prompt; this does not
 authorize task execution or automatic binding refresh.
@@ -1501,10 +1501,13 @@ authorize task execution or automatic binding refresh.
 logical_id: codex_prompt_preflight
 skill_name: correction-lib-codex-prompt-preflight
 path: .agents/skills/correction-lib-codex-prompt-preflight/SKILL.md
-version: 1.0.0
+version: 1.0.1
 trigger: mandatory preflight of a current manually pasted correction-lib Markdown prompt
 normative_sources: live AGENTS.md and CPC.md
 ```
 
 Skill availability does not authorize task-specific repository action. Such
-action remains blocked until same-session readiness is established.
+action remains blocked until same-session readiness is established. Version
+1.0.1 is an implementation candidate pending a later manually pasted
+live-trigger qualification; this corrective session cannot self-qualify its
+future automatic invocation.

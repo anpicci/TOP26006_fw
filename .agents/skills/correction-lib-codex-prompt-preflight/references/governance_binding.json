@@ -1,14 +1,14 @@
 {
-  "binding_version": "1.0.0",
-  "skill_version": "1.0.0",
-  "renderer_version": "1.0.0",
-  "ownership_contract_version": "1.0.0",
-  "schema_version": "1.0.0",
+  "binding_version": "1.0.1",
+  "skill_version": "1.0.1",
+  "renderer_version": "1.0.1",
+  "ownership_contract_version": "1.0.1",
+  "schema_version": "1.0.1",
   "workspace_root": "/users/apiccine/work/correction-lib",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "a21f747fa67fabcf81a9678024150b4e440e99a647b21424570fdfa9a4497077",
+  "agents_sha256": "321c4c120bd1a2e2416088466f8ccff57a9b8d165546423a00d8944657a75b51",
   "cpc_path": "CPC.md",
-  "cpc_sha256": "b0a9dafe8b56dadec53e25679ec0fcd227d2a7fed6ee90461682b88aadc3301f",
+  "cpc_sha256": "0a7f236637c062c421b01f2e7c6620e2e027b0742de93cdc53baed9cfefc3fed",
   "generated_at": "2026-08-01",
-  "reviewed_by": "same-session prompt preflight implementation"
+  "reviewed_by": "same-session prompt preflight hardening"
 }

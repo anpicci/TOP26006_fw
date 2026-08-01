@@ -1,4 +1,4 @@
-# Prompt `{prompt_id}` — `{short_title}`
+{preserved_author_owned_preamble}
 
 ## Metadata and governance
 

@@ -1058,7 +1058,7 @@ If a mandatory decision is inapplicable, state why.
 ## 17. Same-session Markdown section ownership
 
 ```text
-prompt_section_ownership_version: 1.0.0
+prompt_section_ownership_version: 1.0.1
 ```
 
 This section is the sole detailed normative registry for manually pasted
@@ -1074,6 +1074,12 @@ metadata` or `Metadata and governance`. The visible message is the authoritative
 authored Markdown source. A diagnostics-local source capture represents the
 normalized visible message received by Codex; hidden interface or transport
 bytes are unavailable, not required, and never claimed.
+
+Evaluate prohibited transport-identity language independently of safe
+disclaimers. Any requirement, claim, verification, or acceptance condition
+involving identity with hidden chat-transport, user-interface, composer,
+message-transport, or unobservable-original bytes blocks with
+`PROMPT-PREFLIGHT-E015`, regardless of safe language elsewhere.
 
 The trigger excludes ordinary conversation, quoted excerpts without an initial
 `# Prompt`, mentioned file contents that were not submitted as the current
@@ -1118,6 +1124,14 @@ The skill may inspect it for contradictions but must not summarize, rewrite,
 reorder, internally normalize, or complete it. Unknown safe sections default to
 author-owned under section 17.5.
 
+The complete source span from the first visible byte through the byte
+immediately before the first level-2 section is also author-owned. This prompt
+preamble includes the level-1 title, blank lines, prose, comments, code fences,
+nested headings, trailing spaces, and represented newlines. Preserve the span
+exactly, record its source and canonical SHA-256, and fail with
+`PROMPT-PREFLIGHT-E007` if it changes. A prompt without a level-2 structured
+task section is invalid.
+
 ### 17.3 `skill_owned`
 
 The skill deterministically generates:
@@ -1151,6 +1165,28 @@ and current governance-binding evidence. Legacy authored `Metadata and
 governance` mappings may supply shared semantic values for migration, but their
 skill-owned formatting and mechanical values remain nonauthoritative.
 
+The following live observations and fixed policy values are skill-owned and
+must be computed, compared with any authored legacy value, recorded when
+different, and unconditionally replaced in canonical metadata:
+
+```text
+workspace_root
+repo_locations
+current_checked_out_branch
+current repository HEAD observations
+exact evidence-order list
+exact evidence-order compact declaration
+diagnostics root
+derived report and patch paths
+prompt-contract artifact vocabulary
+standard report sections
+standard final-response fields
+governance hashes and binding expectations
+```
+
+An authored value in this list is audit input only. First-value-wins behavior
+must not make it authoritative.
+
 ### 17.4 `shared_structured`
 
 Shared-structured headings are:
@@ -1178,6 +1214,45 @@ subject, increase the validation ceiling, relax production isolation, or infer
 publication authority. Missing or ambiguous values in those categories are
 blocking, not repairable.
 
+Author intent includes `allowed_to_modify`, `read_only`, `branch_policy`,
+`reference_branch`, `target_branch`, `feature_branch`,
+`current_baseline_branch`, comparison-baseline expected heads and subjects,
+commit intent and subject, validation ceiling, production-isolation overrides,
+required outputs, and declared pre-existing changes. Parse fenced `text`
+mappings with an occurrence-preserving, indentation-aware parser. Retain every
+key occurrence and source line, reject duplicate semantic paths even when
+values match, reject malformed ownership-changing indentation, and never
+silently discard a later value.
+
+For every governed Git repository, independently read the live branch, full
+HEAD, and HEAD subject with fixed shell-false commands. Require and compare a
+full 40-hex expected HEAD; compare an expected subject when supplied. Accept
+legacy scalar comparison baselines only when repository meaning is
+unambiguous. Missing or unknown repositories and stale or conflicting values
+block before canonicalization and prompt-contract invocation.
+
+The version-1.0.1 closed branch tuples are:
+
+```text
+continue_existing_branch:
+  current_checked_out_branch: live branch
+  target_branch: live branch
+  current_baseline_branch: live branch
+  reference_branch: none
+  feature_branch: none
+
+read_only_current_branch:
+  current_checked_out_branch: live branch
+  target_branch: none
+  current_baseline_branch: live branch
+  reference_branch: none
+  feature_branch: none
+```
+
+`create_feature_branch_from_reference` and
+`commit_preparation_on_existing_branch` remain prompt-contract vocabulary but
+are rejected by preflight 1.0.1 until a complete tuple is versioned here.
+
 ### 17.5 Unknown and duplicate sections
 
 Unknown sections default to author-owned and remain in source order. An unknown
@@ -1198,6 +1273,19 @@ duplicate canonical shared or author-owned headings, duplicate aliases, and
 ambiguous aliases unless a later ownership-contract version explicitly permits
 multiplicity.
 
+Unknown content is safe only when demonstrably descriptive. Conservatively
+block modal or normative terms (`may`, `can`, `must`, `should`, `shall`,
+`permitted`, `allowed`, `forbidden`, `required`, `optional`), prohibitions such
+as `do not` or `never`, imperative governed actions, and mapping keys that
+overlap governance. Governed actions include editing, writing, deleting,
+creating, staging, committing, pushing, publishing, merging, switching,
+resetting, restoring, cleaning, installing, executing, running, inspecting,
+accessing, or reading governed files, paths, repositories, branches, refs,
+heads, baselines, commits, network, environment, dependencies, production,
+schedulers, workers, Work Queue, logs, outputs, PKLs, or sidecars. Normalize
+case, Markdown emphasis, punctuation, and plural variants; uncertain normative
+content blocks and requests classification.
+
 ### 17.6 Markdown and preservation contract
 
 Use a deterministic line-oriented parser with no third-party Markdown library.
@@ -1205,6 +1293,12 @@ Recognize level-2 sections only outside backtick or tilde code fences, require
 matching fence character and length, preserve nested headings as body content,
 and reject malformed or unclosed fences. Preserve each source line and newline
 in author-owned and shared sections.
+
+Confine the source capture and output root under
+`workspace_root/reports/diagnostics`. The source must be a regular nonsymlink
+file. The output must be absent, must not equal the source parent, and neither
+lexical, resolved, nor symlink traversal may escape diagnostics. Reject a path
+violation before creating output.
 
 Publish into an absent diagnostics-local root:
 
@@ -1223,6 +1317,14 @@ heading, ownership, source line bounds, source and canonical SHA-256,
 preservation, alias use, and canonical authority. Every author-owned section
 must have equal source/canonical hashes and `preserved_exactly: true`. Version 1
 preserves author-owned source order.
+
+The versioned `preflight_schema.json` is enforced, not descriptive. Close,
+reopen, and validate every generated JSON and Markdown artifact before
+publishing success, including required keys, types, enums, SHA-256 syntax,
+line ranges, state sequences, diagnostic records, required Markdown headings
+and hashes, and cross-artifact prompt/governance hashes. Test CSVs require
+exact headers and row shapes. A semantic block publishes diagnostic evidence
+without an executable canonical prompt.
 
 ### 17.7 Repair and ambiguity policy
 
@@ -1252,19 +1354,23 @@ validator input SHA-256 to equal the reopened canonical prompt SHA-256. The
 prompt-contract schema remains authoritative; do not reimplement it as a second
 authority.
 
-The closed states are:
+The closed runtime graph is:
 
 ```text
-not_triggered
-source_captured
-classified
-canonicalized
-prompt_contract_passed
-blocked_semantic_ambiguity
-blocked_prompt_contract
-ready_for_same_session_execution
-execution_started
+not_triggered -> source_captured
+source_captured -> classified
+classified -> blocked_semantic_ambiguity
+classified -> canonicalized
+canonicalized -> blocked_prompt_contract
+canonicalized -> prompt_contract_passed
+prompt_contract_passed -> blocked_prompt_contract
+prompt_contract_passed -> ready_for_same_session_execution
+ready_for_same_session_execution -> execution_started
 ```
+
+Every code path uses one transition function that checks and records each
+adjacent edge. The renderer cannot enter `execution_started`. Do not
+canonicalize after semantic ambiguity is known.
 
 Only Codex orchestration may record `execution_started`, after:
 
@@ -1281,7 +1387,7 @@ Task-specific repository action before readiness is blocking.
 
 ### 17.9 Stable diagnostics
 
-Version 1.0.0 has this closed catalog:
+Version 1.0.1 has this closed catalog:
 
 ```text
 PROMPT-PREFLIGHT-E001 trigger matched but prompt_id is missing
@@ -1299,9 +1405,15 @@ PROMPT-PREFLIGHT-E012 output root already exists
 PROMPT-PREFLIGHT-E013 canonical output reopening failed
 PROMPT-PREFLIGHT-E014 task action attempted before preflight pass
 PROMPT-PREFLIGHT-E015 transport-byte identity was required or claimed
+PROMPT-PREFLIGHT-E016 duplicate structured semantic path
+PROMPT-PREFLIGHT-E017 malformed structured mapping indentation
+PROMPT-PREFLIGHT-E018 diagnostics path confinement failed
+PROMPT-PREFLIGHT-E019 generated artifact schema validation failed
+PROMPT-PREFLIGHT-E020 runtime state transition violated the closed graph
 PROMPT-PREFLIGHT-W001 authored skill-owned section replaced in canonical output
-PROMPT-PREFLIGHT-W002 mechanical skill-owned repair applied
-PROMPT-PREFLIGHT-W003 unknown non-permission section preserved as author-owned
+PROMPT-PREFLIGHT-W002 missing skill-owned mechanical content generated
+PROMPT-PREFLIGHT-W003 unknown descriptive section preserved as author-owned
+PROMPT-PREFLIGHT-W004 authored fixed skill-owned value replaced
 ```
 
 Human and JSON diagnostics must be deterministic and equivalent. A later

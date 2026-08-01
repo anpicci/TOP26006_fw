@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "renderer_version": "1.0.0",
-  "ownership_contract_version": "1.0.0",
+  "schema_version": "1.0.1",
+  "renderer_version": "1.0.1",
+  "ownership_contract_version": "1.0.1",
   "primary_authoring_format": "markdown",
   "transport_identity": "unavailable_not_required_not_claimed",
   "evidence_sequence": [
@@ -12,18 +12,75 @@
     "derive_verdict"
   ],
   "evidence_sequence_compact": "collect_direct_evidence -> serialize_evidence -> reopen_and_validate_evidence -> classify_evidence -> derive_verdict",
-  "generated_artifacts": [
-    "authored_prompt.md",
-    "canonical_prompt.md",
-    "section_manifest.json",
-    "shared_value_manifest.json",
-    "prompt_contract_validation.json",
-    "preflight_state.json",
-    "preflight_report.md"
-  ],
+  "generated_artifacts": {
+    "authored_prompt.md": {
+      "type": "utf8_markdown",
+      "required": true,
+      "cross_hash": "preflight_state.source_sha256"
+    },
+    "canonical_prompt.md": {
+      "type": "utf8_markdown",
+      "required_when": "canonicalized",
+      "cross_hash": "preflight_state.canonical_prompt_sha256"
+    },
+    "section_manifest.json": {
+      "type": "array",
+      "required_item_keys": [
+        "source_heading",
+        "canonical_heading",
+        "ownership",
+        "source_start_line",
+        "source_end_line",
+        "source_sha256",
+        "canonical_sha256",
+        "preserved_exactly",
+        "alias_applied",
+        "authoritative_in_canonical"
+      ]
+    },
+    "shared_value_manifest.json": {
+      "type": "object",
+      "required_keys": [
+        "records",
+        "author_semantic_invention_count",
+        "author_semantic_change_count"
+      ]
+    },
+    "prompt_contract_validation.json": {
+      "type": "object",
+      "required_keys_when_invoked": [
+        "error_count",
+        "warning_count",
+        "canonical_prompt_sha256",
+        "validator_input_sha256_matches_canonical"
+      ]
+    },
+    "preflight_state.json": {
+      "type": "object",
+      "required_keys": [
+        "current_state",
+        "states_visited",
+        "source_sha256",
+        "agents_sha256",
+        "cpc_sha256",
+        "blocking_error_count",
+        "diagnostics"
+      ]
+    },
+    "preflight_report.md": {
+      "type": "utf8_markdown",
+      "required_headings": [
+        "# Prompt preflight report",
+        "## Preflight result",
+        "## Diagnostics",
+        "## Governance hashes"
+      ]
+    }
+  },
   "fixed_subprocesses": [
     "git branch --show-current",
     "git rev-parse HEAD",
+    "git show -s --format=%s HEAD",
     "correction-lib-prompt-contract/scripts/validate_prompt.py"
   ],
   "forbidden_interfaces": [

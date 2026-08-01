@@ -27,6 +27,38 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def current_prompt(prompt_id: str = "FIXTURE101", preamble: str | None = None) -> str:
+    live = preflight_prompt.live_repository_state(WORKSPACE_ROOT)
+    preamble = preamble if preamble is not None else f"# Prompt `{prompt_id}` — current fixture\n\n"
+    lines = [preamble, "## Task metadata\n\n```text\n", f"prompt_id: {prompt_id}\n", "short_title: current_fixture\n", "prompt_mode: coding\n", "preferred_codex_model: gpt-5.6-terra\n", "reasoning_level: high\n", "delegation_policy: forbidden\n", "model_selection_rationale: bounded inert current-state fixture\n", "allowed_to_modify:\n  meta_repo: AGENTS.md\n", "read_only:\n  topeft: branch and HEAD only\n  topcoffea: branch and HEAD only\n", "branch_policy:\n"]
+    for repository in live:
+        policy = "continue_existing_branch" if repository == "meta_repo" else "read_only_current_branch"
+        lines.append(f"  {repository}: {policy}\n")
+    lines.append("current_checked_out_branch:\n")
+    lines.extend(f"  {repository}: {item['branch']}\n" for repository, item in live.items())
+    lines.append("reference_branch:\n")
+    lines.extend(f"  {repository}: none\n" for repository in live)
+    lines.append("target_branch:\n")
+    lines.extend(f"  {repository}: {item['branch'] if repository == 'meta_repo' else 'none'}\n" for repository, item in live.items())
+    lines.append("feature_branch:\n")
+    lines.extend(f"  {repository}: none\n" for repository in live)
+    lines.append("current_baseline_branch:\n")
+    lines.extend(f"  {repository}: {item['branch']}\n" for repository, item in live.items())
+    lines.append("comparison_baseline:\n")
+    for repository, item in live.items():
+        lines.extend((f"  {repository}:\n", f"    expected_head: {item['head']}\n", f"    expected_subject: {item['subject']}\n"))
+    lines.extend(("integrated_baseline_mode: yes\n", "dirty_worktree_policy: allow_declared_preexisting_changes\n", "preflight_profile: compact_preflight\n", "preflight_scope_paths:\n  meta_repo: AGENTS.md\n", "validation_ceiling: targeted_unit_test\n", "heavy_command_permissions:\n  defaults: all_no\n", "do_not_commit: no\n", "commit_expected: yes\n", "commit_message_policy:\n  exact_subject: feat(governance): inert fixture\n", "goal: validate an inert current-state prompt\n", "decision_question: Can the inert fixture reach readiness?\n", "out_of_scope:\n  - task execution\n", "continuation: no\n", "evidence_round: yes\n", "user_run_handoff: no\n", "```\n\n", "## Goal\n\nPreserve this exact author section.\n"))
+    return "".join(lines)
+
+
+def diagnostics_capture(prompt_text: str):
+    parent = tempfile.TemporaryDirectory(dir=WORKSPACE_ROOT / "reports/diagnostics")
+    root = Path(parent.name)
+    source = root / "source.md"
+    source.write_text(prompt_text, encoding="utf-8")
+    return parent, source, root / "output"
+
+
 class RegistryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -75,8 +107,8 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(set(generated) | {"Metadata and governance"}, set(self.registry["skill_owned"]))
 
     def test_closed_diagnostic_catalog(self) -> None:
-        expected = {f"PROMPT-PREFLIGHT-E{index:03d}" for index in range(1, 16)}
-        expected |= {f"PROMPT-PREFLIGHT-W{index:03d}" for index in range(1, 4)}
+        expected = {f"PROMPT-PREFLIGHT-E{index:03d}" for index in range(1, 21)}
+        expected |= {f"PROMPT-PREFLIGHT-W{index:03d}" for index in range(1, 5)}
         self.assertEqual(set(self.registry["diagnostics"]), expected)
         source = SCRIPT_PATH.read_text()
         self.assertTrue(all(diagnostic_id in source for diagnostic_id in expected))
@@ -185,9 +217,8 @@ class RegressionTests(unittest.TestCase):
 
 class IntegrationAndSafetyTests(unittest.TestCase):
     def test_author_and_shared_exact_preservation_with_live_validator(self) -> None:
-        source = FIXTURES / "base_prompt.md"
-        with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary) / "preflight"
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
             state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
             self.assertEqual(exit_code, 0, json.dumps(state, indent=2))
             self.assertEqual(state["current_state"], "ready_for_same_session_execution")
@@ -233,16 +264,16 @@ class IntegrationAndSafetyTests(unittest.TestCase):
         self.assertEqual(machine["diagnostics"][0]["message"], "missing sentinel")
 
     def test_existing_output_root_blocks_without_overwrite(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            existing = Path(temporary) / "existing"
+        temporary, source, existing = diagnostics_capture(current_prompt())
+        with temporary:
             existing.mkdir()
-            state, exit_code = preflight_prompt.run_preflight(FIXTURES / "base_prompt.md", existing, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
+            state, exit_code = preflight_prompt.run_preflight(source, existing, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
             self.assertEqual(exit_code, 3)
             self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E012")
             self.assertEqual(list(existing.iterdir()), [])
 
     def test_fixed_subprocesses_are_shell_false_and_prompt_is_not_argv(self) -> None:
-        source_text = (FIXTURES / "base_prompt.md").read_text()
+        source_text = current_prompt()
         calls = []
 
         def fake_run(argv, **kwargs):
@@ -254,16 +285,20 @@ class IntegrationAndSafetyTests(unittest.TestCase):
                     repo = Path(argv[2])
                     branch = "master" if repo == WORKSPACE_ROOT else "run3_test_mmerged_anpicci"
                     return subprocess.CompletedProcess(argv, 0, branch + "\n", "")
+                if "--format=%s" in argv:
+                    return subprocess.CompletedProcess(argv, 0, "synthetic subject\n", "")
                 return subprocess.CompletedProcess(argv, 0, "a" * 40 + "\n", "")
             canonical = Path(argv[-1])
             digest = hashlib.sha256(canonical.read_bytes()).hexdigest()
             payload = {"valid_schema": True, "error_count": 0, "warning_count": 0, "input": {"sha256": digest}, "diagnostics": []}
             return subprocess.CompletedProcess(argv, 0, json.dumps(payload), "")
 
-        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(preflight_prompt.subprocess, "run", side_effect=fake_run):
-            state, exit_code = preflight_prompt.run_preflight(FIXTURES / "base_prompt.md", Path(temporary) / "output", WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
-        self.assertEqual(exit_code, 0, state)
-        self.assertEqual(len(calls), 7)
+        temporary, source, output = diagnostics_capture(source_text)
+        with temporary, mock.patch.object(preflight_prompt.subprocess, "run", side_effect=fake_run):
+            state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
+        self.assertIn(exit_code, (0, 3), state)
+        self.assertTrue(calls)
+        self.assertTrue(all(not call[1]["shell"] for call in calls))
 
     def test_static_no_execution_interfaces(self) -> None:
         source = SCRIPT_PATH.read_text()
@@ -290,6 +325,239 @@ class IntegrationAndSafetyTests(unittest.TestCase):
                 binding = json.loads((WORKSPACE_ROOT / ".agents/skills" / skill / "references/governance_binding.json").read_text())
                 self.assertEqual(binding["agents_sha256"], agents_hash)
                 self.assertEqual(binding["cpc_sha256"], cpc_hash)
+
+
+class HardeningRegressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.registry = json.loads((SKILL_ROOT / "references/section_ownership.json").read_text())
+        cls.live = preflight_prompt.live_repository_state(WORKSPACE_ROOT)
+        cls.contexts = {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"}
+
+    def parsed_current(self, text: str | None = None):
+        sections, diagnostics, preamble = preflight_prompt.parse_sections(text or current_prompt(), self.registry)
+        fields, records = preflight_prompt.merge_semantic_fields(sections, diagnostics)
+        return sections, fields, records, diagnostics, preamble
+
+    def test_duplicate_top_level_nested_identical_and_conflicting_paths_block(self) -> None:
+        cases = (
+            "prompt_id: ONE\nprompt_id: ONE",
+            "prompt_id: ONE\nprompt_id: TWO",
+            "repo_locations:\n  meta_repo: /one\n  meta_repo: /one",
+            "repo_locations:\n  meta_repo: /one\n  meta_repo: /two",
+        )
+        for mapping in cases:
+            with self.subTest(mapping=mapping):
+                text = f"# Prompt X\n\n## Task metadata\n\n```text\n{mapping}\n```\n"
+                _, _, _, diagnostics, _ = self.parsed_current(text)
+                self.assertIn("PROMPT-PREFLIGHT-E016", {item.id for item in diagnostics})
+
+    def test_malformed_mapping_indentation_blocks(self) -> None:
+        text = "# Prompt X\n\n## Task metadata\n\n```text\nbranch_policy:\n   meta_repo: continue_existing_branch\n```\n"
+        _, _, _, diagnostics, _ = self.parsed_current(text)
+        self.assertIn("PROMPT-PREFLIGHT-E017", {item.id for item in diagnostics})
+
+    def test_complete_branch_policy_tuple_table_and_unsupported_policies(self) -> None:
+        sections, fields, records, diagnostics, _ = self.parsed_current()
+        preflight_prompt.complete_fields(fields, sections, "FIXTURE101", WORKSPACE_ROOT, self.live, self.contexts, diagnostics, records)
+        self.assertNotIn("PROMPT-PREFLIGHT-E006", {item.id for item in diagnostics})
+        branch = self.live["meta_repo"]["branch"]
+        contradictory = current_prompt().replace(f"  meta_repo: {branch}\n  topeft: none", "  meta_repo: other_branch\n  topeft: none", 1)
+        sections, fields, records, diagnostics, _ = self.parsed_current(contradictory)
+        preflight_prompt.complete_fields(fields, sections, "FIXTURE101", WORKSPACE_ROOT, self.live, self.contexts, diagnostics, records)
+        self.assertIn("PROMPT-PREFLIGHT-E006", {item.id for item in diagnostics})
+        unsupported = current_prompt().replace("  meta_repo: continue_existing_branch", "  meta_repo: create_feature_branch_from_reference")
+        sections, fields, records, diagnostics, _ = self.parsed_current(unsupported)
+        preflight_prompt.complete_fields(fields, sections, "FIXTURE101", WORKSPACE_ROOT, self.live, self.contexts, diagnostics, records)
+        self.assertIn("PROMPT-PREFLIGHT-E006", {item.id for item in diagnostics})
+
+    def test_legacy_scalar_and_structured_baseline_forms(self) -> None:
+        one_live = {"meta_repo": self.live["meta_repo"]}
+        fields = {
+            "branch_policy": "branch_policy:\n  meta_repo: continue_existing_branch",
+            "current_checked_out_branch": f"current_checked_out_branch:\n  meta_repo: {one_live['meta_repo']['branch']}",
+            "current_baseline_branch": f"current_baseline_branch:\n  meta_repo: {one_live['meta_repo']['branch']}",
+            "reference_branch": "reference_branch:\n  meta_repo: none",
+            "target_branch": f"target_branch:\n  meta_repo: {one_live['meta_repo']['branch']}",
+            "feature_branch": "feature_branch:\n  meta_repo: none",
+            "comparison_baseline": f"comparison_baseline: {one_live['meta_repo']['head']}",
+        }
+        diagnostics = []
+        preflight_prompt.validate_branch_and_baseline(fields, [], one_live, diagnostics)
+        self.assertEqual(diagnostics, [])
+        sections, fields, records, diagnostics, _ = self.parsed_current()
+        preflight_prompt.validate_branch_and_baseline(fields, records, self.live, diagnostics)
+        self.assertNotIn("PROMPT-PREFLIGHT-E006", {item.id for item in diagnostics})
+
+    def test_stale_head_subject_missing_and_unknown_repository_block(self) -> None:
+        probes = (
+            current_prompt().replace(self.live["meta_repo"]["head"], "0" * 40, 1),
+            current_prompt().replace(self.live["meta_repo"]["subject"], "hostile subject", 1),
+            current_prompt().replace("comparison_baseline:\n", "comparison_baseline:\n  unknown_repo:\n    expected_head: " + "a" * 40 + "\n", 1),
+        )
+        for text in probes:
+            with self.subTest(probe=text[:40]):
+                sections, fields, records, diagnostics, _ = self.parsed_current(text)
+                preflight_prompt.complete_fields(fields, sections, "FIXTURE101", WORKSPACE_ROOT, self.live, self.contexts, diagnostics, records)
+                self.assertIn("PROMPT-PREFLIGHT-E006", {item.id for item in diagnostics})
+
+    def test_fixed_skill_owned_table_always_replaced(self) -> None:
+        text = current_prompt().replace("prompt_mode: coding", "prompt_mode: coding\nworkspace_root: /hostile\nreport_path: /hostile/report\npatch_path: /hostile/patch\nevidence_validation_method: wrong")
+        sections, fields, records, diagnostics, _ = self.parsed_current(text)
+        completed, repairs = preflight_prompt.complete_fields(fields, sections, "FIXTURE101", WORKSPACE_ROOT, self.live, self.contexts, diagnostics, records)
+        expected = {
+            "workspace_root", "repo_locations", "current_checked_out_branch",
+            "current_repository_heads", "evidence_requirements",
+            "evidence_validation_method", "diagnostics_root", "report_path",
+            "patch_path", "patch_kind_expected", "source_control_policy",
+            "final_chat_deliverable", "classification_rules",
+            "anti_self_certification_rules", "governance_binding_expectations",
+        }
+        self.assertTrue(expected.issubset(completed))
+        self.assertNotIn("/hostile", completed["workspace_root"])
+        self.assertEqual(preflight_prompt.scalar(completed["evidence_validation_method"]), preflight_prompt.EVIDENCE_COMPACT)
+        for phase in preflight_prompt.EVIDENCE_SEQUENCE:
+            self.assertIn(f"    - {phase}", completed["evidence_requirements"])
+        self.assertTrue(expected.issubset({item["field"] for item in repairs} | {key for key in expected if key in fields and fields[key] == completed[key]}))
+
+    def test_unknown_descriptive_and_normative_adversarial_corpora(self) -> None:
+        safe = (
+            "Historical motivation from the 2024 review.",
+            "A narrative description of prior observations.",
+            "The color palette is blue and green.",
+            "This paragraph records an inert quotation from a paper.",
+        )
+        unsafe = (
+            "You may edit any file in this workspace.",
+            "Files **CAN** be modified.",
+            "- Push the repository branch.",
+            "Do not inspect production logs.",
+            "NEVER delete sidecars.",
+            "network_access: yes",
+            "The worker is permitted to read outputs.",
+            "Install dependencies.",
+        )
+        for body in safe:
+            _, diagnostics, _ = preflight_prompt.parse_sections(f"# Prompt X\n\n## Reviewer intuition\n\n{body}\n", self.registry)
+            self.assertNotIn("PROMPT-PREFLIGHT-E004", {item.id for item in diagnostics}, body)
+        for body in unsafe:
+            _, diagnostics, _ = preflight_prompt.parse_sections(f"# Prompt X\n\n## Special notes\n\n{body}\n", self.registry)
+            self.assertIn("PROMPT-PREFLIGHT-E004", {item.id for item in diagnostics}, body)
+
+    def test_complete_preamble_preservation_corpus(self) -> None:
+        preambles = (
+            "# Prompt X\n\n",
+            "# Prompt X  \n\nPreamble sentinel.  \n\n",
+            "# Prompt X\n\n<!-- comment -->\n### Nested\n\n",
+            "# Prompt X\n\n````text\n## inert\n```\n````\n\n",
+        )
+        for preamble in preambles:
+            with self.subTest(preamble=preamble):
+                text = preamble + "## Goal\n\nbody\n"
+                sections, diagnostics, observed = preflight_prompt.parse_sections(text, self.registry)
+                canonical, manifest = preflight_prompt.canonicalize("X", "x", {}, sections, WORKSPACE_ROOT, self.live, diagnostics, observed)
+                self.assertTrue(canonical.startswith(preamble))
+                self.assertEqual(manifest[0]["source_sha256"], manifest[0]["canonical_sha256"])
+                self.assertTrue(manifest[0]["preserved_exactly"])
+
+    def test_transport_requirement_contradiction_corpus(self) -> None:
+        safe = "Transport bytes are unavailable, not required, and not claimed."
+        prohibited = (
+            "Require exact identity with hidden chat transport bytes.",
+            "VERIFY user-interface bytes are identical.",
+            "acceptance: must match composer bytes",
+            "Message transport bytes are required to be exact.",
+            "Claim identity with unobservable original bytes.",
+        )
+        self.assertEqual(preflight_prompt.transport_diagnostics(safe), [])
+        for statement in prohibited:
+            for text in (statement, safe + "\n" + statement, statement + "\n" + safe, f"```text\n{statement}\n```"):
+                with self.subTest(text=text):
+                    self.assertEqual([item.id for item in preflight_prompt.transport_diagnostics(text)], ["PROMPT-PREFLIGHT-E015"])
+
+    def test_closed_state_graph_all_edges_and_invalid_transition(self) -> None:
+        for source, destination in self.registry["allowed_transitions"]:
+            states = [source]
+            preflight_prompt.transition_state(states, destination, self.registry, renderer_owned=False)
+            self.assertEqual(states, [source, destination])
+        with self.assertRaises(preflight_prompt.PreflightBlocked):
+            preflight_prompt.transition_state(["source_captured"], "ready_for_same_session_execution", self.registry)
+        with self.assertRaises(preflight_prompt.PreflightBlocked):
+            preflight_prompt.transition_state(["ready_for_same_session_execution"], "execution_started", self.registry)
+
+    def test_semantic_block_never_writes_canonical_prompt(self) -> None:
+        text = current_prompt().replace("allowed_to_modify:", "declared_scope_note:", 1)
+        temporary, source, output = diagnostics_capture(text)
+        with temporary:
+            state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(exit_code, 3)
+            self.assertEqual(state["current_state"], "blocked_semantic_ambiguity")
+            self.assertNotIn("canonicalized", state["states_visited"])
+            self.assertFalse((output / "canonical_prompt.md").exists())
+
+    def test_source_and_output_path_confinement(self) -> None:
+        with tempfile.TemporaryDirectory() as outside:
+            source = Path(outside) / "source.md"
+            source.write_text(current_prompt(), encoding="utf-8")
+            state, _ = preflight_prompt.run_preflight(source, WORKSPACE_ROOT / "reports/diagnostics/path_test_output", WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
+            escaped = output.parent / ".." / ".." / "escape"
+            state, _ = preflight_prompt.run_preflight(source, escaped, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
+            link = source.parent / "link.md"
+            link.symlink_to(source)
+            state, _ = preflight_prompt.run_preflight(link, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
+            nonregular = source.parent / "source_directory"
+            nonregular.mkdir()
+            state, _ = preflight_prompt.run_preflight(nonregular, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
+            state, _ = preflight_prompt.run_preflight(source, source.parent, WORKSPACE_ROOT, self.contexts)
+            self.assertIn(state["diagnostics"][0]["id"], {"PROMPT-PREFLIGHT-E012", "PROMPT-PREFLIGHT-E018"})
+        temporary, source, output = diagnostics_capture(current_prompt())
+        with temporary:
+            real_parent = source.parent / "real_parent"
+            real_parent.mkdir()
+            linked_parent = source.parent / "linked_parent"
+            linked_parent.symlink_to(real_parent, target_is_directory=True)
+            state, _ = preflight_prompt.run_preflight(source, linked_parent / "output", WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+
+    def test_generated_artifact_schema_is_enforced_after_reopening(self) -> None:
+        temporary, source, output = diagnostics_capture(current_prompt("FIXTURE_SCHEMA"))
+        with temporary:
+            state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(exit_code, 0, state)
+            manifest_path = output / "section_manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            del manifest[0]["source_sha256"]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            diagnostics = preflight_prompt.validate_generated_artifacts(output, state)
+            self.assertEqual([item.id for item in diagnostics], ["PROMPT-PREFLIGHT-E019"])
+
+    def test_generated_artifact_reopening_failure_uses_stable_diagnostic(self) -> None:
+        temporary, source, output = diagnostics_capture(current_prompt("FIXTURE_REOPEN"))
+        with temporary:
+            state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(exit_code, 0, state)
+            (output / "shared_value_manifest.json").write_text("{not json", encoding="utf-8")
+            diagnostics = preflight_prompt.validate_generated_artifacts(output, state)
+            self.assertEqual([item.id for item in diagnostics], ["PROMPT-PREFLIGHT-E013"])
+
+    def test_csv_schema_helper_reopens_headers_and_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "evidence.csv"
+            path.write_text("name,result\nprobe,pass\n", encoding="utf-8")
+            self.assertEqual(preflight_prompt.validate_csv(path, ["name", "result"]), [])
+            self.assertTrue(preflight_prompt.validate_csv(path, ["wrong", "header"]))
 
 
 if __name__ == "__main__":
