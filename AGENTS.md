@@ -1485,14 +1485,17 @@ When the first nonblank line of the current visible user message begins with
 `correction-lib-codex-prompt-preflight` before any task-specific repository
 action. The current visible Markdown message is authoritative; hidden transport
 bytes are unavailable, not required, and must not be claimed. Continue the same
-Codex session using the canonical validated prompt only after the preflight has
-zero blocking errors and reaches `ready_for_same_session_execution`.
+Codex session using the canonical validated prompt only after the complete
+artifact-bound readiness package has zero blocking errors, reaches
+`ready_for_same_session_execution`, and is revalidated against the current
+visible-source hash, prompt ID, output identity, and live governance. A
+standalone or copied state file never authorizes task-specific action.
 
 This trigger does not apply to ordinary conversation, quoted prompt excerpts
 whose first nonblank line is not `# Prompt`, file contents merely mentioned but
 not submitted as the current task prompt, or generated canonical prompts being
 reviewed as inert evidence. CPC.md
-`prompt_section_ownership_version: 1.0.1` is the sole detailed normative
+`prompt_section_ownership_version: 1.0.2` is the sole detailed normative
 ownership registry. The skill may narrowly invoke the fixed installed
 prompt-contract validator against its generated canonical prompt; this does not
 authorize task execution or automatic binding refresh.
@@ -1501,13 +1504,13 @@ authorize task execution or automatic binding refresh.
 logical_id: codex_prompt_preflight
 skill_name: correction-lib-codex-prompt-preflight
 path: .agents/skills/correction-lib-codex-prompt-preflight/SKILL.md
-version: 1.0.1
+version: 1.0.2
 trigger: mandatory preflight of a current manually pasted correction-lib Markdown prompt
 normative_sources: live AGENTS.md and CPC.md
 ```
 
 Skill availability does not authorize task-specific repository action. Such
-action remains blocked until same-session readiness is established. Version
-1.0.1 is an implementation candidate pending a later manually pasted
+action remains blocked until bound same-session readiness is established.
+Version 1.0.2 is an implementation candidate pending a later manually pasted
 live-trigger qualification; this corrective session cannot self-qualify its
 future automatic invocation.

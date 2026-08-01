@@ -1,5 +1,5 @@
 {
-  "prompt_section_ownership_version": "1.0.1",
+  "prompt_section_ownership_version": "1.0.2",
   "author_owned": [
     "Context",
     "Goal",
@@ -90,6 +90,9 @@
     "PROMPT-PREFLIGHT-E018": "diagnostics path confinement failed",
     "PROMPT-PREFLIGHT-E019": "generated artifact schema validation failed",
     "PROMPT-PREFLIGHT-E020": "runtime state transition violated the closed graph",
+    "PROMPT-PREFLIGHT-E021": "shared structured section violates its closed grammar",
+    "PROMPT-PREFLIGHT-E022": "readiness binding or canonical authority is invalid",
+    "PROMPT-PREFLIGHT-E023": "descriptor-rooted diagnostics I/O failed closed",
     "PROMPT-PREFLIGHT-W001": "authored skill-owned section replaced in canonical output",
     "PROMPT-PREFLIGHT-W002": "missing skill-owned mechanical content generated",
     "PROMPT-PREFLIGHT-W003": "unknown descriptive section preserved as author-owned",
@@ -118,7 +121,7 @@
     ["ready_for_same_session_execution", "execution_started"]
   ],
   "branch_policy_registry": {
-    "version": "1.0.1",
+    "version": "1.0.2",
     "supported": [
       "continue_existing_branch",
       "read_only_current_branch"

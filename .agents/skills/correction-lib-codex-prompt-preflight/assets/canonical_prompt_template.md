@@ -6,6 +6,6 @@
 {metadata_mapping}
 ```
 
-{preserved_author_and_shared_sections}
+{preserved_author_owned_sections}
 
 {generated_skill_owned_sections}

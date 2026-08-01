@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0.1",
-  "renderer_version": "1.0.1",
-  "ownership_contract_version": "1.0.1",
+  "schema_version": "1.0.2",
+  "renderer_version": "1.0.2",
+  "ownership_contract_version": "1.0.2",
   "primary_authoring_format": "markdown",
   "transport_identity": "unavailable_not_required_not_claimed",
   "evidence_sequence": [
@@ -24,7 +24,14 @@
       "cross_hash": "preflight_state.canonical_prompt_sha256"
     },
     "section_manifest.json": {
-      "type": "array",
+      "type": "closed_object",
+      "required_keys": [
+        "prompt_id",
+        "source_line_count",
+        "source_section_count",
+        "canonical_section_count",
+        "records"
+      ],
       "required_item_keys": [
         "source_heading",
         "canonical_heading",
@@ -39,15 +46,16 @@
       ]
     },
     "shared_value_manifest.json": {
-      "type": "object",
+      "type": "closed_object",
       "required_keys": [
+        "prompt_id",
         "records",
         "author_semantic_invention_count",
         "author_semantic_change_count"
       ]
     },
     "prompt_contract_validation.json": {
-      "type": "object",
+      "type": "closed_installed_validator_object",
       "required_keys_when_invoked": [
         "error_count",
         "warning_count",
@@ -56,7 +64,7 @@
       ]
     },
     "preflight_state.json": {
-      "type": "object",
+      "type": "closed_object",
       "required_keys": [
         "current_state",
         "states_visited",
@@ -75,8 +83,43 @@
         "## Diagnostics",
         "## Governance hashes"
       ]
+    },
+    "readiness_binding.json": {
+      "type": "closed_object",
+      "required_keys": [
+        "prompt_id",
+        "authored_prompt_sha256",
+        "canonical_prompt_sha256",
+        "prompt_contract_input_sha256",
+        "prompt_contract_validation_sha256",
+        "section_manifest_sha256",
+        "shared_value_manifest_sha256",
+        "preflight_report_sha256",
+        "preflight_state_sha256_without_self_field",
+        "AGENTS_sha256",
+        "CPC_sha256",
+        "workspace_root",
+        "diagnostics_root",
+        "output_root_identity",
+        "state_sequence",
+        "current_state",
+        "blocking_error_count",
+        "warning_count",
+        "created_by_skill_version",
+        "created_by_renderer_version",
+        "ownership_contract_version",
+        "schema_version",
+        "required_artifacts"
+      ]
     }
   },
+  "shared_structured_grammar": {
+    "mapping_fences": 1,
+    "language": "text",
+    "outside_mapping": ["blank_lines", "restricted_inert_html_comments"]
+  },
+  "descriptor_rooted_io": true,
+  "readiness_requires_complete_bound_package": true,
   "fixed_subprocesses": [
     "git branch --show-current",
     "git rev-parse HEAD",

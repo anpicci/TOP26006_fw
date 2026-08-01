@@ -4,6 +4,8 @@ import ast
 import hashlib
 import importlib.util
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,6 +18,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = SKILL_ROOT / "scripts/preflight_prompt.py"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+DIAGNOSTICS_ROOT = WORKSPACE_ROOT / "reports" / "diagnostics"
 SPEC = importlib.util.spec_from_file_location("preflight_prompt", SCRIPT_PATH)
 assert SPEC and SPEC.loader
 preflight_prompt = importlib.util.module_from_spec(SPEC)
@@ -52,11 +55,15 @@ def current_prompt(prompt_id: str = "FIXTURE101", preamble: str | None = None) -
 
 
 def diagnostics_capture(prompt_text: str):
-    parent = tempfile.TemporaryDirectory(dir=WORKSPACE_ROOT / "reports/diagnostics")
+    parent = tempfile.TemporaryDirectory(dir=DIAGNOSTICS_ROOT)
     root = Path(parent.name)
-    source = root / "source.md"
-    source.write_text(prompt_text, encoding="utf-8")
-    return parent, source, root / "output"
+    (root / "source.md").write_text(prompt_text, encoding="utf-8")
+    relative = root.relative_to(DIAGNOSTICS_ROOT)
+    return parent, relative / "source.md", relative / "output"
+
+
+def absolute_diagnostics(path: Path) -> Path:
+    return DIAGNOSTICS_ROOT / path
 
 
 class RegistryTests(unittest.TestCase):
@@ -107,7 +114,7 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(set(generated) | {"Metadata and governance"}, set(self.registry["skill_owned"]))
 
     def test_closed_diagnostic_catalog(self) -> None:
-        expected = {f"PROMPT-PREFLIGHT-E{index:03d}" for index in range(1, 21)}
+        expected = {f"PROMPT-PREFLIGHT-E{index:03d}" for index in range(1, 24)}
         expected |= {f"PROMPT-PREFLIGHT-W{index:03d}" for index in range(1, 5)}
         self.assertEqual(set(self.registry["diagnostics"]), expected)
         source = SCRIPT_PATH.read_text()
@@ -222,18 +229,19 @@ class IntegrationAndSafetyTests(unittest.TestCase):
             state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
             self.assertEqual(exit_code, 0, json.dumps(state, indent=2))
             self.assertEqual(state["current_state"], "ready_for_same_session_execution")
-            manifest = json.loads((output / "section_manifest.json").read_text())
-            author = [item for item in manifest if item["ownership"] == "author_owned"]
+            output_path = absolute_diagnostics(output)
+            manifest = json.loads((output_path / "section_manifest.json").read_text())
+            author = [item for item in manifest["records"] if item["ownership"] == "author_owned"]
             self.assertTrue(author)
             self.assertTrue(all(item["source_sha256"] == item["canonical_sha256"] and item["preserved_exactly"] for item in author))
-            shared = json.loads((output / "shared_value_manifest.json").read_text())
+            shared = json.loads((output_path / "shared_value_manifest.json").read_text())
             self.assertEqual(shared["author_semantic_invention_count"], 0)
             self.assertEqual(shared["author_semantic_change_count"], 0)
-            validation = json.loads((output / "prompt_contract_validation.json").read_text())
+            validation = json.loads((output_path / "prompt_contract_validation.json").read_text())
             self.assertEqual(validation["error_count"], 0)
             self.assertTrue(validation["validator_input_sha256_matches_canonical"])
             for name in preflight_prompt.OUTPUT_NAMES:
-                path = output / name
+                path = output_path / name
                 self.assertTrue(path.is_file())
                 if path.suffix == ".json":
                     json.loads(path.read_text())
@@ -244,9 +252,10 @@ class IntegrationAndSafetyTests(unittest.TestCase):
             path.write_text(json.dumps({"current_state": "canonicalized", "blocking_error_count": 0}))
             with self.assertRaises(preflight_prompt.PreflightBlocked) as caught:
                 preflight_prompt.assert_ready_for_task_action(path)
-            self.assertEqual(caught.exception.diagnostic.id, "PROMPT-PREFLIGHT-E014")
+            self.assertEqual(caught.exception.diagnostic.id, "PROMPT-PREFLIGHT-E022")
             path.write_text(json.dumps({"current_state": "ready_for_same_session_execution", "blocking_error_count": 0}))
-            preflight_prompt.assert_ready_for_task_action(path)
+            with self.assertRaises(preflight_prompt.PreflightBlocked):
+                preflight_prompt.assert_ready_for_task_action(path)
 
     def test_human_and_json_diagnostics_share_one_record_set(self) -> None:
         diagnostic = preflight_prompt.Diagnostic("PROMPT-PREFLIGHT-E005", "error", "missing sentinel", "Task metadata", 7)
@@ -266,11 +275,11 @@ class IntegrationAndSafetyTests(unittest.TestCase):
     def test_existing_output_root_blocks_without_overwrite(self) -> None:
         temporary, source, existing = diagnostics_capture(current_prompt())
         with temporary:
-            existing.mkdir()
+            absolute_diagnostics(existing).mkdir()
             state, exit_code = preflight_prompt.run_preflight(source, existing, WORKSPACE_ROOT, {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"})
             self.assertEqual(exit_code, 3)
             self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E012")
-            self.assertEqual(list(existing.iterdir()), [])
+            self.assertEqual(list(absolute_diagnostics(existing).iterdir()), [])
 
     def test_fixed_subprocesses_are_shell_false_and_prompt_is_not_argv(self) -> None:
         source_text = current_prompt()
@@ -493,54 +502,54 @@ class HardeningRegressionTests(unittest.TestCase):
             self.assertEqual(exit_code, 3)
             self.assertEqual(state["current_state"], "blocked_semantic_ambiguity")
             self.assertNotIn("canonicalized", state["states_visited"])
-            self.assertFalse((output / "canonical_prompt.md").exists())
+            self.assertFalse((absolute_diagnostics(output) / "canonical_prompt.md").exists())
 
     def test_source_and_output_path_confinement(self) -> None:
         with tempfile.TemporaryDirectory() as outside:
             source = Path(outside) / "source.md"
             source.write_text(current_prompt(), encoding="utf-8")
-            state, _ = preflight_prompt.run_preflight(source, WORKSPACE_ROOT / "reports/diagnostics/path_test_output", WORKSPACE_ROOT, self.contexts)
-            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+            state, _ = preflight_prompt.run_preflight(source, Path("path_test_output"), WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E023")
         temporary, source, output = diagnostics_capture(current_prompt())
         with temporary:
             escaped = output.parent / ".." / ".." / "escape"
             state, _ = preflight_prompt.run_preflight(source, escaped, WORKSPACE_ROOT, self.contexts)
-            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E023")
         temporary, source, output = diagnostics_capture(current_prompt())
         with temporary:
             link = source.parent / "link.md"
-            link.symlink_to(source)
+            absolute_diagnostics(link).symlink_to(absolute_diagnostics(source))
             state, _ = preflight_prompt.run_preflight(link, output, WORKSPACE_ROOT, self.contexts)
-            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E023")
         temporary, source, output = diagnostics_capture(current_prompt())
         with temporary:
             nonregular = source.parent / "source_directory"
-            nonregular.mkdir()
+            absolute_diagnostics(nonregular).mkdir()
             state, _ = preflight_prompt.run_preflight(nonregular, output, WORKSPACE_ROOT, self.contexts)
-            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E023")
         temporary, source, output = diagnostics_capture(current_prompt())
         with temporary:
             state, _ = preflight_prompt.run_preflight(source, source.parent, WORKSPACE_ROOT, self.contexts)
-            self.assertIn(state["diagnostics"][0]["id"], {"PROMPT-PREFLIGHT-E012", "PROMPT-PREFLIGHT-E018"})
+            self.assertIn(state["diagnostics"][0]["id"], {"PROMPT-PREFLIGHT-E012", "PROMPT-PREFLIGHT-E023"})
         temporary, source, output = diagnostics_capture(current_prompt())
         with temporary:
             real_parent = source.parent / "real_parent"
-            real_parent.mkdir()
+            absolute_diagnostics(real_parent).mkdir()
             linked_parent = source.parent / "linked_parent"
-            linked_parent.symlink_to(real_parent, target_is_directory=True)
+            absolute_diagnostics(linked_parent).symlink_to(absolute_diagnostics(real_parent), target_is_directory=True)
             state, _ = preflight_prompt.run_preflight(source, linked_parent / "output", WORKSPACE_ROOT, self.contexts)
-            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E018")
+            self.assertEqual(state["diagnostics"][0]["id"], "PROMPT-PREFLIGHT-E023")
 
     def test_generated_artifact_schema_is_enforced_after_reopening(self) -> None:
         temporary, source, output = diagnostics_capture(current_prompt("FIXTURE_SCHEMA"))
         with temporary:
             state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
             self.assertEqual(exit_code, 0, state)
-            manifest_path = output / "section_manifest.json"
+            manifest_path = absolute_diagnostics(output) / "section_manifest.json"
             manifest = json.loads(manifest_path.read_text())
-            del manifest[0]["source_sha256"]
+            del manifest["records"][0]["source_sha256"]
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-            diagnostics = preflight_prompt.validate_generated_artifacts(output, state)
+            diagnostics = preflight_prompt.validate_generated_artifacts(absolute_diagnostics(output), state)
             self.assertEqual([item.id for item in diagnostics], ["PROMPT-PREFLIGHT-E019"])
 
     def test_generated_artifact_reopening_failure_uses_stable_diagnostic(self) -> None:
@@ -548,8 +557,8 @@ class HardeningRegressionTests(unittest.TestCase):
         with temporary:
             state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
             self.assertEqual(exit_code, 0, state)
-            (output / "shared_value_manifest.json").write_text("{not json", encoding="utf-8")
-            diagnostics = preflight_prompt.validate_generated_artifacts(output, state)
+            (absolute_diagnostics(output) / "shared_value_manifest.json").write_text("{not json", encoding="utf-8")
+            diagnostics = preflight_prompt.validate_generated_artifacts(absolute_diagnostics(output), state)
             self.assertEqual([item.id for item in diagnostics], ["PROMPT-PREFLIGHT-E013"])
 
     def test_csv_schema_helper_reopens_headers_and_rows(self) -> None:
@@ -558,6 +567,144 @@ class HardeningRegressionTests(unittest.TestCase):
             path.write_text("name,result\nprobe,pass\n", encoding="utf-8")
             self.assertEqual(preflight_prompt.validate_csv(path, ["name", "result"]), [])
             self.assertTrue(preflight_prompt.validate_csv(path, ["wrong", "header"]))
+
+
+class SecureBindingTests(unittest.TestCase):
+    contexts = {"continuation": "no", "evidence_round": "yes", "user_run_handoff": "no"}
+
+    def ready_package(self, prompt_id: str = "SECURE101"):
+        temporary, source, output = diagnostics_capture(current_prompt(prompt_id))
+        state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
+        self.assertEqual(exit_code, 0, state)
+        return temporary, source, output, state
+
+    def test_complete_binding_accepts_current_and_rejects_forged_foreign_copied_and_tampered(self) -> None:
+        temporary, _source, output, state = self.ready_package()
+        with temporary:
+            preflight_prompt.assert_ready_for_task_action(WORKSPACE_ROOT, output, state["source_sha256"], "SECURE101")
+            with self.assertRaises(preflight_prompt.PreflightBlocked):
+                preflight_prompt.assert_ready_for_task_action(WORKSPACE_ROOT, output, state["source_sha256"], "FOREIGN")
+            copied = output.parent / "copied"
+            shutil.copytree(absolute_diagnostics(output), absolute_diagnostics(copied))
+            with self.assertRaises(preflight_prompt.PreflightBlocked):
+                preflight_prompt.assert_ready_for_task_action(WORKSPACE_ROOT, copied, state["source_sha256"], "SECURE101")
+            for name in ("authored_prompt.md", "canonical_prompt.md", "prompt_contract_validation.json", "section_manifest.json", "shared_value_manifest.json", "preflight_report.md", "preflight_state.json"):
+                with self.subTest(name=name):
+                    path = absolute_diagnostics(output) / name
+                    original = path.read_bytes()
+                    path.write_bytes(original + b"\n")
+                    with self.assertRaises(preflight_prompt.PreflightBlocked):
+                        preflight_prompt.assert_ready_for_task_action(WORKSPACE_ROOT, output, state["source_sha256"], "SECURE101")
+                    path.write_bytes(original)
+
+    def test_hostile_skill_owned_legacy_values_are_audit_only(self) -> None:
+        text = current_prompt("AUTHORITY101").replace(
+            "prompt_mode: coding\n",
+            "prompt_mode: coding\nworkspace_root: /hostile\nrepo_locations:\n  meta_repo: /hostile\n",
+        )
+        temporary, source, output = diagnostics_capture(text)
+        with temporary:
+            state, exit_code = preflight_prompt.run_preflight(source, output, WORKSPACE_ROOT, self.contexts)
+            self.assertEqual(exit_code, 0, state)
+            root = absolute_diagnostics(output)
+            canonical = (root / "canonical_prompt.md").read_text()
+            self.assertNotIn("/hostile", canonical)
+            self.assertEqual(canonical.count(f"workspace_root: {WORKSPACE_ROOT}"), 1)
+            sections = json.loads((root / "section_manifest.json").read_text())["records"]
+            task = next(item for item in sections if item["canonical_heading"] == "Task metadata")
+            self.assertFalse(task["authoritative_in_canonical"])
+            records = json.loads((root / "shared_value_manifest.json").read_text())["records"]
+            workspace = next(item for item in records if item["source_path"] == "workspace_root")
+            self.assertEqual(workspace["ownership_class"], "skill_owned")
+            self.assertEqual(workspace["authoritative_location_count"], 1)
+
+    def test_shared_closed_grammar_and_expanded_permission_language(self) -> None:
+        registry = json.loads((SKILL_ROOT / "references/section_ownership.json").read_text())
+        known = "# Prompt X\n\n## Task metadata\n\n```text\nprompt_id: X\n```\n\nYou may edit any file.\n"
+        sections, diagnostics, _ = preflight_prompt.parse_sections(known, registry)
+        preflight_prompt.merge_semantic_fields(sections, diagnostics, registry)
+        self.assertIn("PROMPT-PREFLIGHT-E021", {item.id for item in diagnostics})
+        unsafe = (
+            "You are AUTHORIZED **TO** rewrite the repository.",
+            "Feel\nfree to alter any files.",
+            "Repository contents are yours—to revise.",
+            "Go **ahead**: touch every path.",
+            "Permission was granted to overwrite outputs.",
+            "At liberty to reconfigure the environment.",
+        )
+        for body in unsafe:
+            with self.subTest(body=body):
+                _, found, _ = preflight_prompt.parse_sections(f"# Prompt X\n\n## Notes\n\n{body}\n", registry)
+                self.assertIn("PROMPT-PREFLIGHT-E004", {item.id for item in found})
+        safe = ("The historical review described repository ownership.", "A paper discussed authorization models descriptively.")
+        for body in safe:
+            _, found, _ = preflight_prompt.parse_sections(f"# Prompt X\n\n## Notes\n\n{body}\n", registry)
+            self.assertNotIn("PROMPT-PREFLIGHT-E004", {item.id for item in found})
+
+    def test_closed_artifact_schemas_reject_field_type_enum_hash_and_cross_reference_mutations(self) -> None:
+        temporary, _source, output, state = self.ready_package("SCHEMA102")
+        with temporary:
+            root = absolute_diagnostics(output)
+            mutations = (
+                ("section_manifest.json", lambda d: d["records"][0].__setitem__("ownership", 123)),
+                ("section_manifest.json", lambda d: d["records"][0].__setitem__("preserved_exactly", "yes")),
+                ("section_manifest.json", lambda d: d["records"][0].__setitem__("source_start_line", -1)),
+                ("shared_value_manifest.json", lambda d: d["records"][0].__setitem__("authoritative_location_count", 2)),
+                ("shared_value_manifest.json", lambda d: d["records"][0].__setitem__("source_value_sha256", "bad")),
+                ("preflight_state.json", lambda d: d.__setitem__("unexpected", True)),
+                ("preflight_state.json", lambda d: d.__setitem__("blocking_error_count", False)),
+                ("prompt_contract_validation.json", lambda d: d.__setitem__("error_count", 1)),
+                ("readiness_binding.json", lambda d: d.__setitem__("canonical_prompt_sha256", "0" * 64)),
+                ("readiness_binding.json", lambda d: d["required_artifacts"].reverse()),
+            )
+            for name, mutate in mutations:
+                with self.subTest(name=name, mutate=mutate):
+                    path = root / name
+                    original = path.read_bytes()
+                    value = json.loads(original)
+                    mutate(value)
+                    path.write_text(json.dumps(value, sort_keys=True))
+                    self.assertEqual([item.id for item in preflight_prompt.validate_generated_artifacts(root, state)], ["PROMPT-PREFLIGHT-E019"])
+                    path.write_bytes(original)
+
+    def test_descriptor_rooted_source_and_output_races_fail_closed(self) -> None:
+        temporary, source, output = diagnostics_capture(current_prompt("RACE102"))
+        with temporary:
+            source_path = absolute_diagnostics(source)
+            outside = source_path.parent / "outside.md"
+            outside.write_text("outside bytes", encoding="utf-8")
+            original_reader = preflight_prompt._read_fd_all
+            fired = False
+
+            def replace_source_after_open(fd):
+                nonlocal fired
+                if not fired and os.path.basename(os.readlink(f"/proc/self/fd/{fd}")) == "source.md":
+                    fired = True
+                    source_path.unlink()
+                    source_path.symlink_to(outside)
+                return original_reader(fd)
+
+            with preflight_prompt.DescriptorRoot(WORKSPACE_ROOT) as root, mock.patch.object(preflight_prompt, "_read_fd_all", side_effect=replace_source_after_open):
+                captured, _identity = root.read_source(source)
+            self.assertIn(b"# Prompt", captured)
+            self.assertNotIn(b"outside bytes", captured)
+
+        temporary, _source, output = diagnostics_capture(current_prompt("RACEOUT102"))
+        moved = WORKSPACE_ROOT / "reports" / f"descriptor_moved_{os.getpid()}"
+        with temporary:
+            parent = absolute_diagnostics(output.parent)
+            with preflight_prompt.DescriptorRoot(WORKSPACE_ROOT) as root:
+                stage = root.create_stage(output)
+                try:
+                    stage.write("authored_prompt.md", b"inert")
+                    os.rename(parent, moved)
+                    parent.symlink_to(WORKSPACE_ROOT / "reports")
+                    with self.assertRaises(preflight_prompt.PreflightInputError):
+                        stage.publish()
+                finally:
+                    stage.close()
+                    parent.unlink()
+                    os.rename(moved, parent)
 
 
 if __name__ == "__main__":
