@@ -4,9 +4,9 @@
   "renderer_version": "1.0.1",
   "workspace_root": "/users/apiccine/work/correction-lib",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "3d64449ea462bdc129a09b5eab88fc49c8b98e152ec9026832a65bb16d55c9cd",
+  "agents_sha256": "a21f747fa67fabcf81a9678024150b4e440e99a647b21424570fdfa9a4497077",
   "cpc_path": "CPC.md",
-  "cpc_sha256": "22408b5f27940463e4c31a355cfcd32287bc9e28ef0d2ddbddf6ce3d51fe34d7",
-  "generated_at": "2026-07-31",
-  "reviewed_by": "evidence package review skill hardening"
+  "cpc_sha256": "b0a9dafe8b56dadec53e25679ec0fcd227d2a7fed6ee90461682b88aadc3301f",
+  "generated_at": "2026-08-01",
+  "reviewed_by": "same-session prompt preflight implementation"
 }

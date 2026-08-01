@@ -1,0 +1,100 @@
+{
+  "prompt_section_ownership_version": "1.0.0",
+  "author_owned": [
+    "Context",
+    "Goal",
+    "Decision question",
+    "Known findings",
+    "Physics contract",
+    "Software contract",
+    "Implementation contract",
+    "Compatibility requirements",
+    "Test contract",
+    "Out of scope",
+    "Acceptance criteria",
+    "Background",
+    "Root cause",
+    "Technical rationale"
+  ],
+  "skill_owned": [
+    "Metadata and governance",
+    "Prompt preflight result",
+    "Repository envelope",
+    "Standard execution boundaries",
+    "Evidence-order contract",
+    "Source-control policy",
+    "Diagnostics and publication paths",
+    "Standard report sections",
+    "Standard final-response fields",
+    "Governance-binding evidence"
+  ],
+  "shared_structured": [
+    "Task metadata",
+    "Repository scope",
+    "Baseline and branch policy",
+    "Commit policy",
+    "Validation scope",
+    "Pre-existing changes",
+    "Required outputs",
+    "Production isolation overrides",
+    "Existing workflow state"
+  ],
+  "aliases": {
+    "Known defects": "Known findings",
+    "Testing contract": "Test contract",
+    "Backward compatibility": "Compatibility requirements",
+    "Implementation requirements": "Implementation contract",
+    "Acceptance": "Acceptance criteria"
+  },
+  "multiplicity": {},
+  "unknown_default": "author_owned",
+  "permission_bearing_patterns": [
+    "allowed(?:_to_modify| modification| modifications)?",
+    "forbidden|read[-_ ]?only|writable|write scope",
+    "repository|branch|baseline|\\bref\\b|commit|staging|push|publication",
+    "network|package|environment|cleanup|retry|resume|execution permission",
+    "production|scheduler|worker|work queue|log access|output access|pkl|sidecar",
+    "validation ceiling|prompt[-_ ]artifact"
+  ],
+  "diagnostics": {
+    "PROMPT-PREFLIGHT-E001": "trigger matched but prompt_id is missing",
+    "PROMPT-PREFLIGHT-E002": "malformed or unclosed Markdown fence",
+    "PROMPT-PREFLIGHT-E003": "duplicate or ambiguous owned section",
+    "PROMPT-PREFLIGHT-E004": "unknown permission-bearing section",
+    "PROMPT-PREFLIGHT-E005": "missing shared authorization value",
+    "PROMPT-PREFLIGHT-E006": "conflicting branch or baseline value",
+    "PROMPT-PREFLIGHT-E007": "author-owned content changed",
+    "PROMPT-PREFLIGHT-E008": "shared semantic value changed",
+    "PROMPT-PREFLIGHT-E009": "unsupported or contradictory commit policy",
+    "PROMPT-PREFLIGHT-E010": "prompt-contract validation failed",
+    "PROMPT-PREFLIGHT-E011": "governance binding is stale",
+    "PROMPT-PREFLIGHT-E012": "output root already exists",
+    "PROMPT-PREFLIGHT-E013": "canonical output reopening failed",
+    "PROMPT-PREFLIGHT-E014": "task action attempted before preflight pass",
+    "PROMPT-PREFLIGHT-E015": "transport-byte identity was required or claimed",
+    "PROMPT-PREFLIGHT-W001": "authored skill-owned section replaced in canonical output",
+    "PROMPT-PREFLIGHT-W002": "mechanical skill-owned repair applied",
+    "PROMPT-PREFLIGHT-W003": "unknown non-permission section preserved as author-owned"
+  },
+  "states": [
+    "not_triggered",
+    "source_captured",
+    "classified",
+    "canonicalized",
+    "prompt_contract_passed",
+    "blocked_semantic_ambiguity",
+    "blocked_prompt_contract",
+    "ready_for_same_session_execution",
+    "execution_started"
+  ],
+  "allowed_transitions": [
+    ["not_triggered", "source_captured"],
+    ["source_captured", "classified"],
+    ["classified", "canonicalized"],
+    ["classified", "blocked_semantic_ambiguity"],
+    ["canonicalized", "prompt_contract_passed"],
+    ["canonicalized", "blocked_prompt_contract"],
+    ["prompt_contract_passed", "ready_for_same_session_execution"],
+    ["ready_for_same_session_execution", "execution_started"]
+  ]
+}

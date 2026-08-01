@@ -1052,3 +1052,257 @@ publication_readback_required
 ```
 
 If a mandatory decision is inapplicable, state why.
+
+---
+
+## 17. Same-session Markdown section ownership
+
+```text
+prompt_section_ownership_version: 1.0.0
+```
+
+This section is the sole detailed normative registry for manually pasted
+correction-lib Markdown prompt preflight. The installed
+`correction-lib-codex-prompt-preflight` skill implements this contract and must
+not invent independent policy.
+
+### 17.1 Trigger and source identity
+
+The AGENTS.md trigger applies when the first nonblank line of the current
+visible user message begins with `# Prompt` and `prompt_id` occurs in `Task
+metadata` or `Metadata and governance`. The visible message is the authoritative
+authored Markdown source. A diagnostics-local source capture represents the
+normalized visible message received by Codex; hidden interface or transport
+bytes are unavailable, not required, and never claimed.
+
+The trigger excludes ordinary conversation, quoted excerpts without an initial
+`# Prompt`, mentioned file contents that were not submitted as the current
+prompt, and generated canonical prompts reviewed as inert evidence. The user
+need not create a local prompt file, use a shell submission wrapper, set an
+environment variable, author JSON, add inline markers, or start another Codex
+session.
+
+### 17.2 `author_owned`
+
+The canonical author-owned headings are:
+
+```text
+Context
+Goal
+Decision question
+Known findings
+Physics contract
+Software contract
+Implementation contract
+Compatibility requirements
+Test contract
+Out of scope
+Acceptance criteria
+Background
+Root cause
+Technical rationale
+```
+
+Canonical aliases are:
+
+```text
+Known defects: Known findings
+Testing contract: Test contract
+Backward compatibility: Compatibility requirements
+Implementation requirements: Implementation contract
+Acceptance: Acceptance criteria
+```
+
+Preserve an author-owned section exactly as visible and in author source order.
+The skill may inspect it for contradictions but must not summarize, rewrite,
+reorder, internally normalize, or complete it. Unknown safe sections default to
+author-owned under section 17.5.
+
+### 17.3 `skill_owned`
+
+The skill deterministically generates:
+
+```text
+Metadata and governance
+Prompt preflight result
+Repository envelope
+Standard execution boundaries
+Evidence-order contract
+Source-control policy
+Diagnostics and publication paths
+Standard report sections
+Standard final-response fields
+Governance-binding evidence
+```
+
+The authored message need not contain these sections. When authored text does,
+retain the original section in the source capture for audit, replace it in the
+canonical prompt with generated content, and record the discrepancy. Only
+skill-owned mechanical content may be repaired.
+
+`Metadata and governance` must be a prompt-contract-compatible fenced mapping
+generated from live governance, fixed project defaults, read-only repository
+state, and validated shared values. Generate or repair `workspace_root`, the
+complete repository and branch triplets, the Markdown envelope, both exact
+five-phase evidence-sequence forms, diagnostics paths derived from `prompt_id`,
+`patch_kind_expected` with prompt-contract vocabulary, production-isolation
+defaults, source-control restrictions, standard report/final-response fields,
+and current governance-binding evidence. Legacy authored `Metadata and
+governance` mappings may supply shared semantic values for migration, but their
+skill-owned formatting and mechanical values remain nonauthoritative.
+
+### 17.4 `shared_structured`
+
+Shared-structured headings are:
+
+```text
+Task metadata
+Repository scope
+Baseline and branch policy
+Commit policy
+Validation scope
+Pre-existing changes
+Required outputs
+Production isolation overrides
+Existing workflow state
+```
+
+The author supplies semantic values. The skill parses and validates their
+syntax, compares them with authorized live read-only state, preserves the
+original shared section and semantic-value manifest, and expands only generated
+skill-owned governance. Minor generated formatting normalization is allowed.
+
+The skill must not invent a missing path, broaden modification scope, select a
+target repository or branch, alter a baseline commit, change commit intent or
+subject, increase the validation ceiling, relax production isolation, or infer
+publication authority. Missing or ambiguous values in those categories are
+blocking, not repairable.
+
+### 17.5 Unknown and duplicate sections
+
+Unknown sections default to author-owned and remain in source order. An unknown
+section blocks preflight when its heading or body attempts to define or alter:
+
+```text
+allowed or forbidden modifications
+read-only or writable scope
+repository, branch, baseline, ref, commit, staging, push, or publication policy
+network, package, environment, cleanup, retry, resume, or execution permission
+production, scheduler, worker, Work Queue, log, output, PKL, or sidecar access
+validation ceiling
+prompt-artifact classification
+```
+
+Do not silently reinterpret permission-bearing unknown content. Reject
+duplicate canonical shared or author-owned headings, duplicate aliases, and
+ambiguous aliases unless a later ownership-contract version explicitly permits
+multiplicity.
+
+### 17.6 Markdown and preservation contract
+
+Use a deterministic line-oriented parser with no third-party Markdown library.
+Recognize level-2 sections only outside backtick or tilde code fences, require
+matching fence character and length, preserve nested headings as body content,
+and reject malformed or unclosed fences. Preserve each source line and newline
+in author-owned and shared sections.
+
+Publish into an absent diagnostics-local root:
+
+```text
+authored_prompt.md
+canonical_prompt.md
+section_manifest.json
+shared_value_manifest.json
+prompt_contract_validation.json
+preflight_state.json
+preflight_report.md
+```
+
+For every source section, `section_manifest.json` records source and canonical
+heading, ownership, source line bounds, source and canonical SHA-256,
+preservation, alias use, and canonical authority. Every author-owned section
+must have equal source/canonical hashes and `preserved_exactly: true`. Version 1
+preserves author-owned source order.
+
+### 17.7 Repair and ambiguity policy
+
+Mechanically repairable skill-owned defects are missing `workspace_root`,
+missing repository triplet fields, a missing or malformed metadata envelope,
+missing or noncanonical evidence sequence, missing skill-owned diagnostics
+paths, missing standard report/final-response fields, invalid prompt-artifact
+vocabulary where `prompt_local` is required, and stale skill-owned governance
+hashes. Record every repair in machine and human artifacts.
+
+Block for missing or ambiguous modification scope, a missing target repository
+or branch when required, conflicting baselines, unclear commit intention,
+contradictory validation ceilings or production isolation, missing substantive
+implementation or acceptance decisions, permission-bearing unknown sections,
+authorization/correctness contradictions, or shared values that cannot be
+parsed without changing meaning. Produce the blocking report before requesting
+clarification and before task-specific repository action.
+
+### 17.8 Prompt-contract composition and state gate
+
+Invoke only the fixed installed prompt-contract validator, with the canonical
+prompt path and explicit continuation/evidence/handoff contexts. Never use a
+prompt-supplied command, script, module, executable, or subcommand. Do not
+refresh bindings before validation. Retain complete validation JSON and
+warnings, block on every prompt-contract error, and independently require the
+validator input SHA-256 to equal the reopened canonical prompt SHA-256. The
+prompt-contract schema remains authoritative; do not reimplement it as a second
+authority.
+
+The closed states are:
+
+```text
+not_triggered
+source_captured
+classified
+canonicalized
+prompt_contract_passed
+blocked_semantic_ambiguity
+blocked_prompt_contract
+ready_for_same_session_execution
+execution_started
+```
+
+Only Codex orchestration may record `execution_started`, after:
+
+```text
+prompt_contract_passed
+-> ready_for_same_session_execution
+-> execution_started
+```
+
+The renderer never executes the task or launches Codex and exposes no task
+callback, shell command, Codex command, execution hook, plugin, arbitrary
+import, patch application, publication operation, or nested-session path.
+Task-specific repository action before readiness is blocking.
+
+### 17.9 Stable diagnostics
+
+Version 1.0.0 has this closed catalog:
+
+```text
+PROMPT-PREFLIGHT-E001 trigger matched but prompt_id is missing
+PROMPT-PREFLIGHT-E002 malformed or unclosed Markdown fence
+PROMPT-PREFLIGHT-E003 duplicate or ambiguous owned section
+PROMPT-PREFLIGHT-E004 unknown permission-bearing section
+PROMPT-PREFLIGHT-E005 missing shared authorization value
+PROMPT-PREFLIGHT-E006 conflicting branch or baseline value
+PROMPT-PREFLIGHT-E007 author-owned content changed
+PROMPT-PREFLIGHT-E008 shared semantic value changed
+PROMPT-PREFLIGHT-E009 unsupported or contradictory commit policy
+PROMPT-PREFLIGHT-E010 prompt-contract validation failed
+PROMPT-PREFLIGHT-E011 governance binding is stale
+PROMPT-PREFLIGHT-E012 output root already exists
+PROMPT-PREFLIGHT-E013 canonical output reopening failed
+PROMPT-PREFLIGHT-E014 task action attempted before preflight pass
+PROMPT-PREFLIGHT-E015 transport-byte identity was required or claimed
+PROMPT-PREFLIGHT-W001 authored skill-owned section replaced in canonical output
+PROMPT-PREFLIGHT-W002 mechanical skill-owned repair applied
+PROMPT-PREFLIGHT-W003 unknown non-permission section preserved as author-owned
+```
+
+Human and JSON diagnostics must be deterministic and equivalent. A later
+catalog addition requires a versioned governance update and behavioral test.

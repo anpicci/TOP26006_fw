@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "renderer_version": "1.0.0",
+  "ownership_contract_version": "1.0.0",
+  "primary_authoring_format": "markdown",
+  "transport_identity": "unavailable_not_required_not_claimed",
+  "evidence_sequence": [
+    "collect_direct_evidence",
+    "serialize_evidence",
+    "reopen_and_validate_evidence",
+    "classify_evidence",
+    "derive_verdict"
+  ],
+  "evidence_sequence_compact": "collect_direct_evidence -> serialize_evidence -> reopen_and_validate_evidence -> classify_evidence -> derive_verdict",
+  "generated_artifacts": [
+    "authored_prompt.md",
+    "canonical_prompt.md",
+    "section_manifest.json",
+    "shared_value_manifest.json",
+    "prompt_contract_validation.json",
+    "preflight_state.json",
+    "preflight_report.md"
+  ],
+  "fixed_subprocesses": [
+    "git branch --show-current",
+    "git rev-parse HEAD",
+    "correction-lib-prompt-contract/scripts/validate_prompt.py"
+  ],
+  "forbidden_interfaces": [
+    "task_callback",
+    "shell_true",
+    "prompt_content_as_argv",
+    "prompt_authored_import",
+    "codex_command",
+    "nested_session",
+    "patch_application",
+    "publication"
+  ]
+}
