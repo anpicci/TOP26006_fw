@@ -1,14 +1,14 @@
 {
-  "binding_version": "1.0.2",
-  "skill_version": "1.0.2",
-  "renderer_version": "1.0.2",
-  "ownership_contract_version": "1.0.2",
-  "schema_version": "1.0.2",
+  "binding_version": "1.1.0",
+  "skill_version": "1.1.0",
+  "renderer_version": "1.1.0",
+  "ownership_contract_version": "1.1.0",
+  "schema_version": "1.1.0",
   "workspace_root": "/users/apiccine/work/correction-lib",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "866a37352cba55bded2a98119982a32452ff95d16f4c4fab37405dc4897e7c5d",
+  "agents_sha256": "08424b0559a16248c73ee6e56959c79826b1b0dcb33b72ae4f4e49f4e696e2a4",
   "cpc_path": "CPC.md",
-  "cpc_sha256": "67cfa0341b46b9d08ab9194a1912683cfa1ca86303e37a09ed75d02c295a3f36",
-  "generated_at": "2026-08-01",
-  "reviewed_by": "same-session prompt preflight security binding"
+  "cpc_sha256": "2b73c2d9f5c860b1aaecf8b0101e612981dd970840c29ad465b0aa17f1f7bf04",
+  "generated_at": "2026-08-03",
+  "reviewed_by": "prompt preflight 1.1.0 governance binding"
 }

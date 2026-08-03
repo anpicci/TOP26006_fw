@@ -3,9 +3,8 @@
 ## Metadata and governance
 
 ```text
-{metadata_mapping}
+{generated_closed_authority_mapping}
 ```
 
+{generated_skill_owned_observations}
 {preserved_author_owned_sections}
-
-{generated_skill_owned_sections}

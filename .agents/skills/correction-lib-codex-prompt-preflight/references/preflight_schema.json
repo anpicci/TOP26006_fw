@@ -1,7 +1,14 @@
 {
-  "schema_version": "1.0.2",
-  "renderer_version": "1.0.2",
-  "ownership_contract_version": "1.0.2",
+  "schema_version": "1.1.0",
+  "renderer_version": "1.1.0",
+  "ownership_contract_version": "1.1.0",
+  "black_box_suite_version": "1.2.0",
+  "trust_model_id": "TM-1.0-LOCAL-UNINTERRUPTED",
+  "authority_model_id": "AM-1.0-CLOSED-INTERSECTION",
+  "shared_registry_id": "SKR-1.0-CLOSED",
+  "runtime_interface_id": "diagnostics_source_capture_v1_1",
+  "readiness_theorem_id": "RT-1.1-IMMEDIATE",
+  "filesystem_contract_id": "FS-1.1-LINUX-NOREPLACE",
   "primary_authoring_format": "markdown",
   "transport_identity": "unavailable_not_required_not_claimed",
   "evidence_sequence": [
@@ -12,114 +19,24 @@
     "derive_verdict"
   ],
   "evidence_sequence_compact": "collect_direct_evidence -> serialize_evidence -> reopen_and_validate_evidence -> classify_evidence -> derive_verdict",
+  "public_exit_codes": {
+    "0": "success_with_canonical_stdout_and_four_audits",
+    "2": "markdown_mapping_registry_or_source_failure",
+    "3": "authority_governance_baseline_or_isolation_failure",
+    "4": "prompt_contract_failure",
+    "5": "audit_schema_or_no_replace_publication_failure"
+  },
   "generated_artifacts": {
-    "authored_prompt.md": {
-      "type": "utf8_markdown",
-      "required": true,
-      "cross_hash": "preflight_state.source_sha256"
-    },
-    "canonical_prompt.md": {
-      "type": "utf8_markdown",
-      "required_when": "canonicalized",
-      "cross_hash": "preflight_state.canonical_prompt_sha256"
-    },
-    "section_manifest.json": {
-      "type": "closed_object",
-      "required_keys": [
-        "prompt_id",
-        "source_line_count",
-        "source_section_count",
-        "canonical_section_count",
-        "records"
-      ],
-      "required_item_keys": [
-        "source_heading",
-        "canonical_heading",
-        "ownership",
-        "source_start_line",
-        "source_end_line",
-        "source_sha256",
-        "canonical_sha256",
-        "preserved_exactly",
-        "alias_applied",
-        "authoritative_in_canonical"
-      ]
-    },
-    "shared_value_manifest.json": {
-      "type": "closed_object",
-      "required_keys": [
-        "prompt_id",
-        "records",
-        "author_semantic_invention_count",
-        "author_semantic_change_count"
-      ]
-    },
-    "prompt_contract_validation.json": {
-      "type": "closed_installed_validator_object",
-      "required_keys_when_invoked": [
-        "error_count",
-        "warning_count",
-        "canonical_prompt_sha256",
-        "validator_input_sha256_matches_canonical"
-      ]
-    },
-    "preflight_state.json": {
-      "type": "closed_object",
-      "required_keys": [
-        "current_state",
-        "states_visited",
-        "source_sha256",
-        "agents_sha256",
-        "cpc_sha256",
-        "blocking_error_count",
-        "diagnostics"
-      ]
-    },
-    "preflight_report.md": {
-      "type": "utf8_markdown",
-      "required_headings": [
-        "# Prompt preflight report",
-        "## Preflight result",
-        "## Diagnostics",
-        "## Governance hashes"
-      ]
-    },
-    "readiness_binding.json": {
-      "type": "closed_object",
-      "required_keys": [
-        "prompt_id",
-        "authored_prompt_sha256",
-        "canonical_prompt_sha256",
-        "prompt_contract_input_sha256",
-        "prompt_contract_validation_sha256",
-        "section_manifest_sha256",
-        "shared_value_manifest_sha256",
-        "preflight_report_sha256",
-        "preflight_state_sha256_without_self_field",
-        "AGENTS_sha256",
-        "CPC_sha256",
-        "workspace_root",
-        "diagnostics_root",
-        "output_root_identity",
-        "state_sequence",
-        "current_state",
-        "blocking_error_count",
-        "warning_count",
-        "created_by_skill_version",
-        "created_by_renderer_version",
-        "ownership_contract_version",
-        "schema_version",
-        "required_artifacts"
-      ]
-    }
+    "authored_prompt.md": "byte_identical_source_capture",
+    "canonical_prompt.md": "byte_identical_success_stdout",
+    "preflight_result.json": "closed_observational_result",
+    "preflight_report.md": "observational_human_report"
   },
-  "shared_structured_grammar": {
-    "mapping_fences": 1,
-    "language": "text",
-    "outside_mapping": ["blank_lines", "restricted_inert_html_comments"]
-  },
-  "descriptor_rooted_io": true,
-  "readiness_requires_complete_bound_package": true,
+  "audit_artifacts_authorize": false,
+  "immediate_readiness_only": true,
+  "descriptor_rooted_source_capture": true,
+  "linux_publication_primitive": "renameat2(RENAME_NOREPLACE)",
+  "ordinary_rename_fallback": false,
   "fixed_subprocesses": [
     "git branch --show-current",
     "git rev-parse HEAD",
@@ -130,10 +47,10 @@
     "task_callback",
     "shell_true",
     "prompt_content_as_argv",
+    "prompt_content_as_environment",
+    "prompt_content_as_shell_input",
     "prompt_authored_import",
-    "codex_command",
     "nested_session",
-    "patch_application",
-    "publication"
+    "arbitrary_validation_command"
   ]
 }

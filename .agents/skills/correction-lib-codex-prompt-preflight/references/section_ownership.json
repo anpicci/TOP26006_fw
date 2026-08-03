@@ -1,5 +1,8 @@
 {
-  "prompt_section_ownership_version": "1.0.2",
+  "prompt_section_ownership_version": "1.1.0",
+  "shared_registry_id": "SKR-1.0-CLOSED",
+  "shared_section_count": 9,
+  "shared_semantic_path_count": 67,
   "author_owned": [
     "Context",
     "Goal",
@@ -46,89 +49,111 @@
     "Implementation requirements": "Implementation contract",
     "Acceptance": "Acceptance criteria"
   },
-  "multiplicity": {},
-  "unknown_default": "author_owned",
-  "governance_mapping_keys": [
-    "allowed_to_modify",
-    "read_only",
-    "branch_policy",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "current_baseline_branch",
-    "comparison_baseline",
-    "commit_expected",
-    "do_not_commit",
-    "commit_message_policy",
-    "validation_ceiling",
-    "heavy_command_permissions",
-    "network_access",
-    "remote_git_write",
-    "pr_or_mr_write",
-    "pr_or_mr_merge",
-    "production_isolation_overrides",
-    "patch_kind_expected"
-  ],
-  "diagnostics": {
-    "PROMPT-PREFLIGHT-E001": "trigger matched but prompt_id is missing or the prompt title is invalid",
-    "PROMPT-PREFLIGHT-E002": "malformed or unclosed Markdown fence",
-    "PROMPT-PREFLIGHT-E003": "duplicate or ambiguous owned section",
-    "PROMPT-PREFLIGHT-E004": "unknown normative or permission-bearing section",
-    "PROMPT-PREFLIGHT-E005": "missing shared authorization value",
-    "PROMPT-PREFLIGHT-E006": "conflicting branch or baseline value",
-    "PROMPT-PREFLIGHT-E007": "author-owned content changed",
-    "PROMPT-PREFLIGHT-E008": "shared semantic value changed",
-    "PROMPT-PREFLIGHT-E009": "unsupported or contradictory commit policy",
-    "PROMPT-PREFLIGHT-E010": "prompt-contract validation failed",
-    "PROMPT-PREFLIGHT-E011": "governance binding is stale",
-    "PROMPT-PREFLIGHT-E012": "output root already exists",
-    "PROMPT-PREFLIGHT-E013": "canonical output reopening failed",
-    "PROMPT-PREFLIGHT-E014": "task action attempted before preflight pass",
-    "PROMPT-PREFLIGHT-E015": "transport-byte identity was required or claimed",
-    "PROMPT-PREFLIGHT-E016": "duplicate structured semantic path",
-    "PROMPT-PREFLIGHT-E017": "malformed structured mapping indentation",
-    "PROMPT-PREFLIGHT-E018": "diagnostics path confinement failed",
-    "PROMPT-PREFLIGHT-E019": "generated artifact schema validation failed",
-    "PROMPT-PREFLIGHT-E020": "runtime state transition violated the closed graph",
-    "PROMPT-PREFLIGHT-E021": "shared structured section violates its closed grammar",
-    "PROMPT-PREFLIGHT-E022": "readiness binding or canonical authority is invalid",
-    "PROMPT-PREFLIGHT-E023": "descriptor-rooted diagnostics I/O failed closed",
-    "PROMPT-PREFLIGHT-W001": "authored skill-owned section replaced in canonical output",
-    "PROMPT-PREFLIGHT-W002": "missing skill-owned mechanical content generated",
-    "PROMPT-PREFLIGHT-W003": "unknown descriptive section preserved as author-owned",
-    "PROMPT-PREFLIGHT-W004": "authored fixed skill-owned value replaced"
-  },
-  "states": [
-    "not_triggered",
-    "source_captured",
-    "classified",
-    "canonicalized",
-    "prompt_contract_passed",
-    "blocked_semantic_ambiguity",
-    "blocked_prompt_contract",
-    "ready_for_same_session_execution",
-    "execution_started"
-  ],
-  "allowed_transitions": [
-    ["not_triggered", "source_captured"],
-    ["source_captured", "classified"],
-    ["classified", "blocked_semantic_ambiguity"],
-    ["classified", "canonicalized"],
-    ["canonicalized", "blocked_prompt_contract"],
-    ["canonicalized", "prompt_contract_passed"],
-    ["prompt_contract_passed", "blocked_prompt_contract"],
-    ["prompt_contract_passed", "ready_for_same_session_execution"],
-    ["ready_for_same_session_execution", "execution_started"]
-  ],
-  "branch_policy_registry": {
-    "version": "1.0.2",
-    "supported": [
-      "continue_existing_branch",
-      "read_only_current_branch"
+  "shared_semantic_paths": {
+    "Task metadata": [
+      "prompt_id",
+      "short_title",
+      "prompt_mode",
+      "preferred_codex_model",
+      "reasoning_level",
+      "delegation_policy",
+      "model_selection_rationale"
     ],
-    "rejected_without_task_action": [
-      "create_feature_branch_from_reference",
-      "commit_preparation_on_existing_branch"
+    "Repository scope": [
+      "allowed_to_modify",
+      "read_only"
+    ],
+    "Baseline and branch policy": [
+      "branch_policy",
+      "reference_branch",
+      "target_branch",
+      "feature_branch",
+      "current_baseline_branch",
+      "comparison_baseline",
+      "integrated_baseline_mode"
+    ],
+    "Commit policy": [
+      "do_not_commit",
+      "commit_expected",
+      "commit_message_policy"
+    ],
+    "Validation scope": [
+      "dirty_worktree_policy",
+      "preflight_profile",
+      "preflight_scope_paths",
+      "validation_ceiling",
+      "heavy_command_permissions",
+      "publication_action",
+      "publication_platform",
+      "publication_repository",
+      "publication_remote",
+      "publication_base_branch",
+      "publication_feature_branch",
+      "expected_local_head",
+      "network_access",
+      "remote_git_write",
+      "pr_or_mr_write",
+      "pr_or_mr_merge",
+      "remote_branch_deletion",
+      "duplicate_pr_or_mr_policy",
+      "force_push_allowed",
+      "merge_allowed",
+      "draft_allowed"
+    ],
+    "Pre-existing changes": [
+      "declared_preexisting_changes"
+    ],
+    "Required outputs": [
+      "goal",
+      "decision_question",
+      "out_of_scope",
+      "final_chat_deliverable",
+      "accepted_prior_evidence",
+      "unresolved_checks_only",
+      "checks_not_to_repeat",
+      "evidence_requirements",
+      "classification_rules",
+      "anti_self_certification_rules",
+      "stop_conditions",
+      "acceptance_logic",
+      "report_path",
+      "patch_path",
+      "patch_kind_expected"
+    ],
+    "Production isolation overrides": [
+      "active_production_noninterference",
+      "production_isolation_overrides",
+      "execution_owner",
+      "overwrite_or_resume_policy",
+      "interruption_retry_policy",
+      "codex_post_run_interpretation",
+      "intended_output_paths"
+    ],
+    "Existing workflow state": [
+      "continuation",
+      "evidence_round",
+      "user_run_handoff",
+      "existing_workflow_state"
     ]
+  },
+  "diagnostics": {
+    "PROMPT-PREFLIGHT-E001": "trigger matched but prompt_id is missing",
+    "PROMPT-PREFLIGHT-E002": "malformed Markdown or mapping",
+    "PROMPT-PREFLIGHT-E003": "duplicate or ambiguous registered section",
+    "PROMPT-PREFLIGHT-E004": "unknown shared section or semantic path",
+    "PROMPT-PREFLIGHT-E005": "missing required shared value",
+    "PROMPT-PREFLIGHT-E006": "branch or baseline contradiction",
+    "PROMPT-PREFLIGHT-E009": "commit-policy contradiction",
+    "PROMPT-PREFLIGHT-E010": "prompt-contract validation failure",
+    "PROMPT-PREFLIGHT-E011": "governance or authority failure",
+    "PROMPT-PREFLIGHT-E012": "audit destination collision",
+    "PROMPT-PREFLIGHT-E015": "inaccessible transport identity",
+    "PROMPT-PREFLIGHT-E016": "duplicate structured semantic path",
+    "PROMPT-PREFLIGHT-E017": "malformed structured indentation",
+    "PROMPT-PREFLIGHT-E018": "diagnostics source path failure",
+    "PROMPT-PREFLIGHT-E021": "shared section closed-grammar failure",
+    "PROMPT-PREFLIGHT-E023": "audit or no-replace publication failure",
+    "PROMPT-PREFLIGHT-W001": "authored skill-owned section replaced",
+    "PROMPT-PREFLIGHT-W003": "unknown ordinary Markdown preserved"
   }
 }
