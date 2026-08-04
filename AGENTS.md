@@ -1477,48 +1477,28 @@ patch application, independent test execution, fixes, or publication.
 
 ---
 
-## 27. Same-session Markdown prompt preflight
+## 27. Prompt-preflight lifecycle
 
-When the first nonblank line of the current visible user message begins with
-`# Prompt` and that message contains a `prompt_id` in a `Task metadata` or
-`Metadata and governance` section, invoke
-`correction-lib-codex-prompt-preflight` before any task-specific repository
-action. The trusted current session must first create a regular UTF-8
-`authored_prompt_input.md` in an authorized diagnostics-local directory from
-the normalized visible Markdown. Hidden transport bytes are unavailable, not
-required, and must not be claimed.
+`correction-lib-codex-prompt-preflight` version 1.1.0 is experimental,
+unqualified, paused, and advisory only. Do not invoke it automatically, gate
+normal correction-lib work on it, or use its output, exit status, canonical
+Markdown, reports, hashes, or artifacts to authorize repository mutation. Run
+it only when the user explicitly requests prompt-preflight development,
+investigation, regression study, or advisory validation. Future resumption of
+enforcement or qualification requires an explicit new user decision and a
+fresh scoped baseline. See CPC.md section 17 for the complete lifecycle policy.
 
-Invoke only the fixed installed entry point with that diagnostics-relative
-source path, an absent diagnostics-relative audit root, the fixed workspace,
-and explicit context enums. Do not pass prompt content through argv,
-environment variables, shell input, executables, imports, callbacks, or a
-generated command. Continue only when the just-completed invocation returns
-exit 0 and canonical Markdown on stdout, and continue only into the immediate
-next orchestration phase of this same uninterrupted turn. Read no readiness
-artifact and run no freshness or assertion command. A new message,
-interruption, resumed or new session, or deliberate governance/repository
-change requires a complete new preflight.
-
-This trigger does not apply to ordinary conversation, quoted prompt excerpts
-whose first nonblank line is not `# Prompt`, file contents merely mentioned but
-not submitted as the current task prompt, or generated canonical prompts being
-reviewed as inert evidence. CPC.md
-`prompt_section_ownership_version: 1.1.0` is the sole detailed normative
-ownership registry. The skill may narrowly invoke the fixed installed
-prompt-contract validator against its generated canonical prompt; this does not
-authorize task execution or automatic binding refresh. The user needs no
-wrapper or second session.
+The independent `correction-lib-prompt-contract` validator remains available
+for mechanical validation of structured governance prompts. Its success
+validates structure only and grants no repository authority.
 
 ```text
 logical_id: codex_prompt_preflight
 skill_name: correction-lib-codex-prompt-preflight
 path: .agents/skills/correction-lib-codex-prompt-preflight/SKILL.md
 version: 1.1.0
-trigger: mandatory preflight of a current manually pasted correction-lib Markdown prompt
+trigger: explicit user request for development, investigation, regression study, or advisory validation
 normative_sources: live AGENTS.md and CPC.md
 ```
 
-Skill availability does not authorize task-specific repository action. Such
-action is allowed only by the just-returned exit 0 plus canonical stdout for
-the immediate next phase. Version 1.1.0 is implemented pending later
-fresh-session qualification of BB023 and BB025.
+Skill availability and advisory output have no authorization effect.

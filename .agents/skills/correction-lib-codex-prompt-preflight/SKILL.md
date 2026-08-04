@@ -1,9 +1,20 @@
 ---
 name: correction-lib-codex-prompt-preflight
-description: Preflight a manually pasted correction-lib Markdown task prompt in the current Codex session before task-specific repository action. Use when the first nonblank line of the visible user message begins with `# Prompt` and a `prompt_id` appears in `Task metadata` or `Metadata and governance`; create a diagnostics-local source capture, validate closed structured authority, render canonical Markdown, publish four observational audit artifacts, and gate only the immediate next phase of the same uninterrupted turn.
+description: Experimental, unqualified, paused advisory tooling for correction-lib Markdown prompt preflight. Use only when the user explicitly requests prompt-preflight development, investigation, regression study, or advisory validation; never invoke automatically, gate normal tasks, or treat any result or artifact as authorization.
 ---
 
 # Correction-lib Codex prompt preflight
+
+## Status
+
+This skill is experimental, unqualified, paused, and advisory only.
+
+- Do not invoke it automatically.
+- Do not treat exit 0, canonical output, reports, hashes, or readiness artifacts
+  as authorization.
+- Do not gate normal correction-lib tasks or claim live qualification.
+- Use it only for explicit future development, investigation, regression study,
+  or user-requested advisory validation.
 
 Preflight the visible Markdown prompt without executing its task. Treat complete
 live `AGENTS.md` and `CPC.md` as normative and the bundled registry and schema
@@ -23,11 +34,10 @@ as frozen executable projections.
    <wrapper> /bin/bash --noprofile --norc -c '<pinned-python> <script> --workspace-root /users/apiccine/work/correction-lib --source-path <diagnostics-relative-authored_prompt_input.md> --audit-root <diagnostics-relative-absent-root> --continuation <yes|no|unknown> --evidence-round <yes|no|unknown> --user-run-handoff <yes|no|unknown>'
    ```
 
-5. Capture stdout directly. Continue only when that just-completed invocation
-   returned exit 0, stdout is canonical Markdown, and the next orchestration
-   phase begins immediately in this same uninterrupted turn.
-6. Run a complete new preflight after a new message, interruption, resumed or
-   new session, or deliberate governance/repository change.
+5. Capture stdout directly and treat it as advisory evidence only. It neither
+   authorizes nor blocks any task phase.
+6. Run a new advisory invocation only when explicitly requested for a later
+   message, session, or governance state.
 
 Never place prompt content in argv, environment variables, shell input, an
 executable path, imported module, callback, generated command, or nested Codex
@@ -69,9 +79,9 @@ artifact before publishing the absent audit root with Linux
 `renameat2(RENAME_NOREPLACE)`. Fail closed on missing/unsupported primitives,
 collisions, or publication errors. Never fall back to an ordinary rename.
 
-Audit files do not authorize. Exit 0 plus canonical stdout authorizes only the
-immediate next orchestration phase in this uninterrupted turn. There is no
-stored authorization capability or post-exit freshness command.
+Audit files, exit 0, and canonical stdout do not authorize any orchestration or
+repository action. There is no readiness authority, stored authorization
+capability, or post-exit freshness command.
 
 ## Execution boundary
 

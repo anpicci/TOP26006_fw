@@ -5,9 +5,9 @@
   "renderer_version": "1.0.1",
   "workspace_root": "/users/apiccine/work/correction-lib",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "08424b0559a16248c73ee6e56959c79826b1b0dcb33b72ae4f4e49f4e696e2a4",
+  "agents_sha256": "79e1f0ee5d1f3de9873a6aed128a1863873821378a24028c7191e55b08e4ee33",
   "cpc_path": "CPC.md",
-  "cpc_sha256": "2b73c2d9f5c860b1aaecf8b0101e612981dd970840c29ad465b0aa17f1f7bf04",
-  "generated_at": "2026-08-03",
-  "reviewed_by": "prompt preflight 1.1.0 governance binding"
+  "cpc_sha256": "6e568f1f986da6e6e4925f49727ef286733106bd865e539e7c9c562c8a3bcc18",
+  "generated_at": "2026-08-04",
+  "reviewed_by": "prompt preflight paused lifecycle binding"
 }
