@@ -1128,6 +1128,17 @@ Rules:
 * Name collector and validator commands or the exact manual method.
 * Publication success requires remote readback after writes. Push or creation
   output alone is insufficient.
+* Histogram and HistEFT transformations may retain singleton categorical axes.
+  Select or project by semantic axis identity; never infer a physical flow/bin
+  axis from raw array position after transformations.
+* When a transformation is required to transport physics metadata (including
+  EFT coefficients, sumw2, scaling, or provenance companions), validate that
+  metadata against the resolved fitting mapping, not only nominal shapes or
+  rates.
+* Artifact certification for nontrivial physics metadata must validate semantic
+  content: it must be non-empty, finite, correctly associated and shaped, and
+  numerically cross-checked where applicable. Unexpected empty metadata is an
+  explicit validation failure, not a structurally valid success.
 
 ---
 
