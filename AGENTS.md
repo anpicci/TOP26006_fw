@@ -276,6 +276,7 @@ test_alignment_only
 documentation_only
 commit_preparation
 pr_preparation
+integration_only
 pr_publication
 production_execution
 ```
@@ -328,6 +329,44 @@ other reviewer-facing text from established evidence.
 
 Forbidden: code changes, commits, pushes, PR/MR creation or update, merge, and
 remote deletion.
+
+### `integration_only`
+
+Allowed only for one explicitly declared local branch-integration decision:
+read-only ancestry, ref, tree, and worktree checks; switching to the declared
+local integration target; integrating exactly one declared local source feature
+branch; post-integration local readback; and report/patch artifacts. The
+default `integration_method` is `ff_only`, which creates no new commit.
+
+Forbidden by default:
+
+```text
+source/test/config/documentation edits
+new development commits
+remote reads or writes
+push
+PR/MR creation, update, or merge
+remote or local feature-branch deletion
+reset
+restore
+stash
+clean
+rebase
+cherry-pick
+force update
+history rewriting
+```
+
+An integration target or reference branch remains a non-development surface;
+this mode may advance it only by the explicitly declared integration action and
+does not authorize later development commits there. The source feature branch
+remains present unless deletion is separately authorized in another round.
+
+A non-fast-forward method, including a merge commit or squash, is never
+implied. It requires the exact method and explicit user authorization in a
+separate one-decision integration round, a declared resulting local-commit
+behavior, and compliance with existing commit, diff, and readback rules. A
+rebase or other history rewrite is never an implicit alternative.
 
 ### `pr_publication`
 

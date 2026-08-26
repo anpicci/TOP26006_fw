@@ -187,6 +187,37 @@ merge_allowed
 draft_allowed
 ```
 
+For `integration_only`, also state:
+
+```text
+integration_source_branch
+integration_target_branch
+integration_method
+expected_source_head
+```
+
+Default:
+
+```text
+integration_method: ff_only
+```
+
+For a local `ff_only` integration, also state:
+
+```text
+network_access: no
+remote_git_write: no
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+```
+
+Do not require publication platform, repository, remote, or PR/MR fields for
+`integration_only`. A non-fast-forward method must state its exact method,
+explicit user authorization, and resulting local-commit behavior; rebase and
+history rewriting are not implicit alternatives.
+
 Required publication defaults:
 
 ```text
@@ -303,6 +334,7 @@ test_alignment_only
 documentation_only
 commit_preparation
 pr_preparation
+integration_only
 pr_publication
 production_execution
 ```
@@ -316,8 +348,11 @@ Use the narrowest mode that permits the work.
 * `documentation_only`: tracked documentation changes.
 * `commit_preparation`: stage and commit intended existing changes.
 * `pr_preparation`: reviewer-facing text only.
-* `pr_publication`: publish an already validated branch, create/update the
-  requested PR/MR, or perform a separately authorized merge round.
+* `integration_only`: explicitly declared local branch integration with the
+  default `ff_only` method and no remote publication.
+* `pr_publication`: remote publication of an already validated branch,
+  creation/update of the requested PR/MR, or a separately authorized remote
+  PR/MR merge round.
 * `production_execution`: production-like or heavy commands.
 
 Do not combine `pr_publication` with source editing, new commits, history
@@ -829,6 +864,24 @@ merge_allowed: <yes_or_no>
 draft_allowed: no
 ```
 
+For `integration_only`, append:
+
+```text
+integration_source_branch: <local feature branch>
+integration_target_branch: <local target branch>
+integration_method: ff_only
+expected_source_head: <commit>
+network_access: no
+remote_git_write: no
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+```
+
+For any non-fast-forward method, also require exact user authorization and the
+declared resulting local-commit behavior.
+
 #### Inherited standing policy
 
 Use compact references:
@@ -1065,6 +1118,8 @@ report_and_patch_paths_explicit
 absolute_report_directory_in_final_chat_when_report_is_produced
 final_chat_deliverable_explicit
 publication_mode_used_for_remote_publication
+integration_contract_explicit_when_integration_only
+ff_only_default_or_non_ff_user_authorization_explicit
 glados_ssh_override_encoded_when_applicable
 direct_network_commands_required
 live_remote_state_queried
