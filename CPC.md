@@ -43,7 +43,9 @@ one_round_one_decision
 ```
 
 A prompt should contain only the information needed to answer its single
-`decision_question` safely and audibly.
+`decision_question` safely and audibly. One decision means one substantive
+decision boundary, not necessarily one activity type; cross-mode stages require
+the conditional `orchestrated_workflow` contract.
 
 Do not bury the task under accumulated project history. Cite prior artifacts
 instead.
@@ -247,6 +249,67 @@ safety-critical local branch/ref operations. Do not make these fields global,
 and do not treat this mode as authorization for rebase, reset, deletion, or
 history rewriting.
 
+For `orchestrated_workflow`, also state:
+
+```text
+workflow_goal
+workflow_stages
+workflow_stop_policy
+workflow_stage_ledger_path
+```
+
+Default:
+
+```text
+workflow_stop_policy: stop_on_failed_gate_or_new_decision_boundary
+```
+
+Declare stages in execution order. For each stage, require the applicable
+compact contract:
+
+```text
+stage_id
+stage_mode
+stage_goal
+stage_branch_policy
+stage_allowed_to_modify
+stage_read_only
+stage_permissions
+stage_preconditions
+stage_acceptance_gate
+stage_outputs
+stage_inputs_from_prior
+stage_on_failure
+```
+
+Omit genuinely irrelevant stage fields rather than filling them for symmetry,
+but include every conditional field required by the selected stage mode. The
+outer permissions are a maximum envelope; require stage-local authorization
+and forbid permission pooling. Require each transition to use serialized,
+mode-required read-back evidence and a passed objective gate. Prior-stage input
+bindings must resolve to observed validated outputs, not expected placeholders.
+
+Allow only these stage modes in the first version:
+
+```text
+investigation_only
+coding
+validation_only
+test_alignment_only
+documentation_only
+commit_preparation
+pr_preparation
+integration_only
+branch_maintenance_only
+```
+
+Forbid nested `orchestrated_workflow` stages and exclude `pr_publication` and
+`production_execution`. Require stop-on-new-decision-boundary behavior,
+partial-completion reporting, and a compact observed-evidence stage ledger.
+Automatic rollback is forbidden unless an explicitly preauthorized rollback
+stage is itself valid under an existing stage mode. These fields are
+conditional only on `orchestrated_workflow`.
+
 Required publication defaults:
 
 ```text
@@ -365,6 +428,7 @@ commit_preparation
 pr_preparation
 integration_only
 branch_maintenance_only
+orchestrated_workflow
 pr_publication
 production_execution
 ```
@@ -383,6 +447,9 @@ Use the narrowest mode that permits the work.
 * `branch_maintenance_only`: explicitly authorized local branch/ref lifecycle
   normalization with preservation and reachability proof, no source edits, and
   no new commits.
+* `orchestrated_workflow`: ordered composition of allowed existing modes inside
+  one substantive decision boundary, with stage-local permissions, validated
+  transition gates, and auditable partial completion.
 * `pr_publication`: remote publication of an already validated branch,
   creation/update of the requested PR/MR, or a separately authorized remote
   PR/MR merge round.
@@ -391,6 +458,10 @@ Use the narrowest mode that permits the work.
 Do not combine `pr_publication` with source editing, new commits, history
 rewriting, force push, remote deletion, or merge unless the exact action is the
 single explicit decision and separately authorized.
+
+Do not nest `orchestrated_workflow`. Its first version excludes
+`pr_publication` and `production_execution`; use their dedicated modes and
+authorization boundaries instead.
 
 ---
 
@@ -456,9 +527,14 @@ by exactly one open non-draft PR against the declared live base?
 
 Rules:
 
-* One prompt normally answers one decision question.
+* One prompt normally answers one decision question. An
+  `orchestrated_workflow` may contain multiple activity types only when they
+  implement that one substantive decision and every transition is already
+  determined by an objective gate.
 * Separate implementation closure, history review, campaign qualification,
   derivation, installation, PR preparation, publication, and merge.
+* If a stage result creates a new unpreauthorized choice, require
+  `blocked_new_decision_boundary`; report completed stages and stop.
 * Do not include an expected successful conclusion for investigation,
   validation, audit, or publication.
 * Expected values are allowed only for immutable inputs and safety invariants.
@@ -933,6 +1009,33 @@ preservation/reachability proof before movement, fresh authoritative-ref and
 reachability readback afterward, and exact direct Git commands. Do not use this
 mode for rebase, reset, deletion, or history rewriting.
 
+For `orchestrated_workflow`, append:
+
+```text
+workflow_goal: <one preauthorized workflow goal>
+workflow_stages:
+  - stage_id: <unique stage id>
+    stage_mode: <allowed non-nested stage mode>
+    stage_goal: <stage-local goal>
+    stage_branch_policy: <applicable branch policy>
+    stage_allowed_to_modify: <exact surfaces>
+    stage_read_only: <exact surfaces>
+    stage_permissions: <stage-local permissions>
+    stage_preconditions: <observed gate inputs>
+    stage_acceptance_gate: <objective pass condition>
+    stage_outputs: <named observed outputs>
+    stage_inputs_from_prior: <bindings_or_none>
+    stage_on_failure: stop_remaining_stages
+workflow_stop_policy: stop_on_failed_gate_or_new_decision_boundary
+workflow_stage_ledger_path: <absolute compact ledger path>
+```
+
+Require mode-specific conditional fields inside each stage. Do not pool stage
+permissions or preauthorize unknown future choices. Require read-back validated
+output bindings, an observed-evidence ledger, explicit partial-completion
+fields, and no automatic rollback. Exclude `pr_publication`,
+`production_execution`, and nested `orchestrated_workflow` stages.
+
 #### Inherited standing policy
 
 Use compact references:
@@ -1174,6 +1277,16 @@ ff_only_default_or_non_ff_user_authorization_explicit
 branch_maintenance_contract_explicit_when_branch_maintenance_only
 preservation_and_reachability_proven_before_ref_move
 non_ff_ref_move_explicitly_authorized_when_applicable
+orchestrated_workflow_contract_explicit_when_applicable
+one_substantive_decision_boundary_across_all_stages
+stage_modes_allowed_and_not_nested
+stage_permissions_isolated_within_outer_envelope
+stage_transition_requires_validated_observed_gate
+prior_stage_bindings_use_read_back_outputs
+new_decision_boundary_stops_remaining_stages
+partial_completion_and_persistent_effects_reported
+automatic_rollback_forbidden_by_default
+publication_and_production_excluded_from_orchestration
 glados_ssh_override_encoded_when_applicable
 direct_network_commands_required
 live_remote_state_queried

@@ -50,6 +50,10 @@ remote_writes_require_explicit_permission
 More specifically:
 
 * Every round must have one explicit `decision_question`.
+* `one_round_one_decision` means one substantive decision boundary, not one
+  activity type. Multiple ordered activity types belong in one round only
+  through `orchestrated_workflow` and only when their transitions are
+  predeclared and mechanically determined by objective gates.
 * Include only the context, checks, permissions, and artifacts needed to answer
   that question.
 * Do not encode the desired answer as an expected result.
@@ -278,6 +282,7 @@ commit_preparation
 pr_preparation
 integration_only
 branch_maintenance_only
+orchestrated_workflow
 pr_publication
 production_execution
 ```
@@ -416,6 +421,117 @@ branch deletion both default to `no` and require separate authorization.
 This mode owns local branch/ref normalization only. It does not replace
 development modes, `integration_only`, `commit_preparation`, or
 `pr_publication`.
+
+### `orchestrated_workflow`
+
+This is a composition meta-mode for one pre-authorized workflow that implements
+one substantive decision through ordered stages. Each stage's existing prompt
+mode remains normative; this mode does not copy, replace, or broaden those
+contracts.
+
+The first version may compose only:
+
+```text
+investigation_only
+coding
+validation_only
+test_alignment_only
+documentation_only
+commit_preparation
+pr_preparation
+integration_only
+branch_maintenance_only
+```
+
+`pr_publication` and `production_execution` are excluded because their external
+side effects remain behind dedicated authorization boundaries. A stage must not
+use `orchestrated_workflow`; nested workflows are forbidden.
+
+An orchestrated prompt must declare the conditional workflow fields:
+
+```text
+workflow_goal
+workflow_stages
+workflow_stop_policy
+workflow_stage_ledger_path
+```
+
+The default stop policy is
+`stop_on_failed_gate_or_new_decision_boundary`. Each ordered stage must declare,
+when applicable:
+
+```text
+stage_id
+stage_mode
+stage_goal
+stage_branch_policy
+stage_allowed_to_modify
+stage_read_only
+stage_permissions
+stage_preconditions
+stage_acceptance_gate
+stage_outputs
+stage_inputs_from_prior
+stage_on_failure
+```
+
+Mode-specific fields remain required inside the stage that owns them. A stage's
+effective permissions are the intersection of the outer workflow permission
+envelope, its stage-local permissions, the stage mode's normative permissions,
+and explicit user authorization. Permissions, repository write scope,
+branch/ref movement, and storage or network capabilities cannot be borrowed
+across stages, and the outer envelope must not be enlarged after execution
+begins.
+
+A later stage may begin only after the prior stage completed, serialized its
+required evidence, performed any mode-required readback, passed its declared
+acceptance gate from observed evidence, and introduced no new substantive
+decision. A new substantive decision is a choice whose next action was not
+preauthorized and mechanically selected by the declared gates; stop with
+`blocked_new_decision_boundary` and report the unresolved choice. Failed or
+indeterminate gates and missing stage permissions likewise stop all remaining
+stages without an improvised fallback.
+
+Later stages may bind inputs to validated observed outputs from earlier stages,
+for example `expected_source_head: stage_1.resulting_head`. They must consume
+the read-back value, not an expected placeholder. These bindings are local
+workflow evidence, not persistent global state.
+
+Completed stage effects remain after a later block. Automatic rollback is
+forbidden; do not reset, restore, rebase, stash, clean, delete, or rewrite to
+simulate atomicity. A rollback may occur only as an explicitly preauthorized
+stage that is itself valid under an existing stage mode. Report:
+
+```text
+completed_stages
+blocked_stage
+not_started_stages
+persistent_effects_from_completed_stages
+```
+
+Each mutating stage must independently obey its branch lifecycle and commit
+contract. Stage boundaries do not authorize parallel active feature branches,
+and the workflow itself implies no extra final commit.
+
+Produce one overall report, one overall patch, and one compact serialized stage
+ledger. The ledger records observed stage identity, mode, start/completion
+state, effective permissions, preconditions, acceptance gate and evidence,
+gate result, resulting branch and HEAD, generated artifacts, and persistent
+effects. Reopen it and derive workflow progress before classification; it is
+evidence, not a prefilled verdict table. Use the minimum statuses needed:
+
+```text
+orchestrated_workflow_complete
+blocked_stage_gate
+blocked_new_decision_boundary
+blocked_stage_permission
+blocked_stage_governance_conflict
+```
+
+When this mode can express a deterministic sequence of existing modes, do not
+create a sequence-specific compound mode. A new standalone mode still requires
+a demonstrated semantic gap that neither one existing mode nor orchestration
+can represent.
 
 ### `pr_publication`
 
@@ -637,12 +753,15 @@ The last three fields are required for continuation rounds.
 
 Rules:
 
-* One round normally answers one decision question.
+* One round normally answers one decision question. `orchestrated_workflow`
+  may compose multiple activity types only when they remain inside that one
+  substantive decision boundary and advance through predeclared objective
+  gates.
 * Cite prior evidence by exact artifact and locator instead of copying reports.
 * Do not rerun accepted checks unless source/input changed, evidence is missing
   or invalid, or the user requests it.
-* Do not combine implementation closure, archaeology, production,
-  publication, merge, and campaign planning in one round.
+* Do not combine independent implementation-closure, archaeology, production,
+  publication, merge, or campaign-planning decisions in one round.
 * Do not create artifacts that do not support the decision.
 * Besides the mandatory report and patch, default to no more than five
   task-specific artifacts.
