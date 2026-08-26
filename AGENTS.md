@@ -429,7 +429,7 @@ one substantive decision through ordered stages. Each stage's existing prompt
 mode remains normative; this mode does not copy, replace, or broaden those
 contracts.
 
-The first version may compose only:
+An orchestrated workflow may compose only:
 
 ```text
 investigation_only
@@ -441,11 +441,29 @@ commit_preparation
 pr_preparation
 integration_only
 branch_maintenance_only
+pr_publication
 ```
 
-`pr_publication` and `production_execution` are excluded because their external
-side effects remain behind dedicated authorization boundaries. A stage must not
-use `orchestrated_workflow`; nested workflows are forbidden.
+`production_execution` remains excluded, and a stage must not use
+`orchestrated_workflow`; nested workflows are forbidden. A `pr_publication`
+stage is allowed only for an exact non-merge `publication_action` whose remote
+effects are pre-authorized by the user, bounded by the outer workflow envelope
+and stage-local permissions, and mechanically selected from validated observed
+evidence. An orchestrated publication stage must not use:
+
+```text
+publication_action: merge_existing_pr_or_mr
+pr_or_mr_merge: yes
+merge_allowed: yes
+force push
+remote branch deletion
+history rewriting
+automatic merge
+```
+
+PR/MR merge remains a separate substantive decision round. Allowing
+`pr_publication` as a stage does not lend its network or remote-write
+permissions to any other stage.
 
 An orchestrated prompt must declare the conditional workflow fields:
 
@@ -497,6 +515,24 @@ for example `expected_source_head: stage_1.resulting_head`. They must consume
 the read-back value, not an expected placeholder. These bindings are local
 workflow evidence, not persistent global state.
 
+Before an orchestrated `pr_publication` stage begins, its exact
+`publication_action`, repository, remote, local ref, remote ref, and expected
+local HEAD must be resolved from explicit immutable inputs or reopened observed
+evidence. The outer permission envelope and stage-local permissions must both
+contain only the capabilities needed by that action, and explicit user
+authorization must cover every remote write. An unresolved divergence,
+merge-versus-rebase choice, ambiguous commit ownership, or other unbound remote
+decision stops with `blocked_new_decision_boundary`; a missing capability stops
+with `blocked_stage_permission`, and failed or indeterminate evidence stops
+with `blocked_stage_gate`.
+
+Remote inspection, mechanically safe synchronization, and post-action
+validation may share one orchestrated publication stage only when the
+synchronization direction and action are fully determined by predeclared
+objective topology rules. The workflow must stop before overwriting divergent
+history, choosing merge versus rebase, merging a PR/MR, or making a
+documentation-content decision that requires human review.
+
 Completed stage effects remain after a later block. Automatic rollback is
 forbidden; do not reset, restore, rebase, stash, clean, delete, or rewrite to
 simulate atomicity. A rollback may occur only as an explicitly preauthorized
@@ -535,11 +571,20 @@ can represent.
 
 ### `pr_publication`
 
-Allowed: bounded live remote inspection, a normal non-force branch push, and
-creation or update of one explicitly declared PR/MR using already validated
-commits and reviewer-facing material.
+Allowed: one explicitly declared remote publication action using already
+validated local commits and evidence. Supported actions are:
 
-Required permissions for branch publication and PR/MR creation:
+```text
+create_or_reuse_open_pr_or_mr
+synchronize_declared_remote_branch
+merge_existing_pr_or_mr
+```
+
+`merge_existing_pr_or_mr` remains a separate decision round and is forbidden
+inside `orchestrated_workflow`. Publication fields and permissions are
+action-specific; PR/MR-only fields are not globally required.
+
+Required permissions for `create_or_reuse_open_pr_or_mr`:
 
 ```text
 network_access: yes
@@ -550,6 +595,63 @@ remote_branch_deletion: no
 force_push_allowed: no
 merge_allowed: no
 ```
+
+The action `synchronize_declared_remote_branch` owns one explicitly declared
+local/remote branch synchronization boundary. It requires:
+
+```text
+publication_action: synchronize_declared_remote_branch
+publication_platform
+publication_repository
+publication_remote
+publication_local_branch
+publication_remote_branch
+publication_remote_tracking_ref
+expected_local_head
+network_access
+remote_git_write
+pr_or_mr_write
+pr_or_mr_merge
+remote_branch_deletion
+force_push_allowed
+merge_allowed
+```
+
+Its required safe defaults are:
+
+```text
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+merge_allowed: no
+```
+
+`remote_git_write` is `no` for live query and an explicitly authorized bounded
+fetch of the declared remote branch into the declared local remote-tracking
+ref. A fetch changes local tracking state, not the remote, and still requires
+`network_access: yes`. Set `remote_git_write: yes` only when the prompt and
+explicit user authorization allow one possible normal non-force push from the
+declared local ref to the declared remote branch. The PR-specific fields
+`publication_base_branch`, `publication_feature_branch`,
+`duplicate_pr_or_mr_policy`, and `draft_allowed` are not required for this
+branch-only action.
+
+As separately authorized and mechanically selected from validated prior
+evidence, `synchronize_declared_remote_branch` may perform:
+
+```text
+bounded live inspection of the declared remote branch
+bounded fetch of that exact remote branch into its declared local tracking ref
+one normal non-force push from the declared local ref to the declared remote branch
+```
+
+It must not create, update, or merge a PR/MR; choose merge versus rebase;
+resolve or overwrite divergence; force push; delete a remote branch; use a
+wildcard or implicit multi-ref refspec; or push an active feature into a
+reference branch unless the prompt establishes that exact local ref as the
+intended reference authority. Diverged or ambiguous topology is
+`blocked_new_decision_boundary`, not authorization to improvise.
 
 Forbidden unless separately authorized:
 
@@ -565,7 +667,7 @@ automatic merge
 PR or MR merge
 ```
 
-A publication round must:
+A `create_or_reuse_open_pr_or_mr` round must:
 
 1. verify local repository, branch, HEAD, and tracked/index state;
 2. verify remote identity and repository permission;
@@ -578,6 +680,17 @@ A publication round must:
 9. query the created or existing PR/MR back;
 10. verify repository, base, head, head commit, title, state, and draft status;
 11. recheck local tracked/index state.
+
+A `synchronize_declared_remote_branch` round must verify local repository,
+branch/ref, expected HEAD, tracking ref, and tracked/index state; inspect the
+exact live remote branch; perform only the predeclared action selected by the
+validated topology gate; and freshly read back the exact live remote branch
+after the selected fetch, push, or no-action outcome. After a fetch it must also
+verify the declared local remote-tracking ref. Push or fetch stdout alone is
+not success evidence. Every
+`git fetch`, `git ls-remote`, `git push`, `gh`, and `glab` operation remains a
+separate direct command under section 12, including the command-local glados
+SSH override when applicable.
 
 Merge must be a separate decision round with `pr_or_mr_merge: yes` and
 `merge_allowed: yes`.
@@ -930,6 +1043,16 @@ git \
   refs/heads/<branch>
 ```
 
+Canonical exact-branch fetch when explicitly authorized:
+
+```bash
+git \
+  -c core.sshCommand='/usr/bin/ssh -F /dev/null' \
+  fetch \
+  <remote> \
+  refs/heads/<remote_branch>:refs/remotes/<remote>/<remote_branch>
+```
+
 Canonical publication push:
 
 ```bash
@@ -945,7 +1068,7 @@ Rules:
 * Execute Git, `gh`, and `glab` network operations as separate direct commands.
 * Use the command working directory rather than `git -C` for publication
   commands so the canonical approval rule remains matchable.
-* Use the override for both `ls-remote` and push.
+* Use the override for `ls-remote`, fetch, and push.
 * Never use `--force`, `--force-with-lease`, wildcard refspecs, implicit
   multi-ref pushes, or deletion unless explicitly authorized.
 * Do not change an SSH remote to HTTPS merely to bypass the sandbox.
@@ -1263,7 +1386,7 @@ output, and service state. Retry is allowed only when idempotence is directly
 established or the user explicitly authorizes a bounded recovery action with
 known consequences.
 
-Publication validation must establish:
+Publication validation for `create_or_reuse_open_pr_or_mr` must establish:
 
 ```text
 local branch and exact HEAD
@@ -1274,6 +1397,20 @@ duplicate PR/MR state
 PR/MR repository, base, head, head commit, title, state, and draft status
 absence of force push
 absence of unauthorized merge or remote deletion
+final local tracked/index state
+```
+
+Publication validation for `synchronize_declared_remote_branch` must instead
+establish:
+
+```text
+local repository, declared local ref, and exact expected local HEAD
+declared remote, remote branch, and local remote-tracking ref
+initial exact live remote branch HEAD
+the objective topology rule that selected query, fetch, push, or no action
+fresh exact live remote branch HEAD after the action
+declared local remote-tracking ref after any fetch
+absence of force push, remote deletion, PR/MR mutation, and merge
 final local tracked/index state
 ```
 
@@ -1473,7 +1610,8 @@ recommended_next_action
 final_cleanliness
 ```
 
-Publication reports also include:
+Reports for `create_or_reuse_open_pr_or_mr` or
+`merge_existing_pr_or_mr` also include:
 
 ```text
 publication_platform
@@ -1493,6 +1631,27 @@ pr_or_mr_title
 pr_or_mr_state
 pr_or_mr_is_draft
 pr_or_mr_head_oid
+merge_performed
+remote_branch_deleted
+```
+
+Reports for `synchronize_declared_remote_branch` instead include:
+
+```text
+publication_action
+publication_platform
+publication_repository
+publication_remote
+publication_local_branch
+publication_remote_branch
+publication_remote_tracking_ref
+expected_local_head
+initial_live_remote_branch_head
+final_live_remote_branch_head
+remote_tracking_ref_head_after_fetch_when_applicable
+remote_write_commands
+force_push_used
+pr_or_mr_write_performed
 merge_performed
 remote_branch_deleted
 ```
@@ -1581,10 +1740,12 @@ reviewer notes
 
 It must not push or mutate a PR/MR.
 
-`pr_publication` may publish an already validated branch and create/update the
-requested PR/MR under sections 11–12. It must not change source, create
-commits, rewrite history, force-push, delete remote branches, or merge unless
-separately authorized.
+`pr_publication` may synchronize one declared remote branch or publish an
+already validated branch and create/update the requested PR/MR under sections
+11–12. It must not change source, create commits, rewrite history, force-push,
+delete remote branches, or merge unless separately authorized. PR/MR merge is
+forbidden inside `orchestrated_workflow` even when other non-merge publication
+actions are composed there.
 
 When Codex is authorized to merge or squash-and-merge, it must use a separate
 round with:
@@ -1642,7 +1803,7 @@ When a round produces a report, also include `report_directory` as the full
 absolute parent directory; do not require the user to derive it from
 `report_path`.
 
-Publication or merge responses also include:
+PR/MR publication or merge responses also include:
 
 ```text
 publication_repository
@@ -1652,6 +1813,24 @@ published_head
 pr_or_mr_number
 pr_or_mr_url
 pr_or_mr_state
+merge_performed
+remote_branch_deleted
+```
+
+Branch-only synchronization responses instead include:
+
+```text
+publication_repository
+publication_remote
+publication_local_branch
+publication_remote_branch
+expected_local_head
+initial_live_remote_branch_head
+final_live_remote_branch_head
+remote_tracking_ref_head_after_fetch_when_applicable
+remote_write_performed
+force_push_used
+pr_or_mr_write_performed
 merge_performed
 remote_branch_deleted
 ```

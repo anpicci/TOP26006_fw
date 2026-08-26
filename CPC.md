@@ -175,19 +175,49 @@ publication_action
 publication_platform
 publication_repository
 publication_remote
-publication_base_branch
-publication_feature_branch
 expected_local_head
 network_access
 remote_git_write
 pr_or_mr_write
 pr_or_mr_merge
 remote_branch_deletion
-duplicate_pr_or_mr_policy
 force_push_allowed
 merge_allowed
+```
+
+For `publication_action: create_or_reuse_open_pr_or_mr`, additionally state:
+
+```text
+publication_base_branch
+publication_feature_branch
+duplicate_pr_or_mr_policy
 draft_allowed
 ```
+
+For `publication_action: synchronize_declared_remote_branch`, additionally
+state:
+
+```text
+publication_local_branch
+publication_remote_branch
+publication_remote_tracking_ref
+```
+
+Use these branch-only safe defaults:
+
+```text
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+merge_allowed: no
+```
+
+Use `remote_git_write: no` for exact live query/fetch/tracking-ref refresh only.
+Use `remote_git_write: yes` only when an explicit user authorization covers a
+possible normal non-force push from the declared local ref to the declared
+remote branch. Do not require PR/MR-specific fields for this branch-only
+action.
 
 For `integration_only`, also state:
 
@@ -289,7 +319,7 @@ and forbid permission pooling. Require each transition to use serialized,
 mode-required read-back evidence and a passed objective gate. Prior-stage input
 bindings must resolve to observed validated outputs, not expected placeholders.
 
-Allow only these stage modes in the first version:
+Allow only these stage modes:
 
 ```text
 investigation_only
@@ -301,16 +331,32 @@ commit_preparation
 pr_preparation
 integration_only
 branch_maintenance_only
+pr_publication
 ```
 
-Forbid nested `orchestrated_workflow` stages and exclude `pr_publication` and
-`production_execution`. Require stop-on-new-decision-boundary behavior,
-partial-completion reporting, and a compact observed-evidence stage ledger.
-Automatic rollback is forbidden unless an explicitly preauthorized rollback
-stage is itself valid under an existing stage mode. These fields are
-conditional only on `orchestrated_workflow`.
+Forbid nested `orchestrated_workflow` stages and exclude
+`production_execution`. A `pr_publication` stage must include all fields
+conditionally required by its exact action and remains bounded by the outer
+permission envelope, its stage-local permissions, validated reopened evidence,
+and explicit user authorization. Forbid
+`publication_action: merge_existing_pr_or_mr`, `pr_or_mr_merge: yes`, and
+`merge_allowed: yes` inside orchestration, along with force push, remote branch
+deletion, history rewriting, and automatic merge. Require
+stop-on-new-decision-boundary behavior, partial-completion reporting, and a
+compact observed-evidence stage ledger. Automatic rollback is forbidden unless
+an explicitly preauthorized rollback stage is itself valid under an existing
+stage mode. These fields are conditional only on `orchestrated_workflow`.
 
-Required publication defaults:
+An orchestrated publication transition must resolve the exact action,
+repository, remote, local ref, remote ref, and expected local HEAD from explicit
+immutable inputs or reopened observed evidence; require the exact stage-local
+network/write permissions and explicit authorization for any remote write; and
+stop on divergence, ambiguous ownership, or a merge-versus-rebase choice.
+Remote inspection, mechanically selected safe synchronization, and post-action
+readback may share one stage only when predeclared objective topology rules
+fully determine the action.
+
+Required defaults for `create_or_reuse_open_pr_or_mr`:
 
 ```text
 publication_action: create_or_reuse_open_pr_or_mr
@@ -450,18 +496,18 @@ Use the narrowest mode that permits the work.
 * `orchestrated_workflow`: ordered composition of allowed existing modes inside
   one substantive decision boundary, with stage-local permissions, validated
   transition gates, and auditable partial completion.
-* `pr_publication`: remote publication of an already validated branch,
-  creation/update of the requested PR/MR, or a separately authorized remote
-  PR/MR merge round.
+* `pr_publication`: exact-branch remote synchronization, publication of an
+  already validated branch and creation/update of the requested PR/MR, or a
+  separately authorized remote PR/MR merge round.
 * `production_execution`: production-like or heavy commands.
 
 Do not combine `pr_publication` with source editing, new commits, history
 rewriting, force push, remote deletion, or merge unless the exact action is the
 single explicit decision and separately authorized.
 
-Do not nest `orchestrated_workflow`. Its first version excludes
-`pr_publication` and `production_execution`; use their dedicated modes and
-authorization boundaries instead.
+Do not nest `orchestrated_workflow`. It excludes `production_execution` and
+allows only non-merge, stage-local, explicitly authorized `pr_publication`
+actions. `merge_existing_pr_or_mr` remains a dedicated separate decision round.
 
 ---
 
@@ -688,7 +734,7 @@ five_artifacts_plus_report_and_patch
 Prefer one primary evidence artifact, one validation artifact, and one decision
 summary over overlapping manifests.
 
-For publication, normally require only:
+For PR/MR publication, normally require only:
 
 ```text
 reviewer_ready_body_or_existing_body_reference
@@ -713,7 +759,7 @@ Codex to alter its sandbox, approval policy, user configuration, or rules.
 
 Prompt authorization remains mandatory.
 
-A branch-publication round must normally declare:
+A `create_or_reuse_open_pr_or_mr` round must declare:
 
 ```text
 network_access: yes
@@ -725,6 +771,24 @@ force_push_allowed: no
 merge_allowed: no
 draft_allowed: no
 ```
+
+A `synchronize_declared_remote_branch` round must declare the conditional
+branch-only fields from section 4 and use:
+
+```text
+network_access: yes
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+merge_allowed: no
+```
+
+Set `remote_git_write: no` for live query and a bounded exact-branch fetch into
+the declared local remote-tracking ref. Set it to `yes` only when the prompt and
+explicit user authorization cover one possible normal non-force push from the
+declared local ref to the declared remote branch. This action does not create,
+update, or merge a PR/MR and does not require PR-specific fields.
 
 ### 12.1 glados Git-over-SSH rule
 
@@ -756,12 +820,16 @@ system SSH permission or ownership changes
 
 ### 12.2 Construction requirements and compact examples
 
-Require the applicable AGENTS.md publication sequence in the prompt. Encode
-each network operation as a separate direct command, exact local branch/HEAD
-and tracked/index checks, live base and feature-head readback, duplicate-PR/MR
-checks before and after push, and final PR/MR metadata readback. Retain only
-the following concise direct-command examples in the prompt when Git-over-SSH
-is used:
+Require the action-specific AGENTS.md publication sequence in the prompt.
+Encode each network operation as a separate direct command. For PR/MR creation,
+require exact local branch/HEAD and tracked/index checks, live base and
+feature-head readback, duplicate-PR/MR checks before and after push, and final
+PR/MR metadata readback. For branch-only synchronization, require exact local
+and remote refs, expected local HEAD, the predeclared topology rule, and fresh
+exact live-remote readback after fetch, push, or no action; also require local
+remote-tracking-ref readback after fetch. Stop on divergence, ambiguous commit
+ownership, or any merge-versus-rebase choice. Retain only the following concise
+direct-command examples in the prompt when Git-over-SSH is used:
 
 Canonical live-base query:
 
@@ -771,6 +839,16 @@ git \
   ls-remote \
   <remote> \
   refs/heads/<base_branch>
+```
+
+Canonical exact-branch fetch when explicitly authorized:
+
+```bash
+git \
+  -c core.sshCommand='/usr/bin/ssh -F /dev/null' \
+  fetch \
+  <remote> \
+  refs/heads/<remote_branch>:refs/remotes/<remote>/<remote_branch>
 ```
 
 Canonical normal push:
@@ -794,8 +872,9 @@ remote branch deletion
 automatic merge
 ```
 
-unless the exact action is separately authorized. Push or creation stdout alone
-is insufficient; the prompt must require live remote readback.
+unless the exact action is separately authorized. Fetch, push, or creation
+stdout alone is insufficient; the prompt must require action-specific live
+remote readback.
 
 ### 12.3 Duplicate handling and failure classification
 
@@ -959,19 +1038,42 @@ publication_action: <action>
 publication_platform: <github_or_gitlab>
 publication_repository: <owner_or_namespace/repository>
 publication_remote: <remote_name>
-publication_base_branch: <branch>
-publication_feature_branch: <branch>
 expected_local_head: <commit>
 network_access: yes
 remote_git_write: <yes_or_no>
 pr_or_mr_write: <yes_or_no>
 pr_or_mr_merge: <yes_or_no>
 remote_branch_deletion: <yes_or_no>
-duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one
 force_push_allowed: no
 merge_allowed: <yes_or_no>
-draft_allowed: no
 ```
+
+For `publication_action: create_or_reuse_open_pr_or_mr`, also append:
+
+```text
+publication_base_branch: <branch>
+publication_feature_branch: <branch>
+duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one
+draft_allowed: no
+pr_or_mr_write: yes
+```
+
+For `publication_action: synchronize_declared_remote_branch`, instead append:
+
+```text
+publication_local_branch: <branch>
+publication_remote_branch: <branch>
+publication_remote_tracking_ref: <remote_tracking_ref>
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: no
+merge_allowed: no
+```
+
+Use `remote_git_write: no` for exact live query/fetch only and `yes` only for
+an explicitly user-authorized possible normal non-force push. Do not add
+PR/MR-only fields to this branch-only action.
 
 For `integration_only`, append:
 
@@ -1033,8 +1135,11 @@ workflow_stage_ledger_path: <absolute compact ledger path>
 Require mode-specific conditional fields inside each stage. Do not pool stage
 permissions or preauthorize unknown future choices. Require read-back validated
 output bindings, an observed-evidence ledger, explicit partial-completion
-fields, and no automatic rollback. Exclude `pr_publication`,
-`production_execution`, and nested `orchestrated_workflow` stages.
+fields, and no automatic rollback. Exclude `production_execution` and nested
+`orchestrated_workflow` stages. Permit `pr_publication` only with all
+action-specific fields, stage-local permissions, validated transition evidence,
+and explicit authorization; forbid `merge_existing_pr_or_mr`, force push,
+remote deletion, and automatic merge inside orchestration.
 
 #### Inherited standing policy
 
@@ -1152,7 +1257,7 @@ recommended_next_action
 final_cleanliness
 ```
 
-For publication or merge, also require:
+For PR/MR publication or merge, also require:
 
 ```text
 publication_repository
@@ -1162,6 +1267,24 @@ published_head
 pr_or_mr_number
 pr_or_mr_url
 pr_or_mr_state
+merge_performed
+remote_branch_deleted
+```
+
+For `synchronize_declared_remote_branch`, instead require:
+
+```text
+publication_repository
+publication_remote
+publication_local_branch
+publication_remote_branch
+expected_local_head
+initial_live_remote_branch_head
+final_live_remote_branch_head
+remote_tracking_ref_head_after_fetch_when_applicable
+remote_write_performed
+force_push_used
+pr_or_mr_write_performed
 merge_performed
 remote_branch_deleted
 ```
@@ -1286,11 +1409,12 @@ prior_stage_bindings_use_read_back_outputs
 new_decision_boundary_stops_remaining_stages
 partial_completion_and_persistent_effects_reported
 automatic_rollback_forbidden_by_default
-publication_and_production_excluded_from_orchestration
+orchestrated_publication_non_merge_and_stage_local
+production_excluded_from_orchestration
 glados_ssh_override_encoded_when_applicable
 direct_network_commands_required
 live_remote_state_queried
-duplicate_pr_or_mr_guard_required
+duplicate_pr_or_mr_guard_required_when_applicable
 force_push_forbidden_by_default
 merge_separately_authorized
 remote_branch_deletion_separately_authorized
