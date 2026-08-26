@@ -342,6 +342,16 @@ Continuation work names the existing `target_branch`. Read-only work normally
 uses `read_only_current_branch`. Commit preparation uses
 `commit_preparation_on_existing_branch`.
 
+For a prompt that will make tracked source, test, configuration, or
+documentation changes, resolve live branch state for the declared workstream
+before modification. If an applicable active feature branch exists, require
+`continue_existing_branch`; otherwise require
+`create_feature_branch_from_reference`. Reject direct development on the
+declared reference or integration branch and creation of a parallel active
+feature branch for the same workstream unless the user explicitly authorizes a
+reported split or supersession. Do not use a second branch-state registry or
+parallel branch-governance framework.
+
 PR/MR publication normally uses `read_only_current_branch` because it must
 publish the exact already validated local branch without local mutation.
 
@@ -487,6 +497,18 @@ publication_success_inferred_only_from_command_stdout
 When scripts are allowed, prefer separate collector and validator scripts. The
 validator reopens artifacts and recomputes references, hashes,
 classifications, counts, contradictions, and readiness inputs.
+
+For an evidence round that compares artifacts, interprets numerical payloads,
+depends on a downstream consumer, audits runtime behavior, or reads large
+artifacts, request only the applicable compact checks: semantic stage
+compatibility; consumer-side authority and availability; diagnostic aggregate
+versus consumed decision object; authoritative numerical conventions and
+per-artifact normalization; authority for any exact quantity; covariance and
+statistical-model status for formal wording; frozen target identities and
+bounded extraction; preserved decision scope after representation/resource
+failure; runtime reachability; decision-required proof standard; and
+like-for-like comparability. Do not turn this conditional checklist into
+universal top-level fields.
 
 Publication commands must remain direct commands, not hidden in a collector.
 
@@ -914,6 +936,7 @@ files_changed
 commit_hash
 validation_or_evidence_results
 report_path
+report_directory: <absolute parent directory when a report is produced>
 patch_path
 patch_kind
 generated_outputs
@@ -1039,6 +1062,7 @@ anti_self_certification_rules_present_when_relevant
 minimum_sufficient_artifacts
 commit_expectation_explicit
 report_and_patch_paths_explicit
+absolute_report_directory_in_final_chat_when_report_is_produced
 final_chat_deliverable_explicit
 publication_mode_used_for_remote_publication
 glados_ssh_override_encoded_when_applicable

@@ -520,6 +520,14 @@ physics semantics unchanged
 
 unless the evidence actually supports it.
 
+Do not describe a diagnostic aggregate as the fitted or otherwise consumed
+object unless direct consumer-side evidence supports that wording. Describe a
+ratio to a stored statistical scale as descriptive, not a formal pull or
+significance, unless the stated covariance and statistical model support the
+formal claim. When a historical/current comparison excludes incompatible
+binning or other non-like-for-like objects, say so rather than implying a
+forced remapping or broader comparison.
+
 Prefer:
 
 ```text

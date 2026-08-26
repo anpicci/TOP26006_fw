@@ -59,6 +59,12 @@ More specifically:
 * Prefer a smaller proven claim over a broader weakly supported claim.
 * Filenames, branch names, output labels, and prompt names are not runtime
   evidence.
+* Before adding persistent state, a registry, cache, compatibility bridge, or
+  helper framework, first delete duplicated state, derive locally from the
+  authoritative state, or reuse the existing owner. Add persistent state only
+  for a demonstrated failure, and record the failure prevented, why local
+  derivation and the existing owner are insufficient, its consistency or
+  invalidation contract, and the simpler fail-closed alternative considered.
 * Use `snake_case` for new helper names, functions, variables, report fields,
   prompt fields, and local scripts unless an existing API requires otherwise.
 * Coding and tracked-documentation work normally ends in a prompt-local commit
@@ -409,6 +415,19 @@ switching. Remote mutation still requires explicit publication permissions.
 
 Prepare commits from intended existing changes on the declared branch. Do not
 rewrite, clean, reset, stash, or include unrelated files.
+
+### Development branch lifecycle
+
+Before tracked source, test, configuration, or documentation work, resolve the
+live branch and workstream state. When an applicable active feature branch
+exists, continue it; otherwise create the declared feature branch from the
+verified reference before the first development commit. A declared reference or
+integration branch is a baseline, not a development surface: do not accumulate
+new development commits directly on it or create a parallel active feature
+branch for the same workstream merely for convenience. A split, supersession,
+or other deviation requires explicit user authorization and must be reported
+before modification; otherwise stop with a branch-policy blocker. Do not
+automatically rewrite historical commits that predate this rule.
 
 Required branch fields when applicable:
 
@@ -1140,6 +1159,41 @@ Rules:
   numerically cross-checked where applicable. Unexpected empty metadata is an
   explicit validation failure, not a structurally valid success.
 
+### Comparison, consumer, and numerical-evidence contracts
+
+* State the semantic stage of every compared artifact and establish that the
+  stages are compatible. When exact identity or provenance is required, prove
+  it from the authoritative artifact or contract; adjacency and names are not
+  substitutes.
+* For a consumer-dependent claim, use the actual consumer implementation, an
+  authoritative consumer test, or another direct consumer-side contract. Do
+  not infer consumer semantics from the producer, and fail closed if the
+  required consumer authority is unavailable. Distinguish a diagnostic
+  aggregate from the object actually consumed by the decision or likelihood.
+* Before reconstructing or interpreting a numerical payload, establish its
+  authoritative normalization, ordering, flow, and baseline conventions when
+  relevant. Use each artifact's associated normalization unless a common one
+  is formally part of the decision. Provenance or directives do not establish
+  an exact numerical quantity that was not serialized.
+* A ratio to a stored statistical scale is descriptive unless the covariance
+  and statistical model required for a formal test are established; do not call
+  it a pull or significance otherwise.
+* For a bounded large-artifact diagnostic, freeze target identities first,
+  group reads by source, extract only needed fields into compact evidence, and
+  release each large object before the next when memory is material. A
+  representation or resource failure is distinct from a scientific mismatch
+  and must not silently change targets, stages, formulas, tolerances, or scope.
+* For behavioral or normalization audits, establish runtime reachability from
+  the resolved configuration before treating a changed surface as relevant;
+  classify changed but unreachable surfaces separately. Use the proof standard
+  required by the decision: functional identity is not exact lineage, and do
+  not demand stronger provenance than the decision requires.
+* Compare numerical or histogram-like objects only when their physical
+  semantics are compatible, including relevant boundaries, fitted intervals,
+  flow treatment, category/process meaning, and normalization. Do not invent
+  comparability from equal counts or names; exclude incompatible objects unless
+  an authorized decision defines the rebinning or remapping mathematically.
+
 ---
 
 ## 20. Reports and artifacts
@@ -1376,6 +1430,10 @@ open_questions_or_caveats
 recommended_next_action
 final_cleanliness
 ```
+
+When a round produces a report, also include `report_directory` as the full
+absolute parent directory; do not require the user to derive it from
+`report_path`.
 
 Publication or merge responses also include:
 
