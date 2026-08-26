@@ -277,6 +277,7 @@ documentation_only
 commit_preparation
 pr_preparation
 integration_only
+branch_maintenance_only
 pr_publication
 production_execution
 ```
@@ -367,6 +368,54 @@ implied. It requires the exact method and explicit user authorization in a
 separate one-decision integration round, a declared resulting local-commit
 behavior, and compliance with existing commit, diff, and readback rules. A
 rebase or other history rewrite is never an implicit alternative.
+
+### `branch_maintenance_only`
+
+Allowed only for one explicitly authorized local branch/ref lifecycle decision.
+Individually declared actions may create one preservation feature branch at an
+observed local HEAD, switch among declared local branches, rename one declared
+local branch, move or restore one declared local branch ref to a named
+authoritative local commit/ref, verify ancestry and reachability before and
+after the action, and produce bounded diagnostics. Safety-critical local
+branch/ref commands must be listed exactly in the prompt.
+
+Forbidden by default:
+
+```text
+tracked source/test/config/documentation edits
+new development commits
+integration/merge/squash
+rebase
+cherry-pick
+working-tree reset/restore/stash/clean
+local or remote branch deletion
+force push
+push
+PR/MR operations
+remote mutation
+```
+
+Before any action moves a local branch ref away from a historical development
+HEAD, record that observed HEAD; create or prove one named preservation ref;
+verify that ref resolves to the exact historical HEAD and that every intended
+commit is reachable from it; and reopen serialized evidence. After the move,
+fresh readback must prove the historical HEAD remains reachable, the moved ref
+equals its named authoritative source, no unintended local ref moved, and the
+tracked/index/worktree state is safe. A branch name alone is not preservation
+evidence.
+
+Choosing this mode does not authorize a non-fast-forward ref move, force move,
+rename, or deletion-like lifecycle action. A prompt must declare the action,
+affected local branches, expected preserved head, preservation ref, reference
+restore source, and whether non-fast-forward movement is authorized. Any
+non-fast-forward ref move requires explicit user authorization for that exact
+decision; absent it, stop before the move. This is not authorization for
+rebase, reset, deletion, or history rewriting of commits. Local and remote
+branch deletion both default to `no` and require separate authorization.
+
+This mode owns local branch/ref normalization only. It does not replace
+development modes, `integration_only`, `commit_preparation`, or
+`pr_publication`.
 
 ### `pr_publication`
 

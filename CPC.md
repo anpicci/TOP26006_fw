@@ -218,6 +218,35 @@ Do not require publication platform, repository, remote, or PR/MR fields for
 explicit user authorization, and resulting local-commit behavior; rebase and
 history rewriting are not implicit alternatives.
 
+For `branch_maintenance_only`, also state:
+
+```text
+branch_maintenance_action
+affected_local_branches
+expected_preserved_head
+preservation_ref
+reference_restore_source
+non_fast_forward_ref_move_authorized
+local_branch_deletion
+```
+
+If a field is inapplicable, state `none` and why. Default:
+
+```text
+local_branch_deletion: no
+remote_branch_deletion: no
+```
+
+Any non-fast-forward local ref move requires
+`non_fast_forward_ref_move_authorized: yes` and exact user authorization for
+that maintenance decision. Before moving a ref away from a historical
+development head, require serialized proof that the preservation ref resolves
+to it and retains every intended commit; require fresh reachability and
+authoritative-ref readback afterward. Require exact direct Git commands for
+safety-critical local branch/ref operations. Do not make these fields global,
+and do not treat this mode as authorization for rebase, reset, deletion, or
+history rewriting.
+
 Required publication defaults:
 
 ```text
@@ -335,6 +364,7 @@ documentation_only
 commit_preparation
 pr_preparation
 integration_only
+branch_maintenance_only
 pr_publication
 production_execution
 ```
@@ -350,6 +380,9 @@ Use the narrowest mode that permits the work.
 * `pr_preparation`: reviewer-facing text only.
 * `integration_only`: explicitly declared local branch integration with the
   default `ff_only` method and no remote publication.
+* `branch_maintenance_only`: explicitly authorized local branch/ref lifecycle
+  normalization with preservation and reachability proof, no source edits, and
+  no new commits.
 * `pr_publication`: remote publication of an already validated branch,
   creation/update of the requested PR/MR, or a separately authorized remote
   PR/MR merge round.
@@ -882,6 +915,24 @@ force_push_allowed: no
 For any non-fast-forward method, also require exact user authorization and the
 declared resulting local-commit behavior.
 
+For `branch_maintenance_only`, append:
+
+```text
+branch_maintenance_action: <one exact local lifecycle action>
+affected_local_branches: <exact branch names>
+expected_preserved_head: <commit_or_none_with_reason>
+preservation_ref: <branch_or_ref_or_none_with_reason>
+reference_restore_source: <authoritative_local_ref_or_commit_or_none_with_reason>
+non_fast_forward_ref_move_authorized: <yes_or_no>
+local_branch_deletion: no
+remote_branch_deletion: no
+```
+
+For a non-fast-forward ref move, require exact user authorization, a
+preservation/reachability proof before movement, fresh authoritative-ref and
+reachability readback afterward, and exact direct Git commands. Do not use this
+mode for rebase, reset, deletion, or history rewriting.
+
 #### Inherited standing policy
 
 Use compact references:
@@ -1120,6 +1171,9 @@ final_chat_deliverable_explicit
 publication_mode_used_for_remote_publication
 integration_contract_explicit_when_integration_only
 ff_only_default_or_non_ff_user_authorization_explicit
+branch_maintenance_contract_explicit_when_branch_maintenance_only
+preservation_and_reachability_proven_before_ref_move
+non_ff_ref_move_explicitly_authorized_when_applicable
 glados_ssh_override_encoded_when_applicable
 direct_network_commands_required
 live_remote_state_queried
