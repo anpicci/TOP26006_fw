@@ -2200,31 +2200,3 @@ normative_sources: live AGENTS.md and CPC.md
 
 Skill availability does not authorize reviewed work, reviewed-code execution,
 patch application, independent test execution, fixes, or publication.
-
----
-
-## 27. Prompt-preflight lifecycle
-
-`correction-lib-codex-prompt-preflight` version 1.1.0 is experimental,
-unqualified, paused, and advisory only. Do not invoke it automatically, gate
-normal correction-lib work on it, or use its output, exit status, canonical
-Markdown, reports, hashes, or artifacts to authorize repository mutation. Run
-it only when the user explicitly requests prompt-preflight development,
-investigation, regression study, or advisory validation. Future resumption of
-enforcement or qualification requires an explicit new user decision and a
-fresh scoped baseline. See CPC.md section 17 for the complete lifecycle policy.
-
-The independent `correction-lib-prompt-contract` validator remains available
-for mechanical validation of structured governance prompts. Its success
-validates structure only and grants no repository authority.
-
-```text
-logical_id: codex_prompt_preflight
-skill_name: correction-lib-codex-prompt-preflight
-path: .agents/skills/correction-lib-codex-prompt-preflight/SKILL.md
-version: 1.1.0
-trigger: explicit user request for development, investigation, regression study, or advisory validation
-normative_sources: live AGENTS.md and CPC.md
-```
-
-Skill availability and advisory output have no authorization effect.

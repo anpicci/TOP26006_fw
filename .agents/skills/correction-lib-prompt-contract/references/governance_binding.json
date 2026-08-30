@@ -2,9 +2,9 @@
   "binding_version": "1.0.0",
   "schema_version": "1.1.0",
   "agents_path": "AGENTS.md",
-  "agents_sha256": "24e2545403155b95f6947868cf3d8c5dcd33ff4e5ee12b1dff5c0a4d7cc7e419",
+  "agents_sha256": "48e8b506c591a4cf97dc09d38510b941dcce5e7bf9e3a016307e8eb0b01688f9",
   "cpc_path": "CPC.md",
-  "cpc_sha256": "7ecca42aec184a061ce67f60145787fd45237394126e8a64d123efb9b306935a",
+  "cpc_sha256": "8efe17e35680b136e31071cd9477272aeeeae7f88e2f92d4397450aff22b5b98",
   "generated_at": "2026-08-30",
-  "reviewed_by": "gov_003 accepted governance synchronization"
+  "reviewed_by": "gov_005b post-retirement governance binding synchronization"
 }

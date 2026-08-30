@@ -1567,39 +1567,3 @@ publication_readback_required
 ```
 
 If a mandatory decision is inapplicable, state why.
-
----
-
-## 17. Prompt-preflight lifecycle policy
-
-The following lifecycle state is normative:
-
-```text
-correction-lib-codex-prompt-preflight:
-  lifecycle_status: experimental_paused
-  qualification_status: unqualified
-  operational_mode: advisory_only
-  automatic_invocation: disabled
-  authorization_effect: none
-  persistent_readiness_authority: none
-  live_qualification: cancelled
-```
-
-SKILLS012 through SKILLS014 remain archived design and implementation evidence.
-Version 1.1.0 may remain installed for possible future study, but its output,
-exit status, canonical Markdown, reports, hashes, audit artifacts, and any
-historical readiness concept must not gate or authorize normal correction-lib
-work. No claim is made that SKR-1.0 or BB-1.2 is fully implemented or qualified,
-and BB023 and BB025 will not be run under this paused plan.
-
-Invoke prompt-preflight only when the user explicitly requests its development,
-investigation, regression study, or advisory validation. Resuming enforcement
-or qualification requires an explicit new user decision and a fresh scoped
-baseline. This section adds no replacement authorization or security engine.
-
-The `correction-lib-prompt-contract` validator remains a separate mechanical
-validator for structured governance prompts. A successful result validates
-structure only and does not authorize repository work. Normal authorization
-comes from the current visible user instruction, applicable repository
-governance, and explicit tool permissions available to the current Codex
-session.
