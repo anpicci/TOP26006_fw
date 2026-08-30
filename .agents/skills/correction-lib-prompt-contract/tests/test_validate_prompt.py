@@ -668,6 +668,244 @@ class PromptContractValidatorTests(unittest.TestCase):
         self.assertEqual(missing_outer_exit, 3)
         self.assertIn("ORCH001", {item["id"] for item in missing_outer_payload["diagnostics"]})
 
+    def test_orchestrated_outer_envelope_aggregates_publication_stages(self) -> None:
+        def stage(
+            stage_id: str, action_fields: list[str], prior_input: str
+        ) -> str:
+            return "\n".join(
+                [
+                    f"- stage_id: {stage_id}",
+                    "  stage_mode: pr_publication",
+                    f"  stage_goal: {stage_id} publication action",
+                    "  stage_preconditions: prior evidence is accepted",
+                    "  stage_acceptance_gate: action contract is exact",
+                    f"  stage_outputs: {stage_id}_result",
+                    f"  stage_inputs_from_prior: {prior_input}",
+                    "  stage_on_failure: stop_remaining_stages",
+                    *action_fields,
+                ]
+            )
+
+        def common(action: str, permissions: dict[str, str]) -> list[str]:
+            return [
+                f"  publication_action: {action}",
+                "  publication_platform: github",
+                "  publication_repository: synthetic/example",
+                "  publication_remote: synthetic_remote",
+                "  expected_local_head: " + "6" * 40,
+                *[f"  {key}: {value}" for key, value in permissions.items()],
+            ]
+
+        def synchronize(remote_git_write: str) -> list[str]:
+            return common(
+                "synchronize_declared_remote_branch",
+                {
+                    "network_access": "yes",
+                    "remote_git_write": remote_git_write,
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "no",
+                    "merge_allowed": "no",
+                },
+            ) + [
+                "  publication_local_branch: synthetic_local",
+                "  publication_remote_branch: synthetic_remote_branch",
+                "  publication_remote_tracking_ref: refs/remotes/synthetic_remote/synthetic_remote_branch",
+            ]
+
+        def create() -> list[str]:
+            return common(
+                "create_or_reuse_open_pr_or_mr",
+                {
+                    "network_access": "yes",
+                    "remote_git_write": "yes",
+                    "pr_or_mr_write": "yes",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "no",
+                    "merge_allowed": "no",
+                },
+            ) + [
+                "  publication_base_branch: main",
+                "  publication_feature_branch: feature",
+                "  duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one",
+                "  draft_allowed: no",
+            ]
+
+        def normalization() -> list[str]:
+            exact_ref = "refs/heads/synthetic_staging"
+            old_sha = "7" * 40
+            return common(
+                "normalize_declared_post_squash_staging_ref",
+                {
+                    "network_access": "yes",
+                    "remote_git_write": "yes",
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "yes",
+                    "merge_allowed": "no",
+                },
+            ) + [
+                f"  exact_remote_ref: {exact_ref}",
+                f"  exact_observed_old_sha: {old_sha}",
+                "  exact_target_sha: " + "6" * 40,
+                "  verified_local_archive_ref: refs/heads/archive/synthetic_old",
+                "  verified_remote_archive_ref_when_remote_history_is_being_rewritten: refs/heads/archive/synthetic_old",
+                "  archive_reachability: verified",
+                "  normalization_identity_basis: tree equivalence",
+                f"  force_with_lease_argument: --force-with-lease={exact_ref}:{old_sha}",
+                "  generic_force: forbidden",
+                "  lease_refresh_after_unexplained_remote_movement: forbidden",
+                "  post_write_remote_readback: required",
+                "  final_expected_identity_readback: required",
+                "  explicit_user_authorization_for_the_exact_ref_rewrite: exact user authorization",
+            ]
+
+        def workflow(
+            stages: list[str], outer_permissions: dict[str, str]
+        ) -> OrderedDict[str, object]:
+            fields = base_fields("orchestrated_workflow")
+            fields["workflow_stages"] = "\n".join(stages)
+            fields.update(outer_permissions)
+            return fields
+
+        outer_sync_then_pr = {
+            "network_access": "yes",
+            "remote_git_write": "yes",
+            "pr_or_mr_write": "yes",
+            "pr_or_mr_merge": "no",
+            "remote_branch_deletion": "no",
+            "force_push_allowed": "no",
+            "merge_allowed": "no",
+        }
+        sync_then_pr = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", create(), "stage_1.stage_1_result"),
+            ],
+            outer_sync_then_pr,
+        )
+        sync_then_pr_payload, sync_then_pr_exit = validate_bytes(
+            render_prompt(sync_then_pr)
+        )
+        self.assertEqual(sync_then_pr_exit, 0, sync_then_pr_payload["diagnostics"])
+
+        outer_sync_then_normalization = dict(
+            outer_sync_then_pr,
+            pr_or_mr_write="no",
+            force_push_allowed="yes",
+        )
+        sync_then_normalization = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", normalization(), "stage_1.stage_1_result"),
+            ],
+            outer_sync_then_normalization,
+        )
+        normalization_payload, normalization_exit = validate_bytes(
+            render_prompt(sync_then_normalization)
+        )
+        self.assertEqual(normalization_exit, 0, normalization_payload["diagnostics"])
+
+        query_then_write = workflow(
+            [
+                stage("stage_1", synchronize("no"), "none, first stage"),
+                stage("stage_2", synchronize("yes"), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_pr, pr_or_mr_write="no"),
+        )
+        query_then_write_payload, query_then_write_exit = validate_bytes(
+            render_prompt(query_then_write)
+        )
+        self.assertEqual(query_then_write_exit, 0, query_then_write_payload["diagnostics"])
+
+        missing_pr_outer = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", create(), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_pr, pr_or_mr_write="no"),
+        )
+        missing_pr_payload, missing_pr_exit = validate_bytes(
+            render_prompt(missing_pr_outer)
+        )
+        self.assertEqual(missing_pr_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in missing_pr_payload["diagnostics"]})
+
+        unnecessary_force = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", create(), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_pr, force_push_allowed="yes"),
+        )
+        unnecessary_force_payload, unnecessary_force_exit = validate_bytes(
+            render_prompt(unnecessary_force)
+        )
+        self.assertEqual(unnecessary_force_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in unnecessary_force_payload["diagnostics"]})
+
+        missing_normalization_force = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", normalization(), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_normalization, force_push_allowed="no"),
+        )
+        missing_normalization_payload, missing_normalization_exit = validate_bytes(
+            render_prompt(missing_normalization_force)
+        )
+        self.assertEqual(missing_normalization_exit, 3)
+        self.assertIn(
+            "ORCH001",
+            {item["id"] for item in missing_normalization_payload["diagnostics"]},
+        )
+
+        local_force = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", normalization(), "stage_1.stage_1_result"),
+            ],
+            outer_sync_then_normalization,
+        )
+        local_force["workflow_stages"] = local_force["workflow_stages"].replace(
+            "force_push_allowed: no", "force_push_allowed: yes", 1
+        )
+        local_force_payload, local_force_exit = validate_bytes(render_prompt(local_force))
+        self.assertEqual(local_force_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in local_force_payload["diagnostics"]})
+
+        unnecessary_pr_outer = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", synchronize("yes"), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_pr, pr_or_mr_write="yes"),
+        )
+        unnecessary_pr_payload, unnecessary_pr_exit = validate_bytes(
+            render_prompt(unnecessary_pr_outer)
+        )
+        self.assertEqual(unnecessary_pr_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in unnecessary_pr_payload["diagnostics"]})
+
+        merge_or_deletion = workflow(
+            [
+                stage("stage_1", synchronize("yes"), "none, first stage"),
+                stage("stage_2", create(), "stage_1.stage_1_result"),
+            ],
+            dict(outer_sync_then_pr, merge_allowed="yes"),
+        )
+        merge_or_deletion_payload, merge_or_deletion_exit = validate_bytes(
+            render_prompt(merge_or_deletion)
+        )
+        self.assertEqual(merge_or_deletion_exit, 3)
+        self.assertIn(
+            "ORCH001",
+            {item["id"] for item in merge_or_deletion_payload["diagnostics"]},
+        )
+
     def test_publication_actions_have_disjoint_contracts(self) -> None:
         create = base_fields("pr_publication")
         create_payload, create_exit = validate_bytes(render_prompt(create))

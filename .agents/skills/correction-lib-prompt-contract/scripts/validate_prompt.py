@@ -1209,6 +1209,7 @@ class PromptValidator:
             "synchronize_declared_remote_branch": set(rules["synchronize_remote_branch_fields"]),
             "normalize_declared_post_squash_staging_ref": set(rules["normalization_fields"]),
         }
+        publication_stage_permissions: list[dict[str, str]] = []
         for index, stage in enumerate(stages):
             missing = sorted(core - set(stage))
             if missing:
@@ -1348,7 +1349,7 @@ class PromptValidator:
                     "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
                     "Use the exact selected action contract; generic force is never available.",
                 )
-            outer_expected = {
+            stage_expected = {
                 key: value
                 for key, value in expected_by_action[action].items()
                 if key
@@ -1363,24 +1364,50 @@ class PromptValidator:
                 }
             }
             if action == "synchronize_declared_remote_branch":
-                outer_expected["remote_git_write"] = stage.get(
+                stage_expected["remote_git_write"] = stage.get(
                     "remote_git_write", ""
                 ).lower()
-            outer_conflicts = [
-                key
-                for key, expected in outer_expected.items()
-                if self.permission(key) != expected
-            ]
-            if outer_conflicts:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}",
-                    "The outer workflow permission envelope does not match the stage-local publication contract: "
-                    + ",".join(sorted(outer_conflicts)),
-                    "AGENTS.md section 6; CPC.md sections 4 and 6",
-                    "Declare matching outer maximum and stage-local permissions; no capability may be borrowed across stages.",
+            publication_stage_permissions.append(stage_expected)
+        if not publication_stage_permissions:
+            return
+        outer_expected = {
+            capability: (
+                "yes"
+                if any(
+                    stage_permissions[capability] == "yes"
+                    for stage_permissions in publication_stage_permissions
                 )
+                else "no"
+            )
+            for capability in (
+                "network_access",
+                "remote_git_write",
+                "pr_or_mr_write",
+                "force_push_allowed",
+            )
+        }
+        outer_expected.update(
+            {
+                "pr_or_mr_merge": "no",
+                "remote_branch_deletion": "no",
+                "merge_allowed": "no",
+            }
+        )
+        outer_conflicts = [
+            key
+            for key, expected in outer_expected.items()
+            if self.permission(key) != expected
+        ]
+        if outer_conflicts:
+            self.add(
+                "ORCH001",
+                "orchestration_contract_inconsistency",
+                "workflow_stages",
+                "The outer workflow permission envelope is not the least-privilege maximum of the publication-stage contracts: "
+                + ",".join(sorted(outer_conflicts)),
+                "AGENTS.md section 6; CPC.md sections 4 and 6",
+                "Declare each outer capability as yes only when at least one stage requires it; stage-local permissions remain controlling.",
+            )
 
     def has_orchestrated_normalization_stage(self) -> bool:
         record = self.fields.get("workflow_stages")
