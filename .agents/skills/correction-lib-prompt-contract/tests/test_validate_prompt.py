@@ -60,6 +60,8 @@ def base_fields(mode: str) -> OrderedDict[str, object]:
         "validation_only",
         "pr_preparation",
         "pr_publication",
+        "integration_only",
+        "branch_maintenance_only",
     }
     fields: OrderedDict[str, object] = OrderedDict(
         [
@@ -179,6 +181,54 @@ def base_fields(mode: str) -> OrderedDict[str, object]:
                 "draft_allowed": "no",
             }
         )
+    if mode == "integration_only":
+        fields.update(
+            {
+                "integration_source_branch": "synthetic_feature",
+                "integration_target_branch": "synthetic_integration",
+                "integration_method": "ff_only",
+                "expected_source_head": "1" * 40,
+                "local_branch_deletion": "no",
+            }
+        )
+    if mode == "branch_maintenance_only":
+        fields.update(
+            {
+                "branch_maintenance_action": "verify_declared_local_ref",
+                "affected_local_branches": ["synthetic_current"],
+                "expected_preserved_head": "none, no ref movement",
+                "preservation_ref": "none, no ref movement",
+                "reference_restore_source": "none, no ref movement",
+                "non_fast_forward_ref_move_authorized": "no",
+                "local_branch_deletion": "no",
+            }
+        )
+    if mode == "orchestrated_workflow":
+        fields.update(
+            {
+                "workflow_goal": "complete one synthetic gated decision",
+                "workflow_stages": (
+                    "- stage_id: stage_1\n"
+                    "  stage_mode: investigation_only\n"
+                    "  stage_goal: collect synthetic evidence\n"
+                    "  stage_preconditions: baseline identity is exact\n"
+                    "  stage_acceptance_gate: evidence was serialized\n"
+                    "  stage_outputs: observed_evidence\n"
+                    "  stage_inputs_from_prior: none, first stage\n"
+                    "  stage_on_failure: stop_remaining_stages\n"
+                    "- stage_id: stage_2\n"
+                    "  stage_mode: validation_only\n"
+                    "  stage_goal: validate synthetic evidence\n"
+                    "  stage_preconditions: stage_1 accepted\n"
+                    "  stage_acceptance_gate: evidence is consistent\n"
+                    "  stage_outputs: validated_result\n"
+                    "  stage_inputs_from_prior: stage_1.observed_evidence\n"
+                    "  stage_on_failure: stop_remaining_stages"
+                ),
+                "workflow_stop_policy": "stop_on_failed_gate_or_new_decision_boundary",
+                "workflow_stage_ledger_path": "/tmp/correction_lib_synthetic/stages.tsv",
+            }
+        )
     if mode == "production_execution":
         fields.update(
             {
@@ -194,6 +244,9 @@ def base_fields(mode: str) -> OrderedDict[str, object]:
         "test_alignment_only",
         "commit_preparation",
         "production_execution",
+        "integration_only",
+        "branch_maintenance_only",
+        "orchestrated_workflow",
     }:
         raise AssertionError(f"unhandled mode {mode}")
     return fields
@@ -426,6 +479,184 @@ class PromptContractValidatorTests(unittest.TestCase):
             "GOV002",
             {item["id"] for item in malformed_payload["diagnostics"]},
         )
+
+    def test_workflow_graph_and_checkpoint_text_are_inert(self) -> None:
+        content = render_prompt(base_fields("orchestrated_workflow"))
+        additions = (
+            b"\n## Workflow graph\n\n```text\nA -> B\n```\n"
+            b"\n## Cumulative checkpoint\n\n"
+            b"This is evidence and context only; stale remote state must be refreshed.\n"
+        )
+        baseline, baseline_exit = validate_bytes(content)
+        amended, amended_exit = validate_bytes(content + additions)
+        self.assertEqual(baseline_exit, 0, baseline["diagnostics"])
+        self.assertEqual(amended_exit, 0, amended["diagnostics"])
+        self.assertEqual(
+            [(item["id"], item["field"]) for item in baseline["diagnostics"]],
+            [(item["id"], item["field"]) for item in amended["diagnostics"]],
+        )
+
+    def test_orchestration_rejects_multistep_prose_and_merge_stage(self) -> None:
+        fields = base_fields("orchestrated_workflow")
+        fields["workflow_stages"] = "first investigate, then publish"
+        prose_payload, prose_exit = validate_bytes(render_prompt(fields))
+        self.assertEqual(prose_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in prose_payload["diagnostics"]})
+
+        fields = base_fields("orchestrated_workflow")
+        fields["workflow_stages"] = fields["workflow_stages"].replace(
+            "stage_mode: validation_only",
+            "stage_mode: pr_publication\n"
+            "  publication_action: merge_existing_pr_or_mr",
+        )
+        merge_payload, merge_exit = validate_bytes(render_prompt(fields))
+        self.assertEqual(merge_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in merge_payload["diagnostics"]})
+
+    def test_orchestrated_normalization_rejects_generic_force(self) -> None:
+        fields = base_fields("orchestrated_workflow")
+        exact_ref = "refs/heads/synthetic_staging"
+        old_sha = "4" * 40
+        fields["workflow_stages"] = fields["workflow_stages"].replace(
+            "stage_mode: validation_only\n",
+            "stage_mode: pr_publication\n"
+            "  publication_action: normalize_declared_post_squash_staging_ref\n"
+            "  publication_platform: github\n"
+            "  publication_repository: synthetic/example\n"
+            "  publication_remote: synthetic_remote\n"
+            "  expected_local_head: " + "5" * 40 + "\n"
+            "  network_access: yes\n"
+            "  remote_git_write: yes\n"
+            "  pr_or_mr_write: no\n"
+            "  pr_or_mr_merge: no\n"
+            "  remote_branch_deletion: no\n"
+            "  force_push_allowed: yes\n"
+            "  merge_allowed: no\n"
+            f"  exact_remote_ref: {exact_ref}\n"
+            f"  exact_observed_old_sha: {old_sha}\n"
+            "  exact_target_sha: " + "5" * 40 + "\n"
+            "  verified_local_archive_ref: refs/heads/archive/synthetic_old\n"
+            "  verified_remote_archive_ref_when_remote_history_is_being_rewritten: refs/heads/archive/synthetic_old\n"
+            "  archive_reachability: verified\n"
+            "  normalization_identity_basis: tree equivalence\n"
+            f"  force_with_lease_argument: --force-with-lease={exact_ref}:{old_sha}\n"
+            "  generic_force: allowed\n"
+            "  lease_refresh_after_unexplained_remote_movement: forbidden\n"
+            "  post_write_remote_readback: required\n"
+            "  final_expected_identity_readback: required\n"
+            "  explicit_user_authorization_for_the_exact_ref_rewrite: exact user authorization\n",
+        )
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 3)
+        self.assertIn("ORCH001", {item["id"] for item in payload["diagnostics"]})
+
+    def test_publication_actions_have_disjoint_contracts(self) -> None:
+        create = base_fields("pr_publication")
+        create_payload, create_exit = validate_bytes(render_prompt(create))
+        self.assertEqual(create_exit, 0, create_payload["diagnostics"])
+
+        synchronize = base_fields("pr_publication")
+        for field in (
+            "publication_base_branch",
+            "publication_feature_branch",
+            "duplicate_pr_or_mr_policy",
+            "draft_allowed",
+        ):
+            synchronize.pop(field)
+        synchronize.update(
+            {
+                "publication_action": "synchronize_declared_remote_branch",
+                "publication_local_branch": "synthetic_local",
+                "publication_remote_branch": "synthetic_remote_branch",
+                "publication_remote_tracking_ref": "refs/remotes/synthetic_remote/synthetic_remote_branch",
+                "pr_or_mr_write": "no",
+                "remote_git_write": "no",
+            }
+        )
+        sync_payload, sync_exit = validate_bytes(render_prompt(synchronize))
+        self.assertEqual(sync_exit, 0, sync_payload["diagnostics"])
+        synchronize["force_push_allowed"] = "yes"
+        unsafe_sync_payload, unsafe_sync_exit = validate_bytes(render_prompt(synchronize))
+        self.assertEqual(unsafe_sync_exit, 3)
+        self.assertIn(
+            "force_push_allowed",
+            {item["field"] for item in unsafe_sync_payload["diagnostics"]},
+        )
+
+        normalize = base_fields("pr_publication")
+        for field in (
+            "publication_base_branch",
+            "publication_feature_branch",
+            "duplicate_pr_or_mr_policy",
+            "draft_allowed",
+        ):
+            normalize.pop(field)
+        exact_ref = "refs/heads/synthetic_staging"
+        old_sha = "2" * 40
+        normalize.update(
+            {
+                "publication_action": "normalize_declared_post_squash_staging_ref",
+                "exact_remote_ref": exact_ref,
+                "exact_observed_old_sha": old_sha,
+                "exact_target_sha": "3" * 40,
+                "verified_local_archive_ref": "refs/heads/archive/synthetic_old",
+                "verified_remote_archive_ref_when_remote_history_is_being_rewritten": "refs/heads/archive/synthetic_old",
+                "archive_reachability": "verified exact old SHA reachable",
+                "normalization_identity_basis": "tree equivalence verified",
+                "force_with_lease_argument": f"--force-with-lease={exact_ref}:{old_sha}",
+                "generic_force": "forbidden",
+                "lease_refresh_after_unexplained_remote_movement": "forbidden",
+                "post_write_remote_readback": "required",
+                "final_expected_identity_readback": "required",
+                "explicit_user_authorization_for_the_exact_ref_rewrite": "user authorized this exact ref rewrite",
+                "remote_git_write": "yes",
+                "pr_or_mr_write": "no",
+                "force_push_allowed": "yes",
+            }
+        )
+        normalize_payload, normalize_exit = validate_bytes(render_prompt(normalize))
+        self.assertEqual(normalize_exit, 0, normalize_payload["diagnostics"])
+        normalize["force_with_lease_argument"] = "--force-with-lease"
+        invalid_payload, invalid_exit = validate_bytes(render_prompt(normalize))
+        self.assertEqual(invalid_exit, 3)
+        self.assertIn(
+            "force_with_lease_argument",
+            {item["field"] for item in invalid_payload["diagnostics"]},
+        )
+        normalize["force_with_lease_argument"] = f"--force-with-lease={exact_ref}:{old_sha}"
+        normalize["generic_force"] = "allowed"
+        generic_force_payload, generic_force_exit = validate_bytes(render_prompt(normalize))
+        self.assertEqual(generic_force_exit, 3)
+        self.assertIn(
+            "generic_force",
+            {item["field"] for item in generic_force_payload["diagnostics"]},
+        )
+
+    def test_ordinary_coding_needs_no_publication_grade_fields(self) -> None:
+        payload, exit_code = validate_bytes(render_prompt(base_fields("coding")))
+        self.assertEqual(exit_code, 0, payload["diagnostics"])
+        fields = {item["field"] for item in payload["diagnostics"]}
+        self.assertTrue(
+            {
+                "confirmed_blockers",
+                "additional_unresolved_risks",
+                "not_yet_evaluated",
+                "closed_with_evidence",
+                "confidence_in_completeness",
+            }.isdisjoint(fields)
+        )
+
+    def test_authorized_non_fast_forward_integration_is_not_false_blocked(self) -> None:
+        fields = base_fields("integration_only")
+        fields["integration_method"] = "squash"
+        fields["resulting_local_commit_behavior"] = "create one declared local squash commit"
+        fields["user_override_locator"] = "explicit user authorization for this exact method"
+        payload, exit_code = validate_bytes(render_prompt(fields))
+        self.assertEqual(exit_code, 0, payload["diagnostics"])
+        fields.pop("user_override_locator")
+        invalid_payload, invalid_exit = validate_bytes(render_prompt(fields))
+        self.assertEqual(invalid_exit, 3)
+        self.assertIn("MODE001", {item["id"] for item in invalid_payload["diagnostics"]})
 
     def test_human_and_json_outputs_use_one_diagnostic_array(self) -> None:
         case = json.loads(INVALID_MANIFEST.read_text(encoding="utf-8"))[0]

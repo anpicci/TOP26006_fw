@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0.0",
-  "validator_version": "1.0.0",
+  "schema_version": "1.1.0",
+  "validator_version": "1.1.0",
   "projection_status": "derived_reviewed_executable_projection_not_normative",
   "normative_sources": [
     "AGENTS.md",
@@ -52,6 +52,9 @@
       "documentation_only",
       "commit_preparation",
       "pr_preparation",
+      "integration_only",
+      "branch_maintenance_only",
+      "orchestrated_workflow",
       "pr_publication",
       "production_execution"
     ],
@@ -101,6 +104,12 @@
       "cumulative",
       "touched_file_cumulative",
       "empty_no_changes"
+    ],
+    "publication_action": [
+      "create_or_reuse_open_pr_or_mr",
+      "synchronize_declared_remote_branch",
+      "normalize_declared_post_squash_staging_ref",
+      "merge_existing_pr_or_mr"
     ]
   },
   "branch_contract_forms": [
@@ -128,27 +137,75 @@
       "anti_self_certification_rules",
       "evidence_validation_method"
     ],
-    "publication_fields": [
+    "publication_common_fields": [
       "publication_action",
       "publication_platform",
       "publication_repository",
       "publication_remote",
-      "publication_base_branch",
-      "publication_feature_branch",
       "expected_local_head",
       "network_access",
       "remote_git_write",
       "pr_or_mr_write",
       "pr_or_mr_merge",
       "remote_branch_deletion",
-      "duplicate_pr_or_mr_policy",
       "force_push_allowed",
-      "merge_allowed",
+      "merge_allowed"
+    ],
+    "create_or_reuse_fields": [
+      "publication_base_branch",
+      "publication_feature_branch",
+      "duplicate_pr_or_mr_policy",
       "draft_allowed"
+    ],
+    "synchronize_remote_branch_fields": [
+      "publication_local_branch",
+      "publication_remote_branch",
+      "publication_remote_tracking_ref"
+    ],
+    "normalization_fields": [
+      "exact_remote_ref",
+      "exact_observed_old_sha",
+      "exact_target_sha",
+      "verified_local_archive_ref",
+      "verified_remote_archive_ref_when_remote_history_is_being_rewritten",
+      "archive_reachability",
+      "normalization_identity_basis",
+      "force_with_lease_argument",
+      "generic_force",
+      "lease_refresh_after_unexplained_remote_movement",
+      "post_write_remote_readback",
+      "final_expected_identity_readback",
+      "explicit_user_authorization_for_the_exact_ref_rewrite"
     ],
     "merge_fields": [
       "pr_or_mr_number_or_url",
       "merge_method"
+    ],
+    "integration_fields": [
+      "integration_source_branch",
+      "integration_target_branch",
+      "integration_method",
+      "expected_source_head",
+      "local_branch_deletion"
+    ],
+    "non_fast_forward_integration_fields": [
+      "resulting_local_commit_behavior",
+      "user_override_locator"
+    ],
+    "branch_maintenance_fields": [
+      "branch_maintenance_action",
+      "affected_local_branches",
+      "expected_preserved_head",
+      "preservation_ref",
+      "reference_restore_source",
+      "non_fast_forward_ref_move_authorized",
+      "local_branch_deletion"
+    ],
+    "orchestrated_workflow_fields": [
+      "workflow_goal",
+      "workflow_stages",
+      "workflow_stop_policy",
+      "workflow_stage_ledger_path"
     ],
     "production_fields": [
       "execution_owner",
@@ -172,6 +229,8 @@
     "permissions_are_independent",
     "conditional_groups_are_complete",
     "publication_action_matches_authorization",
+    "orchestrated_workflow_uses_structured_stage_contracts_not_workflow_graph",
+    "normalization_force_is_action_specific_exact_lease_only",
     "production_owner_matches_handoff_contract",
     "unknown_fields_never_authorize",
     "desired_verdict_is_not_expected_evidence"
@@ -199,6 +258,7 @@
     "PUB001": "incomplete_publication_contract",
     "PUB002": "publication_action_conflict",
     "PUB003": "merge_authorization_conflict",
+    "ORCH001": "orchestration_contract_inconsistency",
     "PROD001": "incomplete_production_contract",
     "PROD002": "incomplete_user_handoff_contract",
     "PROD003": "overwrite_or_resume_policy_missing",

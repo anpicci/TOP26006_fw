@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://correction-lib.local/schemas/codex-evidence-package-review/1.0.0",
+  "$id": "https://correction-lib.local/schemas/codex-evidence-package-review/1.1.0",
   "title": "Correction-lib Codex evidence-package review manifest",
-  "description": "Version 1.0.0 external reviewer-owned manifest. Validation authorizes no execution.",
+  "description": "Schema projection 1.1.0 for the 1.0.0 external reviewer-owned manifest. Validation authorizes no execution.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -111,6 +111,9 @@
             "documentation_only",
             "commit_preparation",
             "pr_preparation",
+            "integration_only",
+            "branch_maintenance_only",
+            "orchestrated_workflow",
             "pr_publication",
             "production_execution"
           ]
@@ -278,13 +281,10 @@
     },
     "patch_kind": {
       "enum": [
-        "source_change",
         "prompt_local",
-        "binding_only",
-        "diagnostics_only",
-        "empty_no_changes",
-        "cumulative_feature",
-        "corrective_follow_up"
+        "cumulative",
+        "touched_file_cumulative",
+        "empty_no_changes"
       ]
     },
     "patch_contract": {

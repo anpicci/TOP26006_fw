@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 
-VALIDATOR_VERSION = "1.0.0"
-SCHEMA_VERSION = "1.0.0"
+VALIDATOR_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.1.0"
 CONTEXT_VALUES = ("yes", "no", "unknown")
 PRIMARY_HEADING = "metadata and governance"
 AUXILIARY_HEADINGS = {
@@ -56,6 +56,18 @@ REPOSITORY_SCOPED_BRANCH_FIELDS = (
     "feature_branch",
     "current_baseline_branch",
 )
+ORCHESTRATED_STAGE_MODES = {
+    "investigation_only",
+    "coding",
+    "validation_only",
+    "test_alignment_only",
+    "documentation_only",
+    "commit_preparation",
+    "pr_preparation",
+    "integration_only",
+    "branch_maintenance_only",
+    "pr_publication",
+}
 
 
 @dataclass(frozen=True)
@@ -410,6 +422,29 @@ def extract_fields(text: str) -> tuple[dict[str, FieldRecord], list[Diagnostic]]
             else:
                 fields[key] = record
     return fields, diagnostics
+
+
+def parse_workflow_stages(value: str) -> list[dict[str, str]]:
+    """Parse only the structured stage list; workflow_graph is never an input."""
+    lines = value.splitlines()
+    starts: list[tuple[int, int, str]] = []
+    for index, line in enumerate(lines):
+        match = re.match(r"^(?P<indent>\s*)-\s+stage_id:\s*(?P<value>.+?)\s*$", line)
+        if match:
+            starts.append((index, len(match.group("indent")), normalize_scalar(match.group("value"))))
+    stages: list[dict[str, str]] = []
+    for position, (start, indent, stage_id) in enumerate(starts):
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        stage = {"stage_id": stage_id}
+        for line in lines[start + 1 : end]:
+            match = KEY_RE.match(line)
+            if not match:
+                continue
+            key = match.group("key")
+            rest = match.group("rest").strip()
+            stage[key] = normalize_scalar(rest) if rest else "<structured>"
+        stages.append(stage)
+    return stages
 
 
 class PromptValidator:
@@ -942,6 +977,8 @@ class PromptValidator:
             "validation_only",
             "pr_preparation",
             "pr_publication",
+            "integration_only",
+            "branch_maintenance_only",
         }
         if mode in read_only_modes and (do_not != "yes" or expected != "no"):
             self.add(
@@ -987,6 +1024,8 @@ class PromptValidator:
             "validation_only",
             "pr_preparation",
             "pr_publication",
+            "integration_only",
+            "branch_maintenance_only",
         }:
             writable = self.raw("allowed_to_modify").lower()
             if re.search(r"\b(?:source|tests?|configs?|agents\.md|cpc\.md)\b", writable):
@@ -1008,6 +1047,56 @@ class PromptValidator:
                 "Test alignment requires explicit evidence that runtime intent is established.",
                 "AGENTS.md section 6",
                 "Supply the evidence reference without asserting its truth automatically.",
+            )
+        conditional_mode_groups = {
+            "integration_only": (
+                "integration_fields",
+                "AGENTS.md section 6; CPC.md section 4",
+            ),
+            "branch_maintenance_only": (
+                "branch_maintenance_fields",
+                "AGENTS.md section 6; CPC.md section 4",
+            ),
+            "orchestrated_workflow": (
+                "orchestrated_workflow_fields",
+                "AGENTS.md section 6; CPC.md sections 4 and 6",
+            ),
+        }
+        if mode in conditional_mode_groups:
+            group, locator = conditional_mode_groups[mode]
+            self.require_group(
+                self.schema["conditional_rules"][group],
+                "MODE001",
+                "missing_mode_specific_field",
+                locator,
+            )
+        if mode == "integration_only":
+            if self.scalar("integration_method") != "ff_only":
+                self.require_group(
+                    self.schema["conditional_rules"]["non_fast_forward_integration_fields"],
+                    "MODE001",
+                    "missing_mode_specific_field",
+                    "AGENTS.md section 6; CPC.md section 4",
+                )
+            if self.scalar("local_branch_deletion").lower() != "no":
+                self.add(
+                    "AUTH003",
+                    "authorization_inconsistency",
+                    "local_branch_deletion",
+                    "Integration does not authorize local branch deletion.",
+                    "AGENTS.md section 6; CPC.md section 4",
+                    "Keep deletion denied and authorize any lifecycle decision separately.",
+                )
+        if mode == "orchestrated_workflow" and self.scalar(
+            "workflow_stop_policy"
+        ) != "stop_on_failed_gate_or_new_decision_boundary":
+            self.add(
+                "MODE001",
+                "missing_mode_specific_field",
+                "workflow_stop_policy",
+                "The workflow stop policy does not match the live fail-closed contract.",
+                "AGENTS.md section 6; CPC.md section 6",
+                "Use the published stop policy; workflow_graph is not a substitute.",
             )
 
     def validate_contexts(self) -> None:
@@ -1079,6 +1168,179 @@ class PromptValidator:
                 severity="warning",
             )
 
+    def validate_orchestration(self) -> None:
+        if self.scalar("prompt_mode") != "orchestrated_workflow":
+            return
+        record = self.fields.get("workflow_stages")
+        stages = parse_workflow_stages(record.value if record else "")
+        if len(stages) < 2:
+            self.add(
+                "ORCH001",
+                "orchestration_contract_inconsistency",
+                "workflow_stages",
+                "Orchestration requires at least two structured, gated stages; multi-step prose is not a stage contract.",
+                "AGENTS.md section 6; CPC.md sections 4 and 6",
+                "Supply a structured stage list with serialized evidence dependencies.",
+            )
+            return
+        stage_ids = [stage.get("stage_id", "") for stage in stages]
+        if len(stage_ids) != len(set(stage_ids)):
+            self.add(
+                "ORCH001",
+                "orchestration_contract_inconsistency",
+                "workflow_stages.stage_id",
+                "Stage identifiers are not unique.",
+                "AGENTS.md section 6; CPC.md section 6",
+                "Use one stable unique stage_id per stage.",
+            )
+        core = {
+            "stage_id",
+            "stage_mode",
+            "stage_goal",
+            "stage_preconditions",
+            "stage_acceptance_gate",
+            "stage_outputs",
+            "stage_inputs_from_prior",
+            "stage_on_failure",
+        }
+        rules = self.schema["conditional_rules"]
+        action_groups = {
+            "create_or_reuse_open_pr_or_mr": set(rules["create_or_reuse_fields"]),
+            "synchronize_declared_remote_branch": set(rules["synchronize_remote_branch_fields"]),
+            "normalize_declared_post_squash_staging_ref": set(rules["normalization_fields"]),
+        }
+        for index, stage in enumerate(stages):
+            missing = sorted(core - set(stage))
+            if missing:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}",
+                    "A structured stage omits required gate/evidence fields: " + ",".join(missing),
+                    "AGENTS.md section 6; CPC.md sections 4 and 6",
+                    "Supply the applicable stage contract without using workflow_graph as authority.",
+                )
+            stage_mode = stage.get("stage_mode", "")
+            if stage_mode not in ORCHESTRATED_STAGE_MODES:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}.stage_mode",
+                    "The stage mode is not allowed inside orchestration.",
+                    "AGENTS.md section 6; CPC.md section 6",
+                    "Use a published non-nested, non-production stage mode.",
+                )
+            if index > 0 and none_like(stage.get("stage_inputs_from_prior", "")):
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}.stage_inputs_from_prior",
+                    "A later stage has no serialized input dependency on prior validated evidence.",
+                    "AGENTS.md section 6; CPC.md section 6",
+                    "Bind the later stage to observed validated prior-stage outputs.",
+                )
+            if stage_mode != "pr_publication":
+                continue
+            action = stage.get("publication_action", "")
+            if action not in action_groups:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}.publication_action",
+                    "The publication stage lacks a supported non-merge action.",
+                    "AGENTS.md section 6; CPC.md section 6",
+                    "Declare one exact non-merge publication action.",
+                )
+                continue
+            required = set(rules["publication_common_fields"]) | action_groups[action]
+            missing_publication = sorted(required - set(stage))
+            if missing_publication:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}",
+                    "A publication stage omits action-specific fields: " + ",".join(missing_publication),
+                    "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
+                    "Supply the complete selected action contract inside the stage.",
+                )
+            forbidden_yes = [
+                key
+                for key in ("pr_or_mr_merge", "merge_allowed", "remote_branch_deletion")
+                if stage.get(key, "").lower() == "yes"
+            ]
+            if forbidden_yes or (
+                stage.get("force_push_allowed", "").lower() == "yes"
+                and action != "normalize_declared_post_squash_staging_ref"
+            ):
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}",
+                    "The publication stage requests merge, deletion, or force outside the guarded normalization exception.",
+                    "AGENTS.md section 6; CPC.md section 6",
+                    "Keep orchestration non-merge and non-force except for exact-lease normalization.",
+                )
+            expected_by_action = {
+                "create_or_reuse_open_pr_or_mr": {
+                    "network_access": "yes",
+                    "remote_git_write": "yes",
+                    "pr_or_mr_write": "yes",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "no",
+                    "merge_allowed": "no",
+                    "draft_allowed": "no",
+                    "duplicate_pr_or_mr_policy": "reuse_exact_open_match_else_create_one",
+                },
+                "synchronize_declared_remote_branch": {
+                    "network_access": "yes",
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "no",
+                    "merge_allowed": "no",
+                },
+                "normalize_declared_post_squash_staging_ref": {
+                    "network_access": "yes",
+                    "remote_git_write": "yes",
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "yes",
+                    "merge_allowed": "no",
+                    "generic_force": "forbidden",
+                    "lease_refresh_after_unexplained_remote_movement": "forbidden",
+                    "post_write_remote_readback": "required",
+                    "final_expected_identity_readback": "required",
+                },
+            }
+            action_conflicts = [
+                key
+                for key, expected in expected_by_action[action].items()
+                if stage.get(key, "").lower() != expected
+            ]
+            if action == "synchronize_declared_remote_branch" and stage.get(
+                "remote_git_write", ""
+            ).lower() not in ("yes", "no"):
+                action_conflicts.append("remote_git_write")
+            if action == "normalize_declared_post_squash_staging_ref":
+                expected_lease = (
+                    "--force-with-lease="
+                    f"{stage.get('exact_remote_ref', '')}:{stage.get('exact_observed_old_sha', '')}"
+                )
+                if stage.get("force_with_lease_argument") != expected_lease:
+                    action_conflicts.append("force_with_lease_argument")
+            if action_conflicts:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}",
+                    "The publication stage conflicts with its action-specific authorization values: "
+                    + ",".join(sorted(set(action_conflicts))),
+                    "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
+                    "Use the exact selected action contract; generic force is never available.",
+                )
+
     def validate_authorization(self) -> None:
         network = self.permission("network_access")
         for capability in REMOTE_CAPABILITIES:
@@ -1127,21 +1389,21 @@ class PromptValidator:
                 "AGENTS.md sections 3 and 11",
                 "State the independent action and permission decisions explicitly.",
             )
-        if (
-            self.permission("force_push_allowed") == "yes"
-            and value_is_missing(self.fields.get("user_override_locator"))
-        ):
+        if self.permission("force_push_allowed") == "yes" and self.scalar(
+            "publication_action"
+        ) != "normalize_declared_post_squash_staging_ref":
             self.add(
                 "AUTH003",
                 "authorization_inconsistency",
                 "force_push_allowed",
-                "Force push is enabled without an explicit user-override locator.",
-                "AGENTS.md sections 3 and 11",
-                "Supply the explicit override locator or deny the capability.",
+                "Force is enabled outside the sole guarded normalization action.",
+                "AGENTS.md sections 3, 6, and 12",
+                "Deny force or use the exact separately authorized normalization contract.",
             )
 
     def validate_publication(self) -> None:
-        publication = self.schema["conditional_rules"]["publication_fields"]
+        rules = self.schema["conditional_rules"]
+        publication = rules["publication_common_fields"]
         mode = self.scalar("prompt_mode")
         action = self.scalar("publication_action")
         if mode == "pr_publication":
@@ -1152,6 +1414,12 @@ class PromptValidator:
                 "CPC.md sections 4 and 12",
             )
             if action == "create_or_reuse_open_pr_or_mr":
+                self.require_group(
+                    rules["create_or_reuse_fields"],
+                    "PUB001",
+                    "publication_contract_inconsistency",
+                    "CPC.md sections 4 and 12",
+                )
                 expected = {
                     "network_access": "yes",
                     "remote_git_write": "yes",
@@ -1176,6 +1444,78 @@ class PromptValidator:
                         "The create/reuse action conflicts with required independent publication decisions.",
                         "CPC.md section 12",
                         "Resolve every named publication decision explicitly.",
+                    )
+            elif action == "synchronize_declared_remote_branch":
+                self.require_group(
+                    rules["synchronize_remote_branch_fields"],
+                    "PUB001",
+                    "publication_contract_inconsistency",
+                    "AGENTS.md section 6; CPC.md sections 4 and 12",
+                )
+                expected = {
+                    "network_access": "yes",
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "no",
+                    "merge_allowed": "no",
+                }
+                conflicts = [
+                    field
+                    for field, value in expected.items()
+                    if self.scalar(field).lower() != value
+                ]
+                if self.scalar("remote_git_write").lower() not in ("yes", "no"):
+                    conflicts.append("remote_git_write")
+                if conflicts:
+                    self.add(
+                        "PUB003",
+                        "publication_contract_inconsistency",
+                        ",".join(conflicts),
+                        "The branch synchronization action conflicts with its non-force authorization boundary.",
+                        "AGENTS.md section 6; CPC.md section 12",
+                        "Use the published branch-only fields and independent safe permission values.",
+                    )
+            elif action == "normalize_declared_post_squash_staging_ref":
+                self.require_group(
+                    rules["normalization_fields"],
+                    "PUB001",
+                    "publication_contract_inconsistency",
+                    "AGENTS.md section 6; CPC.md sections 4 and 12",
+                )
+                expected = {
+                    "network_access": "yes",
+                    "remote_git_write": "yes",
+                    "pr_or_mr_write": "no",
+                    "pr_or_mr_merge": "no",
+                    "remote_branch_deletion": "no",
+                    "force_push_allowed": "yes",
+                    "merge_allowed": "no",
+                    "generic_force": "forbidden",
+                    "lease_refresh_after_unexplained_remote_movement": "forbidden",
+                    "post_write_remote_readback": "required",
+                    "final_expected_identity_readback": "required",
+                }
+                conflicts = [
+                    field
+                    for field, value in expected.items()
+                    if self.scalar(field).lower() != value
+                ]
+                lease = self.scalar("force_with_lease_argument")
+                expected_lease = (
+                    "--force-with-lease="
+                    f"{self.scalar('exact_remote_ref')}:{self.scalar('exact_observed_old_sha')}"
+                )
+                if lease != expected_lease:
+                    conflicts.append("force_with_lease_argument")
+                if conflicts:
+                    self.add(
+                        "PUB003",
+                        "publication_contract_inconsistency",
+                        ",".join(conflicts),
+                        "The normalization action lacks its exact archive, identity, lease, or readback safety boundary.",
+                        "AGENTS.md section 6; CPC.md sections 4 and 12",
+                        "Use the exact action-specific values; generic force and lease refresh are forbidden.",
                     )
             elif action == "merge_existing_pr_or_mr":
                 self.require_group(
@@ -1207,6 +1547,32 @@ class PromptValidator:
                     "The publication action is not supported by the bound contract.",
                     "CPC.md section 12",
                     "Choose and supply a published action.",
+                )
+            action_groups = {
+                "create_or_reuse_open_pr_or_mr": set(rules["create_or_reuse_fields"]),
+                "synchronize_declared_remote_branch": set(
+                    rules["synchronize_remote_branch_fields"]
+                ),
+                "normalize_declared_post_squash_staging_ref": set(
+                    rules["normalization_fields"]
+                ),
+                "merge_existing_pr_or_mr": set(rules["merge_fields"]),
+            }
+            applicable = action_groups.get(action, set())
+            all_action_specific = set().union(*action_groups.values())
+            inapplicable = sorted(
+                field
+                for field in all_action_specific - applicable
+                if field in self.fields
+            )
+            if inapplicable:
+                self.add(
+                    "PUB002",
+                    "publication_contract_inconsistency",
+                    ",".join(inapplicable),
+                    "Fields from a different publication action are present.",
+                    "CPC.md sections 4 and 12",
+                    "Keep only the common fields and the selected action's conditional fields.",
                 )
         elif any(name in self.fields for name in publication if name != "network_access"):
             self.add(
@@ -1337,6 +1703,7 @@ class PromptValidator:
         self.validate_branch()
         self.validate_commit()
         self.validate_contexts()
+        self.validate_orchestration()
         self.validate_authorization()
         self.validate_publication()
         self.validate_production()

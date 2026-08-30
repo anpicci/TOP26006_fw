@@ -18,7 +18,7 @@ execute the task represented by the submitted prompt.
 
 Treat the live workspace-root `AGENTS.md` and `CPC.md` as the only normative
 sources. Treat `references/prompt_schema.json` as a reviewed executable
-projection, not policy. The validator and schema version is `1.0.0`.
+projection, not policy. The validator and schema version is `1.1.0`.
 
 Stop when `references/governance_binding.json` does not match the complete live
 bytes of either governance file. Request a separately authorized schema-update

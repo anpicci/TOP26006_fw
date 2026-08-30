@@ -24,7 +24,7 @@ class ContractTests(unittest.TestCase):
     def test_closed_counts(self):
         self.assertEqual(len(reviewer.DIAGNOSTIC_IDS), 65)
         self.assertEqual(len({item.rstrip("0123456789") for item in reviewer.DIAGNOSTIC_IDS}), 19)
-        self.assertEqual(len(reviewer.PATCH_KINDS), 7)
+        self.assertEqual(len(reviewer.PATCH_KINDS), 4)
         self.assertEqual(len(reviewer.LOCATOR_TYPES), 8)
         self.assertEqual(len(reviewer.GATE_EVALUATORS), 14)
         self.assertEqual(len(reviewer.VALIDATION_ORIGINS), 5)
@@ -37,6 +37,35 @@ class ContractTests(unittest.TestCase):
         manifest = json.loads((SKILL_ROOT / "assets" / "review_manifest_template.json").read_text())
         reviewer.reject_reserved(manifest)
         reviewer.schema_validate(manifest, schema, schema)
+
+    def test_governance_projection_vocabularies_are_exact(self):
+        schema = json.loads((SKILL_ROOT / "references" / "review_schema.json").read_text())
+        prompt_modes = set(
+            schema["$defs"]["authorizing_prompt"]["properties"]
+            ["expected_prompt_mode"]["enum"]
+        )
+        self.assertEqual(
+            prompt_modes,
+            {
+                "investigation_only",
+                "coding",
+                "validation_only",
+                "test_alignment_only",
+                "documentation_only",
+                "commit_preparation",
+                "pr_preparation",
+                "integration_only",
+                "branch_maintenance_only",
+                "orchestrated_workflow",
+                "pr_publication",
+                "production_execution",
+            },
+        )
+        self.assertEqual(
+            set(schema["$defs"]["patch_kind"]["enum"]),
+            {"prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes"},
+        )
+        self.assertEqual(set(reviewer.PATCH_KINDS), set(schema["$defs"]["patch_kind"]["enum"]))
 
     def test_recursive_additional_property(self):
         schema = json.loads((SKILL_ROOT / "references" / "review_schema.json").read_text())
@@ -146,7 +175,7 @@ class PathAndArchiveTests(unittest.TestCase):
 class PatchLocatorGateTests(unittest.TestCase):
     PATCH = "diff --git a/src/a.py b/src/a.py\n--- a/src/a.py\n+++ b/src/a.py\n@@ -1 +1 @@\n-old\n+new\n"
 
-    def contract(self, kind="source_change"):
+    def contract(self, kind="prompt_local"):
         return {"patch_kind": kind, "allowed_paths": ["src"], "forbidden_paths": ["secret"], "expected_empty": kind == "empty_no_changes", "allow_renames": False, "allow_copies": False, "allow_mode_changes": False, "allow_deletions": False}
 
     def test_all_patch_kinds(self):
@@ -296,7 +325,7 @@ class ExtendedContractTests(unittest.TestCase):
             "allow_deletions":"diff --git a/src/a b/src/a\ndeleted file mode 100644\n",
             "allow_mode_changes":"diff --git a/src/a b/src/a\nold mode 100644\nnew mode 100755\n",
         }
-        base={"patch_kind":"source_change","allowed_paths":["src"],"forbidden_paths":[],"expected_empty":False,"allow_renames":False,"allow_copies":False,"allow_deletions":False,"allow_mode_changes":False}
+        base={"patch_kind":"prompt_local","allowed_paths":["src"],"forbidden_paths":[],"expected_empty":False,"allow_renames":False,"allow_copies":False,"allow_deletions":False,"allow_mode_changes":False}
         for permission,text in samples.items():
             contract=dict(base); contract[permission]=True
             with self.subTest(permission=permission): self.assertTrue(reviewer.parse_patch(text,contract))
@@ -381,7 +410,7 @@ class ExtendedContractTests(unittest.TestCase):
             root=Path(temporary); prompt=root/"prompt.md"; validation=root/"validation.json"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
             prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
-            payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.0.0","schema_version":"1.0.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
+            payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
             validation.write_text(json.dumps(payload))
             record={"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
             with mock.patch("subprocess.run",side_effect=AssertionError("prompt validator invoked")):
@@ -396,7 +425,7 @@ class ExtendedContractTests(unittest.TestCase):
             prompt=root/"prompt.md"; validation=root/"validation.json"; manifest_path=root/"manifest.json"; output=root/"output"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
             prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
-            validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.0.0","schema_version":"1.0.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
+            validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
             validation.write_text(json.dumps(validation_payload))
             manifest=json.loads((SKILL_ROOT/"assets/review_manifest_template.json").read_text())
             manifest["review_id"]="review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]})
@@ -451,7 +480,7 @@ def _capture_error(operation):
     return []
 
 def _patch_contract(**updates):
-    value={"patch_kind":"source_change","allowed_paths":["src"],"forbidden_paths":[],"expected_empty":False,"allow_renames":False,"allow_copies":False,"allow_mode_changes":False,"allow_deletions":False}
+    value={"patch_kind":"prompt_local","allowed_paths":["src"],"forbidden_paths":[],"expected_empty":False,"allow_renames":False,"allow_copies":False,"allow_mode_changes":False,"allow_deletions":False}
     value.update(updates); return value
 
 def _zip(path,members,compression=zipfile.ZIP_DEFLATED):
@@ -462,7 +491,7 @@ def _prompt_case(root):
     workspace=SCRIPT.resolve().parents[4]; prompt=root/"prompt.md"; validation=root/"validation.json"
     prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
     digest=reviewer.sha256_bytes(prompt.read_bytes())
-    payload={"input":{"sha256":digest},"error_count":0,"valid_schema":True,"validator_version":"1.0.0","schema_version":"1.0.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
+    payload={"input":{"sha256":digest},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
     validation.write_text(json.dumps(payload))
     record={"path":str(prompt),"sha256":digest,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
     return prompt,validation,payload,record
@@ -795,7 +824,7 @@ class CorrectiveHardeningTests(unittest.TestCase):
             root=Path(temporary); carrier=root/"carrier"; package=carrier/"package_root"; package.mkdir(parents=True); (package/"empty.patch").write_bytes(b"")
             prompt=root/"prompt.md"; validation=root/"validation.json"; manifest_path=root/"manifest.json"; output=root/"output"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
-            prompt_hash=reviewer.sha256_bytes(prompt.read_bytes()); validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.0.0","schema_version":"1.0.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}; validation.write_text(json.dumps(validation_payload))
+            prompt_hash=reviewer.sha256_bytes(prompt.read_bytes()); validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}; validation.write_text(json.dumps(validation_payload))
             manifest=_consistent_manifest(); manifest["review_id"]="execution_boundary_review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]}); manifest["repositories"][0]["repository_path"]=str(workspace); manifest["package"].update({"carrier_path":str(carrier),"package_inventory_sha256":reviewer.inventory_hash(reviewer.directory_inventory(carrier.resolve(),"package_root"))}); manifest_path.write_text(json.dumps(manifest))
             blocked=[]
             def forbidden(*args,**kwargs): blocked.append((args,kwargs)); raise AssertionError("execution boundary reached")

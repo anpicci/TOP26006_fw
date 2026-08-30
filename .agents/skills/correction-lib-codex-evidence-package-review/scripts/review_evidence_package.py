@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic, inert evidence-package reviewer (version 1.0.1)."""
+"""Deterministic, inert evidence-package reviewer (version 1.1.0)."""
 
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ from typing import NamedTuple
 import zipfile
 import zlib
 
-REVIEWER_VERSION = "1.0.1"
-SCHEMA_VERSION = "1.0.0"
+REVIEWER_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.1.0"
 MANIFEST_VERSION = "1.0.0"
 HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100}
-PATCH_KINDS = ("source_change", "prompt_local", "binding_only", "diagnostics_only", "empty_no_changes", "cumulative_feature", "corrective_follow_up")
+PATCH_KINDS = ("prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes")
 LOCATOR_TYPES = ("markdown_section", "csv_row", "json_pointer", "text_pattern", "file_whole", "patch_hunk", "test_name", "probe_name")
 GATE_EVALUATORS = ("artifact_present", "hash_equals", "json_pointer_equals", "json_pointer_in_set", "csv_row_count", "csv_value_equals", "text_pattern_present", "text_pattern_absent", "test_summary_equals", "probe_field_equals", "patch_path_subset", "commit_subject_equals", "repository_head_equals", "manual_reviewer_decision_required")
 VALIDATION_ORIGINS = ("package_authored_test_transcript", "reviewer_recomputed_builtin_check", "independent_external_test_result", "planned_but_not_run_check", "manual_reviewer_decision")
@@ -537,7 +537,7 @@ def check_prompt_traceability(record):
     validation=strict_json(strict_text(validation_data,"PROMPT002"),"PROMPT002")
     if validation.get("input",{}).get("sha256")!=record["sha256"] or validation.get("error_count")!=0 or validation.get("valid_schema") is not True: raise ReviewError("PROMPT002","prompt-contract result is invalid or mismatched")
     required_context={"continuation","evidence_round","user_run_handoff"}
-    if set(validation.get("context",{}))!=required_context or validation.get("validator_version")!="1.0.0" or validation.get("schema_version")!="1.0.0": raise ReviewError("PROMPT002","prompt-contract context or version mismatch")
+    if set(validation.get("context",{}))!=required_context or validation.get("validator_version")!="1.1.0" or validation.get("schema_version")!="1.1.0": raise ReviewError("PROMPT002","prompt-contract context or version mismatch")
     governance=validation.get("governance",{})
     if governance.get("binding_matches") is not True: raise ReviewError("PROMPT002","prompt-contract governance binding was stale")
     workspace=Path(__file__).resolve().parents[4]
