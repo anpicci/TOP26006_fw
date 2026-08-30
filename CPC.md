@@ -90,6 +90,36 @@ one sentence about the next activity
 Do not include a detailed execution plan unless the user also requests the
 first Codex prompt.
 
+### `cumulative_checkpoint`
+
+Use a distinct cumulative, versioned checkpoint for evidence-heavy,
+long-running work. It complements the small `conversation_bootstrap`; it does
+not replace it. The minimum cumulative structure is:
+
+```text
+current_state
+checkpoint_changelog
+decision_history
+evidence_history
+operational_memory
+operational_review_strategy
+governance_snapshot
+completed_project_closures
+active_workstreams_and_external_gates
+next_actions
+persistence_protocol
+prior_checkpoint_index
+```
+
+A new checkpoint supersedes stale current-state fields without deleting
+history. Preserve rationale, provenance, and explicit reopen conditions. A
+checkpoint is evidence and context, never authorization; prompt permissions
+and live governance still control every action. Require fresh authoritative
+readback for volatile branch, dirty-worktree, PR/MR, CI, permission, scheduler,
+storage, and external-service state whenever a decision depends on it. Do not
+add a checkpoint renderer, validator, registry, or skill without a separate
+demonstrated need and authorization.
+
 ### `codex_prompt`
 
 Use for an actionable investigation, coding, validation, documentation,
@@ -219,6 +249,31 @@ possible normal non-force push from the declared local ref to the declared
 remote branch. Do not require PR/MR-specific fields for this branch-only
 action.
 
+For `publication_action: normalize_declared_post_squash_staging_ref`, state
+only its action-specific fields:
+
+```text
+exact_remote_ref
+exact_observed_old_sha
+exact_target_sha
+verified_local_archive_ref
+verified_remote_archive_ref_when_remote_history_is_being_rewritten
+archive_reachability
+normalization_identity_basis
+force_with_lease_argument: --force-with-lease=<ref>:<exact_old_sha>
+generic_force: forbidden
+lease_refresh_after_unexplained_remote_movement: forbidden
+post_write_remote_readback: required
+final_expected_identity_readback: required
+```
+
+Also require `network_access: yes`, `remote_git_write: yes`,
+`force_push_allowed: yes`, and safe `no` values for PR/MR write, merge, and
+remote deletion. These fields are conditional on this exact action and must
+not become global publication fields. Require exact user authorization for the
+named ref rewrite and the complete AGENTS.md archive, identity, exact-lease,
+unexpected-movement stop, and final-readback contract.
+
 For `integration_only`, also state:
 
 ```text
@@ -340,8 +395,11 @@ conditionally required by its exact action and remains bounded by the outer
 permission envelope, its stage-local permissions, validated reopened evidence,
 and explicit user authorization. Forbid
 `publication_action: merge_existing_pr_or_mr`, `pr_or_mr_merge: yes`, and
-`merge_allowed: yes` inside orchestration, along with force push, remote branch
-deletion, history rewriting, and automatic merge. Require
+`merge_allowed: yes` inside orchestration, along with generic force, remote
+branch deletion, history rewriting outside the action-specific
+`normalize_declared_post_squash_staging_ref` contract, and automatic merge.
+That normalization action is the sole exact force-with-lease exception inside
+orchestration. Require
 stop-on-new-decision-boundary behavior, partial-completion reporting, and a
 compact observed-evidence stage ledger. Automatic rollback is forbidden unless
 an explicitly preauthorized rollback stage is itself valid under an existing
@@ -355,6 +413,12 @@ stop on divergence, ambiguous ownership, or a merge-versus-rebase choice.
 Remote inspection, mechanically selected safe synchronization, and post-action
 readback may share one stage only when predeclared objective topology rules
 fully determine the action.
+
+When publication-grade review is preauthorized, a stage may declare the
+AGENTS.md terminal read-only completeness-review tail after a failed or
+indeterminate gate. Require it to stay on the already-authorized evidence
+surface, populate the five review buckets, and remain unable to mutate, enlarge
+scope, satisfy the gate, resume execution, or authorize later effects.
 
 Required defaults for `create_or_reuse_open_pr_or_mr`:
 
@@ -451,9 +515,12 @@ Encode Ultra only when explicitly authorized:
 
 ```text
 reasoning_level: max
-delegation_policy: allowed_or_required
+delegation_policy: allowed
 codex_cli_mode: ultra
 ```
+
+Use `delegation_policy: required` instead when the exact workflow requires
+delegation; both values remain members of the closed vocabulary.
 
 Do not use Ultra for narrow controlled work, commit preparation, publication,
 merge, or production execution.
@@ -479,7 +546,15 @@ pr_publication
 production_execution
 ```
 
-Use the narrowest mode that permits the work.
+Select the smallest sufficient contract. Use `orchestrated_workflow` when one
+substantive decision has two or more meaningful stages with distinct mode or
+effect boundaries and a later authorized action depends on validated,
+serialized evidence from an earlier stage. Routine editing, ordinary
+validation, and a prompt-local commit inside one coherent `coding` contract do
+not automatically require orchestration. Cross-repository mutation,
+reconciliation, migration, behavior-dependent documentation, and nontrivial
+publication are signals to test against this dependency rule, not
+unconditional triggers.
 
 * `investigation_only`: read-only diagnosis and evidence work.
 * `coding`: tracked implementation/test/config changes.
@@ -503,11 +578,34 @@ Use the narrowest mode that permits the work.
 
 Do not combine `pr_publication` with source editing, new commits, history
 rewriting, force push, remote deletion, or merge unless the exact action is the
-single explicit decision and separately authorized.
+single explicit decision and separately authorized. Generic force is never an
+available action; the only guarded rewrite is the exact-lease post-squash
+normalization contract.
 
 Do not nest `orchestrated_workflow`. It excludes `production_execution` and
 allows only non-merge, stage-local, explicitly authorized `pr_publication`
 actions. `merge_existing_pr_or_mr` remains a dedicated separate decision round.
+
+### Human-facing `workflow_graph`
+
+For a nontrivial orchestrated prompt, normally include a small self-contained
+plain-text projection:
+
+```text
+workflow_graph:
+  representation: inline_plain_text
+  self_contained_in_markdown: yes
+  renderer_required: no
+  external_asset_required: no
+  normative: no
+```
+
+Atomic or trivial prompts normally omit it. The graph is a presentation aid
+for the declared stages, gates, and stop paths; the structured stage contracts
+remain normative. Do not parse the graph, derive execution authority from it,
+mechanically compare it with the stage ledger, or create graph-specific
+acceptance gates. An inaccurate graph is a documentation-quality defect, not
+an alternative execution contract.
 
 ---
 
@@ -586,6 +684,13 @@ Rules:
 * Expected values are allowed only for immutable inputs and safety invariants.
 * Do not prescribe zero failures for checks designed to discover failures.
 * Define evidence-based acceptance rules instead.
+
+When the decision claims integration/reconciliation, remote publication or
+merge, scientific/analysis, migration/deprecation, or repository-history
+normalization sign-off, request the AGENTS.md publication-grade review and its
+five buckets. Do not request that review merely because ordinary bounded
+coding touches multiple files. Request only the applicable AGENTS.md closure
+layers; one closure claim must not be presented as another.
 
 ---
 
@@ -790,6 +895,14 @@ explicit user authorization cover one possible normal non-force push from the
 declared local ref to the declared remote branch. This action does not create,
 update, or merge a PR/MR and does not require PR-specific fields.
 
+A `normalize_declared_post_squash_staging_ref` round must declare the
+action-specific section 4 fields and use the exact guarded normalization
+contract in AGENTS.md. Require exact user authorization, archive reachability,
+an explicit normalization identity basis, the observed old SHA, the target
+SHA, an exact `--force-with-lease=<ref>:<exact_old_sha>` argument, a hard stop
+on unexpected movement, and post-write plus final expected-identity readback.
+Do not reuse the non-force synchronization action for this rewrite.
+
 ### 12.1 glados Git-over-SSH rule
 
 For Git-over-SSH from Codex on glados, require direct Git commands executed
@@ -874,7 +987,9 @@ automatic merge
 
 unless the exact action is separately authorized. Fetch, push, or creation
 stdout alone is insufficient; the prompt must require action-specific live
-remote readback.
+remote readback. The sole allowed `--force-with-lease` form is the exact
+action-specific post-squash normalization contract. Generic `--force` remains
+forbidden.
 
 ### 12.3 Duplicate handling and failure classification
 
@@ -1075,6 +1190,34 @@ Use `remote_git_write: no` for exact live query/fetch only and `yes` only for
 an explicitly user-authorized possible normal non-force push. Do not add
 PR/MR-only fields to this branch-only action.
 
+For `publication_action: normalize_declared_post_squash_staging_ref`, instead
+append:
+
+```text
+exact_remote_ref: <refs/heads/exact_branch>
+exact_observed_old_sha: <commit>
+exact_target_sha: <commit>
+verified_local_archive_ref: <exact_local_ref>
+verified_remote_archive_ref_when_remote_history_is_being_rewritten: <exact_remote_ref>
+archive_reachability: <required_evidence>
+normalization_identity_basis: <tree_equivalence_or_other_explicit_basis>
+force_with_lease_argument: --force-with-lease=<ref>:<exact_old_sha>
+generic_force: forbidden
+lease_refresh_after_unexplained_remote_movement: forbidden
+post_write_remote_readback: required
+final_expected_identity_readback: required
+network_access: yes
+remote_git_write: yes
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: yes
+merge_allowed: no
+```
+
+Require exact user authorization for the named ref rewrite. Do not add these
+fields to other publication actions.
+
 For `integration_only`, append:
 
 ```text
@@ -1138,8 +1281,10 @@ output bindings, an observed-evidence ledger, explicit partial-completion
 fields, and no automatic rollback. Exclude `production_execution` and nested
 `orchestrated_workflow` stages. Permit `pr_publication` only with all
 action-specific fields, stage-local permissions, validated transition evidence,
-and explicit authorization; forbid `merge_existing_pr_or_mr`, force push,
-remote deletion, and automatic merge inside orchestration.
+and explicit authorization; forbid `merge_existing_pr_or_mr`, generic force,
+remote deletion, and automatic merge inside orchestration. Permit only the
+exact force-with-lease form required by
+`normalize_declared_post_squash_staging_ref`.
 
 #### Inherited standing policy
 

@@ -242,6 +242,11 @@ Examples:
 
 If commands were run through a wrapper or controlled environment, mention that.
 
+Disclose material warnings and skips. State what emitted them, whether they
+affect the reviewed behavior, and whether they are resolved, accepted with
+evidence, or remain an explicit limitation. Do not hide them behind an overall
+pass statement.
+
 Do not mention which Codex model, reasoning level, or delegation mode executed the tests. Reviewer-facing validation should describe commands, inputs, outputs, and results. A model-capacity interruption belongs in the internal report unless it caused missing or incomplete validation evidence; in that case, describe only the resulting validation limitation.
 
 If tests are intentionally scoped, say so.
@@ -293,6 +298,9 @@ Call out, when applicable:
 * production validation not performed;
 * dirty-branch or branch-cumulative context;
 * follow-up items intentionally left out of scope.
+* migration or deletion successor, ownership, and affected-consumer status, or
+  evidence-backed intentional retirement;
+* which closure claims are actually established and which remain separate.
 
 Do not use `Review notes` to expose internal model-selection, token-consumption, reasoning-level, delegation, or capacity details. Translate any resulting limitation into evidence-focused language, such as which validation step did not complete.
 
@@ -331,6 +339,10 @@ Examples of broader scope:
 * unrelated dirty work included in the cumulative branch diff.
 
 Recommend splitting the PR when independent behavior, documentation, configuration, generated artifacts, or repository-boundary changes can be validated and reverted independently. Cross-repository changes should normally be reviewed in their respective repositories even when coordinated by one workspace task.
+
+For an integration or reconciliation PR, describe the complete
+reviewer-visible delta, including surviving upstream behavior and removed or
+superseded surfaces. Do not describe only the latest reconciliation commit.
 
 When the broader diff could reasonably be split, say so explicitly.
 
@@ -507,6 +519,12 @@ not tested
 out of scope
 follow-up item
 ```
+
+Use closure language literally. Test completion, remote publication, upstream
+merge, and repository-history normalization are distinct claims; none should
+be implied by another. For a migration, deletion, or deprecation, disclose the
+successor and owner for affected consumers, or state the evidence-backed
+intentional retirement.
 
 Do not claim:
 

@@ -170,8 +170,10 @@ Rules:
 * PR/MR creation or update requires `pr_or_mr_write: yes`.
 * PR/MR merge requires `pr_or_mr_merge: yes`.
 * Remote branch deletion requires `remote_branch_deletion: yes`.
-* Force push requires explicit user authorization and
-  `force_push_allowed: yes`.
+* Generic force and `--force` are forbidden. The sole guarded rewrite is the
+  action-specific `normalize_declared_post_squash_staging_ref` contract, which
+  requires exact user authorization and `force_push_allowed: yes` for its
+  exact old-SHA lease.
 * Network reads do not imply writes.
 * Publication does not imply merge.
 * Merge does not imply remote branch deletion.
@@ -455,11 +457,16 @@ evidence. An orchestrated publication stage must not use:
 publication_action: merge_existing_pr_or_mr
 pr_or_mr_merge: yes
 merge_allowed: yes
-force push
+generic force or `--force`
 remote branch deletion
-history rewriting
+history rewriting outside the action-specific
+`normalize_declared_post_squash_staging_ref` contract below
 automatic merge
 ```
+
+The normalization action is the sole force-with-lease exception inside
+orchestration. It does not relax any other force, history-rewriting,
+publication, merge, or deletion boundary.
 
 PR/MR merge remains a separate substantive decision round. Allowing
 `pr_publication` as a stage does not lend its network or remote-write
@@ -508,7 +515,19 @@ decision. A new substantive decision is a choice whose next action was not
 preauthorized and mechanically selected by the declared gates; stop with
 `blocked_new_decision_boundary` and report the unresolved choice. Failed or
 indeterminate gates and missing stage permissions likewise stop all remaining
-stages without an improvised fallback.
+mutation, publication, commit, execution, and scope expansion without an
+improvised fallback.
+
+When publication-grade review was preauthorized for the workflow, a failed or
+indeterminate gate may instead enter an explicitly declared terminal read-only
+completeness-review tail. This narrow tail is the only exception to stopping
+all remaining stages. It may continue safe read-only inspection of the
+already-authorized evidence surface, populate the publication-grade review
+buckets, and identify unresolved risks and surfaces not yet evaluated. It must
+not mutate, enlarge the evidence scope, satisfy or bypass the failed gate,
+transition back into execution, or authorize publication, merge, commit, or
+production. Ordinary `stop_on_failed_gate_or_new_decision_boundary` behavior
+continues to govern every non-terminal-review stage.
 
 Later stages may bind inputs to validated observed outputs from earlier stages,
 for example `expected_source_head: stage_1.resulting_head`. They must consume
@@ -530,8 +549,9 @@ Remote inspection, mechanically safe synchronization, and post-action
 validation may share one orchestrated publication stage only when the
 synchronization direction and action are fully determined by predeclared
 objective topology rules. The workflow must stop before overwriting divergent
-history, choosing merge versus rebase, merging a PR/MR, or making a
-documentation-content decision that requires human review.
+history, except for the exact guarded normalization action below; choosing
+merge versus rebase; merging a PR/MR; or making a documentation-content
+decision that requires human review.
 
 Completed stage effects remain after a later block. Automatic rollback is
 forbidden; do not reset, restore, rebase, stash, clean, delete, or rewrite to
@@ -577,6 +597,7 @@ validated local commits and evidence. Supported actions are:
 ```text
 create_or_reuse_open_pr_or_mr
 synchronize_declared_remote_branch
+normalize_declared_post_squash_staging_ref
 merge_existing_pr_or_mr
 ```
 
@@ -653,6 +674,55 @@ reference branch unless the prompt establishes that exact local ref as the
 intended reference authority. Diverged or ambiguous topology is
 `blocked_new_decision_boundary`, not authorization to improvise.
 
+The action `normalize_declared_post_squash_staging_ref` owns one exact guarded
+remote ref rewrite after a squash when tree equality or another explicit
+identity basis establishes the intended normalization. It is optional, never
+implied by a squash or by tree equality, and does not weaken
+`synchronize_declared_remote_branch`, which remains normal non-force
+synchronization. A genuinely multi-stage normalization should use
+`orchestrated_workflow`; a genuinely atomic normalization may use a standalone
+`pr_publication` round.
+
+This action requires:
+
+```text
+publication_action: normalize_declared_post_squash_staging_ref
+publication_platform
+publication_repository
+publication_remote
+exact_remote_ref
+exact_observed_old_sha
+exact_target_sha
+verified_local_archive_ref
+verified_remote_archive_ref_when_remote_history_is_being_rewritten
+archive_reachability
+normalization_identity_basis
+force_with_lease_argument: --force-with-lease=<ref>:<exact_old_sha>
+network_access: yes
+remote_git_write: yes
+pr_or_mr_write: no
+pr_or_mr_merge: no
+remote_branch_deletion: no
+force_push_allowed: yes
+merge_allowed: no
+generic_force: forbidden
+lease_refresh_after_unexplained_remote_movement: forbidden
+post_write_remote_readback: required
+final_expected_identity_readback: required
+```
+
+The prompt and user authorization must identify the exact ref rewrite. Before
+the write, direct evidence must prove that the local archive ref preserves the
+observed old SHA, that the remote archive ref exists when remote history is
+being rewritten, that the archived history is reachable, and that the target
+meets the declared tree-equivalence or other identity basis. The write may use
+only `--force-with-lease=<ref>:<exact_old_sha>` with an explicit single-ref
+refspec. Generic force and `--force` remain forbidden everywhere. Unexpected
+movement of the remote old SHA is a hard stop; do not refresh the lease after
+unexplained movement. Fresh remote readback after the write and final readback
+of every declared expected identity are mandatory. Command stdout alone is not
+success evidence.
+
 Forbidden unless separately authorized:
 
 ```text
@@ -660,8 +730,8 @@ source or test edits
 new commits
 amend
 rebase
-history rewriting
-force push
+history rewriting outside the guarded normalization action
+force push outside the exact old-SHA lease required by that action
 remote branch deletion
 automatic merge
 PR or MR merge
@@ -691,6 +761,14 @@ not success evidence. Every
 `git fetch`, `git ls-remote`, `git push`, `gh`, and `glab` operation remains a
 separate direct command under section 12, including the command-local glados
 SSH override when applicable.
+
+A `normalize_declared_post_squash_staging_ref` round must perform its archive,
+reachability, old-SHA, target-identity, exact-lease, and final-identity gates in
+the declared order. Each `git ls-remote`, `git fetch`, and `git push` operation
+remains a separate direct command under section 12. Any missing archive,
+indeterminate identity basis, unexpected remote movement, or post-write
+readback mismatch stops the action without a retry, lease refresh, merge,
+deletion, or improvised rewrite.
 
 Merge must be a separate decision round with `pr_or_mr_merge: yes` and
 `merge_allowed: yes`.
@@ -771,6 +849,46 @@ explicitly requested.
 Remote branch commits are live state. Query them when current values matter;
 do not reuse an old remote SHA as current-state evidence.
 
+### Conditional integration and publication lifecycle
+
+When a workstream uses the applicable surfaces, distinguish these review and
+effect boundaries rather than treating them as one generic merge operation:
+
+```text
+feature_review
+integration_or_reconciliation_review
+upstream_publication
+merge
+post_merge_tree_readback
+optional_history_normalization
+```
+
+This is a conditional lifecycle overview, not a mandatory fork-staging design.
+Existing prompt modes retain ownership of each action: feature development and
+review use their development contract, local integration uses
+`integration_only`, remote publication and any guarded normalization use
+action-specific `pr_publication`, and merge remains a separate authorized
+decision. Reference and integration branches remain non-development surfaces.
+One closure boundary does not authorize the next.
+
+Integration or reconciliation review covers the complete reviewer-visible
+delta, not only the latest conflict-resolution commit. When both sides of a
+conflict carry meaningful behavior, do not blindly select `ours`, `theirs`, or
+a whole-file replacement. Classify ownership using the minimum applicable,
+non-exhaustive classes:
+
+```text
+feature_supersedes_equivalent_upstream
+independent_upstream_behavior_survives
+obsolete_surface_disappears
+compatibility_contract_survives
+```
+
+An additional evidence-backed class is allowed when needed. After squash,
+`tree_equality != history_equality`: tree identity may support accepted-evidence
+reuse, but it does not establish commit-history identity or make history
+normalization mandatory.
+
 ---
 
 ## 8. Model, reasoning, and delegation
@@ -842,9 +960,12 @@ explicitly authorized:
 
 ```text
 reasoning_level: max
-delegation_policy: allowed_or_required
+delegation_policy: allowed
 codex_cli_mode: ultra
 ```
+
+Use `delegation_policy: required` instead when the exact workflow requires
+delegation; both values remain members of the closed vocabulary.
 
 Do not use Ultra for narrow controlled work, commit preparation, publication,
 or production execution.
@@ -913,6 +1034,29 @@ Rules:
 * Avoid multi-agent overhead for small tasks.
 * One controlling agent must execute publication operations sequentially. Do
   not parallelize duplicate checks, pushes, PR/MR creation, merge, or deletion.
+
+### Reusable mechanism selection
+
+Choose the smallest mechanism that matches the recurring contract:
+
+```text
+subagent:
+  bounded independent perspective when delegation is explicitly authorized
+
+skill:
+  stable reusable transformation or validation protocol
+
+orchestrated_stage_pattern:
+  decision-specific gated work
+
+checklist:
+  presentation or review aid without execution authority
+```
+
+The controlling workflow or human retains decision authority. A mechanism must
+not invent authorization, broaden scope, or become the sole owner of a
+safety-critical rule. Do not create a specialized-agent registry merely to
+record reusable role names.
 
 ---
 
@@ -1069,8 +1213,11 @@ Rules:
 * Use the command working directory rather than `git -C` for publication
   commands so the canonical approval rule remains matchable.
 * Use the override for `ls-remote`, fetch, and push.
-* Never use `--force`, `--force-with-lease`, wildcard refspecs, implicit
-  multi-ref pushes, or deletion unless explicitly authorized.
+* Never use `--force`. Use `--force-with-lease` only for the explicitly
+  authorized `normalize_declared_post_squash_staging_ref` action and only in
+  its exact `--force-with-lease=<ref>:<exact_old_sha>` form. Wildcard refspecs,
+  implicit multi-ref pushes, and deletion remain forbidden unless separately
+  authorized by their own applicable contracts.
 * Do not change an SSH remote to HTTPS merely to bypass the sandbox.
 * Do not infer invalid credentials from DNS, socket, sandbox, SSH-config, or
   pre-spawn failures.
@@ -1175,6 +1322,16 @@ work_on_dirty_branch_as_is
 allow_declared_preexisting_changes
 commit_preparation_existing_changes
 ```
+
+Unless a prompt explicitly requires a physically empty worktree for a stated
+invariant, `require_clean_worktree` means no tracked worktree changes, no index
+changes, and no conflict state. A task-scope untracked path that collides with
+an intended input or output is material and must be resolved or explicitly
+accepted before the action. Unrelated pre-existing untracked files are allowed
+under a compatible dirty policy, must be preserved as-is, and must not be
+inventoried without a task-specific reason. These defaults do not collapse the
+other dirty policies: their declared treatment of known pre-existing tracked
+or task-scope changes remains controlling.
 
 Never use without explicit authorization:
 
@@ -1337,6 +1494,68 @@ publication_validation
 
 Implementation validation does not establish full campaign validation.
 
+### Publication-grade review
+
+Publication-grade review is the default for these sign-off surfaces:
+
+```text
+integration_or_reconciliation_sign_off
+remote_publication_or_merge_sign_off
+scientific_or_analysis_sign_off
+migration_or_deprecation_sign_off
+repository_history_normalization_sign_off
+```
+
+It is triggered by the sign-off claim, not by file count. Ordinary bounded
+coding does not acquire publication-grade review overhead merely because it
+touches multiple files or includes focused validation.
+
+A publication-grade review report must classify:
+
+```text
+confirmed_blockers
+additional_unresolved_risks
+not_yet_evaluated
+closed_with_evidence
+confidence_in_completeness
+```
+
+Do not describe a finding as the `only blocker`, or use equivalent completeness
+language, until the permitted review surface is exhausted. When membership
+matters, report exact identity sets rather than counts alone. Safe authorized
+read-only review should continue after the first blocker when the review
+surface and terminal tail were preauthorized; section 6's terminal-tail rule
+still forbids mutation, scope enlargement, gate bypass, or return to execution.
+
+Correlate every applicable implementation, test, fixture, asset,
+documentation, warning, skip, reviewer-claim, and live-remote-state surface.
+Changed tests are evidence, not automatically semantic authority; a test is
+authoritative only when the maintained contract for the decision identifies it
+as such. Passing tests do not override the resolved maintained semantic,
+specification, or consumer contract. Material warnings and skips are evidence
+surfaces and require relevance and disposition. A deletion, migration, or
+deprecation requires successor, ownership, and consumer classification, or
+evidence-backed intentional retirement. When fixing a shared early exception
+can unmask later failures, rerun the complete affected reachable surface and
+classify each newly exposed failure independently.
+
+### Closure layers
+
+Use only the closure claims applicable to the decision:
+
+```text
+semantic_or_scientific_closure
+test_closure
+documentation_closure
+publication_closure
+upstream_merge_closure
+repository_history_normalization_closure
+```
+
+One layer does not imply another. Naming the vocabulary does not require every
+report to emit all six layers or authorize an action belonging to another
+layer.
+
 Production campaign validation must state:
 
 ```text
@@ -1414,6 +1633,21 @@ absence of force push, remote deletion, PR/MR mutation, and merge
 final local tracked/index state
 ```
 
+Publication validation for
+`normalize_declared_post_squash_staging_ref` must instead establish:
+
+```text
+exact remote ref and freshly observed old SHA
+exact target SHA and declared normalization identity basis
+local archive ref identity and reachability
+remote archive ref identity and reachability before rewriting remote history
+exact force-with-lease argument bound to the observed old SHA
+fresh remote ref readback after the write
+final expected local, archive, staging, and upstream identities as declared
+absence of generic force, lease refresh, PR/MR mutation, merge, or deletion
+final local tracked/index state
+```
+
 Do not claim an activity was validated unless it ran.
 
 ### Accepted-evidence reuse
@@ -1430,6 +1664,11 @@ live_remote_state_is_required
 
 Live remote state must be queried when the decision depends on its current
 value. This is not wasteful repetition.
+
+A cumulative checkpoint or other handoff is evidence and context, never
+authorization. It may preserve stable accepted evidence, but any decision that
+depends on volatile branch, dirty-worktree, PR/MR, CI, permission, scheduler,
+storage, or external-service state requires fresh authoritative readback.
 
 When a squash merge's resulting tree is directly proven identical to an already
 validated feature tree, accepted pre-merge implementation validation may be
@@ -1656,6 +1895,35 @@ merge_performed
 remote_branch_deleted
 ```
 
+Reports for `normalize_declared_post_squash_staging_ref` instead include:
+
+```text
+publication_action
+publication_platform
+publication_repository
+publication_remote
+exact_remote_ref
+exact_observed_old_sha
+exact_target_sha
+verified_local_archive_ref
+verified_remote_archive_ref_when_remote_history_is_being_rewritten
+archive_reachability
+normalization_identity_basis
+force_with_lease_argument
+initial_live_remote_ref_head
+final_live_remote_ref_head
+final_expected_identity_readback
+generic_force_used
+lease_refreshed_after_unexplained_movement
+pr_or_mr_write_performed
+merge_performed
+remote_branch_deleted
+```
+
+When publication-grade review applies, also include its five evidence buckets
+from section 18. They are conditional review fields, not universal report
+ceremony.
+
 ### Minimum sufficient artifacts
 
 The report and patch are mandatory. Default to no more than five additional
@@ -1743,9 +2011,12 @@ It must not push or mutate a PR/MR.
 `pr_publication` may synchronize one declared remote branch or publish an
 already validated branch and create/update the requested PR/MR under sections
 11–12. It must not change source, create commits, rewrite history, force-push,
-delete remote branches, or merge unless separately authorized. PR/MR merge is
-forbidden inside `orchestrated_workflow` even when other non-merge publication
-actions are composed there.
+delete remote branches, or merge unless the applicable action-specific
+contract and exact user authorization allow that effect. Generic force remains
+forbidden; only `normalize_declared_post_squash_staging_ref` may use its exact
+old-SHA force-with-lease. PR/MR merge is forbidden inside
+`orchestrated_workflow` even when other non-merge publication actions are
+composed there.
 
 When Codex is authorized to merge or squash-and-merge, it must use a separate
 round with:
