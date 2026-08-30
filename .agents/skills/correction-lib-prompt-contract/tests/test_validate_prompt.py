@@ -550,6 +550,124 @@ class PromptContractValidatorTests(unittest.TestCase):
         self.assertEqual(exit_code, 3)
         self.assertIn("ORCH001", {item["id"] for item in payload["diagnostics"]})
 
+    def test_orchestrated_publication_uses_matching_outer_envelope(self) -> None:
+        def publication_workflow(
+            action_fields: str, outer_permissions: dict[str, str]
+        ) -> OrderedDict[str, object]:
+            fields = base_fields("orchestrated_workflow")
+            fields["workflow_stages"] = fields["workflow_stages"].replace(
+                "stage_mode: validation_only\n",
+                "stage_mode: pr_publication\n" + action_fields,
+            )
+            fields.update(outer_permissions)
+            return fields
+
+        shared_outer = {
+            "network_access": "yes",
+            "pr_or_mr_merge": "no",
+            "remote_branch_deletion": "no",
+            "merge_allowed": "no",
+        }
+        create = publication_workflow(
+            "  publication_action: create_or_reuse_open_pr_or_mr\n"
+            "  publication_platform: github\n"
+            "  publication_repository: synthetic/example\n"
+            "  publication_remote: synthetic_remote\n"
+            "  expected_local_head: " + "6" * 40 + "\n"
+            "  network_access: yes\n"
+            "  remote_git_write: yes\n"
+            "  pr_or_mr_write: yes\n"
+            "  pr_or_mr_merge: no\n"
+            "  remote_branch_deletion: no\n"
+            "  force_push_allowed: no\n"
+            "  merge_allowed: no\n"
+            "  publication_base_branch: main\n"
+            "  publication_feature_branch: feature\n"
+            "  duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one\n"
+            "  draft_allowed: no\n",
+            dict(
+                shared_outer,
+                remote_git_write="yes",
+                pr_or_mr_write="yes",
+                force_push_allowed="no",
+            ),
+        )
+        create_payload, create_exit = validate_bytes(render_prompt(create))
+        self.assertEqual(create_exit, 0, create_payload["diagnostics"])
+
+        synchronize = publication_workflow(
+            "  publication_action: synchronize_declared_remote_branch\n"
+            "  publication_platform: github\n"
+            "  publication_repository: synthetic/example\n"
+            "  publication_remote: synthetic_remote\n"
+            "  expected_local_head: " + "6" * 40 + "\n"
+            "  network_access: yes\n"
+            "  remote_git_write: no\n"
+            "  pr_or_mr_write: no\n"
+            "  pr_or_mr_merge: no\n"
+            "  remote_branch_deletion: no\n"
+            "  force_push_allowed: no\n"
+            "  merge_allowed: no\n"
+            "  publication_local_branch: staging_local\n"
+            "  publication_remote_branch: staging\n"
+            "  publication_remote_tracking_ref: refs/remotes/synthetic_remote/staging\n",
+            dict(
+                shared_outer,
+                remote_git_write="no",
+                pr_or_mr_write="no",
+                force_push_allowed="no",
+            ),
+        )
+        sync_payload, sync_exit = validate_bytes(render_prompt(synchronize))
+        self.assertEqual(sync_exit, 0, sync_payload["diagnostics"])
+
+        exact_ref = "refs/heads/synthetic_staging"
+        old_sha = "7" * 40
+        normalization = publication_workflow(
+            "  publication_action: normalize_declared_post_squash_staging_ref\n"
+            "  publication_platform: github\n"
+            "  publication_repository: synthetic/example\n"
+            "  publication_remote: synthetic_remote\n"
+            "  expected_local_head: " + "6" * 40 + "\n"
+            "  network_access: yes\n"
+            "  remote_git_write: yes\n"
+            "  pr_or_mr_write: no\n"
+            "  pr_or_mr_merge: no\n"
+            "  remote_branch_deletion: no\n"
+            "  force_push_allowed: yes\n"
+            "  merge_allowed: no\n"
+            f"  exact_remote_ref: {exact_ref}\n"
+            f"  exact_observed_old_sha: {old_sha}\n"
+            "  exact_target_sha: " + "6" * 40 + "\n"
+            "  verified_local_archive_ref: refs/heads/archive/synthetic_old\n"
+            "  verified_remote_archive_ref_when_remote_history_is_being_rewritten: refs/heads/archive/synthetic_old\n"
+            "  archive_reachability: verified\n"
+            "  normalization_identity_basis: tree equivalence\n"
+            f"  force_with_lease_argument: --force-with-lease={exact_ref}:{old_sha}\n"
+            "  generic_force: forbidden\n"
+            "  lease_refresh_after_unexplained_remote_movement: forbidden\n"
+            "  post_write_remote_readback: required\n"
+            "  final_expected_identity_readback: required\n"
+            "  explicit_user_authorization_for_the_exact_ref_rewrite: exact user authorization\n",
+            dict(
+                shared_outer,
+                remote_git_write="yes",
+                pr_or_mr_write="no",
+                force_push_allowed="yes",
+            ),
+        )
+        normalization_payload, normalization_exit = validate_bytes(
+            render_prompt(normalization)
+        )
+        self.assertEqual(normalization_exit, 0, normalization_payload["diagnostics"])
+
+        create.pop("remote_git_write")
+        missing_outer_payload, missing_outer_exit = validate_bytes(
+            render_prompt(create)
+        )
+        self.assertEqual(missing_outer_exit, 3)
+        self.assertIn("ORCH001", {item["id"] for item in missing_outer_payload["diagnostics"]})
+
     def test_publication_actions_have_disjoint_contracts(self) -> None:
         create = base_fields("pr_publication")
         create_payload, create_exit = validate_bytes(render_prompt(create))
@@ -630,6 +748,16 @@ class PromptContractValidatorTests(unittest.TestCase):
         self.assertIn(
             "generic_force",
             {item["field"] for item in generic_force_payload["diagnostics"]},
+        )
+        normalize["generic_force"] = "forbidden"
+        normalize["explicit_user_authorization_for_the_exact_ref_rewrite"] = "none"
+        missing_authorization_payload, missing_authorization_exit = validate_bytes(
+            render_prompt(normalize)
+        )
+        self.assertEqual(missing_authorization_exit, 3)
+        self.assertIn(
+            "explicit_user_authorization_for_the_exact_ref_rewrite",
+            {item["field"] for item in missing_authorization_payload["diagnostics"]},
         )
 
     def test_ordinary_coding_needs_no_publication_grade_fields(self) -> None:

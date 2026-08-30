@@ -1330,6 +1330,14 @@ class PromptValidator:
                 )
                 if stage.get("force_with_lease_argument") != expected_lease:
                     action_conflicts.append("force_with_lease_argument")
+                if none_like(
+                    stage.get(
+                        "explicit_user_authorization_for_the_exact_ref_rewrite", ""
+                    )
+                ):
+                    action_conflicts.append(
+                        "explicit_user_authorization_for_the_exact_ref_rewrite"
+                    )
             if action_conflicts:
                 self.add(
                     "ORCH001",
@@ -1340,6 +1348,48 @@ class PromptValidator:
                     "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
                     "Use the exact selected action contract; generic force is never available.",
                 )
+            outer_expected = {
+                key: value
+                for key, value in expected_by_action[action].items()
+                if key
+                in {
+                    "network_access",
+                    "remote_git_write",
+                    "pr_or_mr_write",
+                    "pr_or_mr_merge",
+                    "remote_branch_deletion",
+                    "force_push_allowed",
+                    "merge_allowed",
+                }
+            }
+            if action == "synchronize_declared_remote_branch":
+                outer_expected["remote_git_write"] = stage.get(
+                    "remote_git_write", ""
+                ).lower()
+            outer_conflicts = [
+                key
+                for key, expected in outer_expected.items()
+                if self.permission(key) != expected
+            ]
+            if outer_conflicts:
+                self.add(
+                    "ORCH001",
+                    "orchestration_contract_inconsistency",
+                    f"workflow_stages.{stage.get('stage_id', index)}",
+                    "The outer workflow permission envelope does not match the stage-local publication contract: "
+                    + ",".join(sorted(outer_conflicts)),
+                    "AGENTS.md section 6; CPC.md sections 4 and 6",
+                    "Declare matching outer maximum and stage-local permissions; no capability may be borrowed across stages.",
+                )
+
+    def has_orchestrated_normalization_stage(self) -> bool:
+        record = self.fields.get("workflow_stages")
+        return any(
+            stage.get("stage_mode") == "pr_publication"
+            and stage.get("publication_action")
+            == "normalize_declared_post_squash_staging_ref"
+            for stage in parse_workflow_stages(record.value if record else "")
+        )
 
     def validate_authorization(self) -> None:
         network = self.permission("network_access")
@@ -1389,9 +1439,15 @@ class PromptValidator:
                 "AGENTS.md sections 3 and 11",
                 "State the independent action and permission decisions explicitly.",
             )
-        if self.permission("force_push_allowed") == "yes" and self.scalar(
-            "publication_action"
-        ) != "normalize_declared_post_squash_staging_ref":
+        force_is_guarded_normalization = (
+            self.scalar("publication_action")
+            == "normalize_declared_post_squash_staging_ref"
+            or (
+                self.scalar("prompt_mode") == "orchestrated_workflow"
+                and self.has_orchestrated_normalization_stage()
+            )
+        )
+        if self.permission("force_push_allowed") == "yes" and not force_is_guarded_normalization:
             self.add(
                 "AUTH003",
                 "authorization_inconsistency",
@@ -1399,6 +1455,21 @@ class PromptValidator:
                 "Force is enabled outside the sole guarded normalization action.",
                 "AGENTS.md sections 3, 6, and 12",
                 "Deny force or use the exact separately authorized normalization contract.",
+            )
+        if (
+            self.scalar("publication_action")
+            == "normalize_declared_post_squash_staging_ref"
+            and none_like(
+                self.scalar("explicit_user_authorization_for_the_exact_ref_rewrite")
+            )
+        ):
+            self.add(
+                "AUTH003",
+                "authorization_inconsistency",
+                "explicit_user_authorization_for_the_exact_ref_rewrite",
+                "The guarded normalization action lacks explicit authorization for the exact ref rewrite.",
+                "AGENTS.md section 12; CPC.md section 12",
+                "Record explicit user authorization for the exact declared ref rewrite.",
             )
 
     def validate_publication(self) -> None:
@@ -1574,7 +1645,9 @@ class PromptValidator:
                     "CPC.md sections 4 and 12",
                     "Keep only the common fields and the selected action's conditional fields.",
                 )
-        elif any(name in self.fields for name in publication if name != "network_access"):
+        elif mode != "orchestrated_workflow" and any(
+            name in self.fields for name in publication if name != "network_access"
+        ):
             self.add(
                 "MODE050",
                 "forbidden_mode_specific_field",
