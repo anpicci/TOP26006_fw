@@ -518,6 +518,13 @@ indeterminate gates and missing stage permissions likewise stop all remaining
 mutation, publication, commit, execution, and scope expansion without an
 improvised fallback.
 
+When a mutating stage consumes a semantic contract established by a prior
+stage, the transition gate must prove that the required semantic surface is
+complete as well as that the intended diff is isolated. Diff isolation alone
+must not certify semantic completeness. This additional proof is conditional;
+it is not required when the later stage consumes no prior-stage semantic
+contract.
+
 When publication-grade review was preauthorized for the workflow, a failed or
 indeterminate gate may instead enter an explicitly declared terminal read-only
 completeness-review tail. This narrow tail is the only exception to stopping
@@ -978,12 +985,37 @@ Every round must state:
 
 ```text
 decision_question
+prompt_relationship
+```
+
+Allowed relationships are:
+
+```text
+standalone
+continuation
+```
+
+`prompt_relationship` is orthogonal to `prompt_mode`; continuation is not a
+prompt mode. A continuation round must also state:
+
+```text
+continuation_of
 accepted_prior_evidence
+accepted_closure_layers
+invalidation_boundary
+delta_scope
 unresolved_checks_only
 checks_not_to_repeat
 ```
 
-The last three fields are required for continuation rounds.
+`continuation_of` identifies the exact prior round or accepted artifact set.
+`accepted_closure_layers` names only closure claims already established by
+readable evidence. `invalidation_boundary` states what change or unresolved
+condition can reopen that evidence. `delta_scope` states the changed, newly
+unresolved, and directly coupled reachable surfaces to validate now.
+`accepted_closure_layers: none` is valid when a continuation inherits accepted
+evidence but no formal closure layer. Do not invent a closure claim to satisfy
+the field.
 
 Rules:
 
@@ -1552,9 +1584,14 @@ upstream_merge_closure
 repository_history_normalization_closure
 ```
 
-One layer does not imply another. Naming the vocabulary does not require every
-report to emit all six layers or authorize an action belonging to another
-layer.
+One layer does not imply another, and a deficient layer does not automatically
+invalidate an accepted layer. Reopen another layer only when its evidence is
+inside the applicable invalidation boundary or a direct dependency between the
+layers is established. Naming the vocabulary does not require every report to
+emit all six layers or authorize an action belonging to another layer. A
+publication-grade review still reports unresolved deficiencies in its five
+evidence buckets and must not use layer independence to bypass a blocker that
+is material to the sign-off claim.
 
 Production campaign validation must state:
 
@@ -1665,6 +1702,12 @@ live_remote_state_is_required
 Live remote state must be queried when the decision depends on its current
 value. This is not wasteful repetition.
 
+For a continuation, validate the delta: changed or newly unresolved behavior
+plus directly coupled reachable surfaces. Inherit accepted validation outside
+the declared invalidation boundary. The boundary expands when direct evidence
+shows additional reachable coupling, so this rule never suppresses an
+affected-surface rerun required elsewhere in this policy.
+
 A cumulative checkpoint or other handoff is evidence and context, never
 authorization. It may preserve stable accepted evidence, but any decision that
 depends on volatile branch, dirty-worktree, PR/MR, CI, permission, scheduler,
@@ -1689,7 +1732,11 @@ alone must not trigger ceremonial repetition of unchanged tests.
 Continuation reports must state:
 
 ```text
+continuation_of
 accepted_prior_evidence
+accepted_closure_layers
+invalidation_boundary
+delta_scope
 checks_intentionally_not_repeated
 new_or_unresolved_checks_only
 ```
@@ -1820,6 +1867,7 @@ Minimum report fields:
 executive_verdict
 final_status
 decision_question
+prompt_relationship
 prompt_mode
 preferred_codex_model
 actual_codex_model
@@ -1848,6 +1896,27 @@ open_questions_or_caveats
 recommended_next_action
 final_cleanliness
 ```
+
+Classify an incomplete or inaccurate report field as one of:
+
+```text
+decision_material_reporting_defect
+non_blocking_reporting_defect
+```
+
+A `decision_material_reporting_defect` withholds evidence needed to establish
+the substantive claim and blocks that claim until repaired. A
+`non_blocking_reporting_defect` affects only descriptive or presentation
+material whose absence cannot change the decision; repair it without reopening
+accepted closure layers. Missing substantive evidence must not be relabeled as
+a reporting-only defect or manufactured during a reporting repair.
+
+A `non_blocking_reporting_defect` alone does not justify a new Codex round.
+Record it in the durable report or supervisor state and repair it in the next
+naturally authorized continuation, publication, integration, or documentation
+round. Open an immediate evidence-repair round only when the user explicitly
+requests it or a later authorized effect requires the missing canonical
+evidence before it can proceed.
 
 Reports for `create_or_reuse_open_pr_or_mr` or
 `merge_existing_pr_or_mr` also include:
@@ -1952,10 +2021,19 @@ For every commit include:
 ```text
 commit_hash
 commit_subject
-file_stat
 changed_paths
 commit_patch_path
 ```
+
+Also include `file_stat` when the decision question, an explicit gate, or a
+repository-local review contract makes the insertion/deletion summary
+decision-material. Otherwise it is recommended descriptive evidence and its
+absence alone is non-blocking.
+
+`changed_paths` and an exact reviewable commit delta remain mandatory.
+`commit_patch_path` may reference the round's mandatory patch only when direct
+comparison proves that patch is exactly equivalent to the commit delta;
+otherwise create a separate commit patch.
 
 Always distinguish:
 

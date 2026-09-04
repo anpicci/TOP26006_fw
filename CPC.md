@@ -142,6 +142,7 @@ Every Codex prompt must state:
 prompt_id
 short_title
 prompt_mode
+prompt_relationship
 preferred_codex_model
 reasoning_level
 delegation_policy
@@ -184,10 +185,18 @@ final_chat_deliverable
 For continuation rounds, also state:
 
 ```text
+continuation_of
 accepted_prior_evidence
+accepted_closure_layers
+invalidation_boundary
+delta_scope
 unresolved_checks_only
 checks_not_to_repeat
 ```
+
+Use `prompt_relationship: standalone` or `prompt_relationship: continuation`.
+The relationship is orthogonal to `prompt_mode`; do not add a continuation
+mode.
 
 For evidence or audit rounds, also state:
 
@@ -404,6 +413,11 @@ stop-on-new-decision-boundary behavior, partial-completion reporting, and a
 compact observed-evidence stage ledger. Automatic rollback is forbidden unless
 an explicitly preauthorized rollback stage is itself valid under an existing
 stage mode. These fields are conditional only on `orchestrated_workflow`.
+
+When a mutating stage consumes a semantic contract established by a prior
+stage, require the transition gate to prove semantic completeness as well as
+diff isolation. Do not impose this additional proof on stages that consume no
+prior-stage semantic contract.
 
 An orchestrated publication transition must resolve the exact action,
 repository, remote, local ref, remote ref, and expected local HEAD from explicit
@@ -692,6 +706,10 @@ five buckets. Do not request that review merely because ordinary bounded
 coding touches multiple files. Request only the applicable AGENTS.md closure
 layers; one closure claim must not be presented as another.
 
+Treat accepted closure layers independently unless the declared invalidation
+boundary or direct dependency evidence reopens them. Publication-grade review
+must still surface every deficiency material to its sign-off claim.
+
 ---
 
 ## 9. Continuation prompts and accepted evidence
@@ -699,10 +717,21 @@ layers; one closure claim must not be presented as another.
 Use compact exact references:
 
 ```text
+continuation_of: <prior_prompt_or_exact_artifact_set>
+
 accepted_prior_evidence:
   - claim: <already established claim>
     artifact: <exact path>
     locator: <row, key, or section>
+
+accepted_closure_layers:
+  - <accepted_layer_and_evidence_reference>
+
+invalidation_boundary:
+  - <change_or_condition_that_reopens_accepted_evidence>
+
+delta_scope:
+  - <changed_newly_unresolved_or_directly_coupled_reachable_surface>
 
 unresolved_checks_only:
   - <genuinely unresolved check>
@@ -712,6 +741,31 @@ checks_not_to_repeat:
 ```
 
 Do not reproduce whole reports or long summaries.
+
+`accepted_closure_layers: none` is valid when a continuation inherits accepted
+evidence but no formal closure layer. Do not invent a closure claim to satisfy
+the field.
+
+Continuation describes a prompt relationship, not a prompt mode. Validate only
+the declared delta: changed or newly unresolved behavior plus directly coupled
+reachable surfaces. Inherit accepted validation outside the invalidation
+boundary, but require the boundary and delta scope to expand when direct
+evidence reveals additional coupling. This does not relax any AGENTS.md
+affected-surface rerun rule.
+
+Distinguish reporting defects when constructing continuation and evidence
+work:
+
+```text
+decision_material_reporting_defect:
+  bounded evidence completion may be scheduled.
+
+non_blocking_reporting_defect:
+  record; do not create a standalone repair round solely for it.
+```
+
+Do not construct a standalone prompt whose only decision surface is a
+`non_blocking_reporting_defect`.
 
 Do not rerun accepted checks unless:
 
@@ -1100,6 +1154,7 @@ You are Codex working inside the user’s `correction-lib` workspace.
 prompt_id: <id>
 short_title: <snake_case_title>
 prompt_mode: <allowed mode>
+prompt_relationship: <standalone_or_continuation>
 preferred_codex_model: <model>
 reasoning_level: <level>
 delegation_policy: <policy>
@@ -1309,10 +1364,21 @@ Read applicable nested `AGENTS.md` files and stop on conflict.
 For continuation rounds:
 
 ```text
+continuation_of: <prior_prompt_or_exact_artifact_set>
+
 accepted_prior_evidence:
   - claim: <claim>
     artifact: <path>
     locator: <row_or_section>
+
+accepted_closure_layers:
+  - <accepted_layer_and_evidence_reference>
+
+invalidation_boundary:
+  - <change_or_condition_that_reopens_accepted_evidence>
+
+delta_scope:
+  - <changed_newly_unresolved_or_directly_coupled_reachable_surface>
 
 unresolved_checks_only:
   - <check>
@@ -1519,6 +1585,7 @@ Before delivering a prompt, verify:
 ```text
 one_decision_question
 narrowest_prompt_mode
+prompt_relationship_explicit_and_orthogonal_to_prompt_mode
 model_reasoning_and_delegation_explicit
 repo_permissions_explicit
 branch_policy_explicit
@@ -1528,6 +1595,10 @@ heavy_permissions_explicit
 technical_network_availability_not_treated_as_authorization
 remote_write_permissions_explicit_when_applicable
 accepted_evidence_referenced_not_repeated
+continuation_fields_complete_when_applicable
+validation_delta_preserves_directly_coupled_reachable_surfaces
+accepted_closure_layers_reopened_only_at_a_proven_invalidation_boundary
+non_blocking_reporting_defect_does_not_spawn_standalone_round
 only_unresolved_checks_scheduled
 closed_checks_explicitly_not_repeated
 no_expected_audit_or_publication_verdict
@@ -1550,6 +1621,7 @@ one_substantive_decision_boundary_across_all_stages
 stage_modes_allowed_and_not_nested
 stage_permissions_isolated_within_outer_envelope
 stage_transition_requires_validated_observed_gate
+semantic_completeness_proven_when_a_mutating_stage_consumes_a_prior_contract
 prior_stage_bindings_use_read_back_outputs
 new_decision_boundary_stops_remaining_stages
 partial_completion_and_persistent_effects_reported
