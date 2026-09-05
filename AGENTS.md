@@ -1375,8 +1375,9 @@ git checkout -- <path>
 git stash
 ```
 
-Do not stage with `git add .` or `git add -A` unless explicitly authorized.
-Stage intended files by path.
+Do not stage with `git add .` or `git add -A` unless an explicitly authorized
+whole-worktree task has established that every affected change is task-owned
+under section 14. Stage intended files by exact path.
 
 At the end, report:
 
@@ -1408,6 +1409,79 @@ do_not_commit: yes
 
 A code-changing round must create a prompt-local commit unless explicitly
 forbidden.
+
+### Change ownership and index isolation
+
+At preflight for a round that may commit, and again immediately before staging
+and commit, classify current index and working-tree changes as:
+
+```text
+task_owned_changes:
+  created by the current round inside its authorized scope
+
+explicitly_adopted_inherited_changes:
+  pre-existing or inherited changes that a continuation explicitly declares
+  and accepts as part of its own decision surface
+
+foreign_dirty_changes:
+  every other index or working-tree change
+```
+
+Authorization to modify a path does not by itself make an existing change on
+that path task-owned. Continuation adoption must identify the exact inherited
+paths or changes and their evidence; do not infer adoption from dirtiness,
+proximity, or shared workstream membership.
+
+`task_owned_paths` are the exact paths containing proven
+`task_owned_changes`. The term is derived from actual change provenance; path
+membership or authorization does not confer ownership on pre-existing or
+foreign changes in the same path.
+
+`authorized_commit_scope` is the exact subset of `allowed_to_modify` that the
+prompt authorizes for the current commit. Ownership or continuation adoption
+does not expand it.
+
+For a prompt-local commit, all invariants are mandatory:
+
+```text
+staged_paths subset_of authorized_commit_scope
+staged_paths subset_of task_owned_paths union explicitly_adopted_inherited_paths
+staged_diff contains_only task_owned_changes or explicitly_adopted_inherited_changes
+```
+
+Stage exact declared paths only. `git add -A` and `git add .` are forbidden
+unless an explicitly authorized whole-worktree task has established that every
+affected change is task-owned. The complete staged path list and staged diff
+must still be reopened afterward. A path that contains mixed owned and foreign
+changes must not be staged as a whole; if the owned change cannot be isolated
+safely, stop before commit.
+
+`git commit -a` is unconditionally forbidden for prompt-local commits. It
+stages tracked modifications during the commit invocation and can therefore
+change staged content after the mandatory staged-diff readback. The commit
+command must use an index that was already fully materialized and directly
+reviewed.
+
+Immediately before commit, reopen both the staged path list and the complete
+staged diff. If either contains a foreign change, stop the commit and preserve
+the working-tree content. In a conflict-free index, Codex may use only:
+
+```bash
+git restore --staged -- <exact_foreign_path>...
+```
+
+to unstage exact foreign paths after recording their index and working-tree
+state. Reopen both states afterward and prove that working-tree content was not
+modified. This is narrow authorization for that index-only operation; it does
+not authorize `git reset`, `git restore` without `--staged`, checkout, discard,
+cleanup, or conflict resolution. If index-only behavior or content
+preservation is indeterminate, leave the index unchanged and stop.
+
+These ownership rules apply per Git index and working tree. They do not
+prohibit concurrent mutation in independent repositories or separate
+worktrees with separate indexes. A programme may require stronger
+serialization for rounds sharing one working tree; state that operational rule
+in the applicable programme prompt or control-plane contract.
 
 Commit rules:
 

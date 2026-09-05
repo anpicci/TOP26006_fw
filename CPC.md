@@ -479,6 +479,63 @@ overwriting or resuming an existing or indeterminate target.
 
 If a field is intentionally inapplicable, state `none` and why.
 
+For any prompt with `commit_expected: yes`, also state:
+
+```text
+explicitly_adopted_inherited_changes:
+  - <exact inherited path/change and evidence, or none>
+foreign_dirty_change_policy: preserve_and_exclude
+staging_policy: exact_path_only
+```
+
+Require ownership classification at preflight and again immediately before
+staging and commit. A continuation may adopt inherited changes only through
+the explicit field above; authorized scope or existing dirtiness does not
+imply adoption. At runtime classify actual changes as:
+
+```text
+task_owned_changes:
+  created by the current round inside authorized scope
+
+explicitly_adopted_inherited_changes:
+  exact inherited changes explicitly adopted by a continuation
+
+foreign_dirty_changes:
+  every other change
+```
+
+If a gate uses `task_owned_paths`, derive it only from the exact paths
+containing proven `task_owned_changes`; the term is not an authorization field
+and does not confer ownership on pre-existing or foreign changes in the same
+path. Treat `authorized_commit_scope` as the exact prompt-declared commit
+subset of `allowed_to_modify`; ownership or continuation adoption must not
+expand it. Require:
+
+```text
+staged_paths subset_of authorized_commit_scope
+staged_paths subset_of task_owned_paths union explicitly_adopted_inherited_paths
+staged_diff contains_only task_owned_changes or explicitly_adopted_inherited_changes
+```
+
+Prohibit `git add -A` and `git add .` unless an explicitly authorized
+whole-worktree task proves every affected change task-owned. Even then, require
+complete staged-path and staged-diff readback. Unconditionally prohibit
+`git commit -a` for prompt-local commits because it can stage tracked changes
+during the commit invocation after that readback; the commit must use an index
+that was already fully materialized and reviewed. Require exact-path staging
+by default. If a foreign path is staged, stop the commit and preserve its
+working-tree content. A prompt may authorize the narrow AGENTS.md index-only
+`git restore --staged -- <exact_foreign_path>...` recovery only with
+conflict-free preconditions and before/after proof that working-tree content
+is unchanged; it must not weaken the general reset, restore, discard, stash,
+or cleanup prohibitions.
+
+These commit-isolation rules do not prohibit concurrent work in independent
+repositories or separate worktrees with separate indexes. Put a stronger
+one-mutating-round-at-a-time rule for a shared working tree in the applicable
+programme prompt or control-plane contract rather than treating it as a
+universal ban.
+
 ---
 
 ## 5. Model, reasoning, and delegation selection
@@ -1607,6 +1664,10 @@ evidence_collection_precedes_classification
 anti_self_certification_rules_present_when_relevant
 minimum_sufficient_artifacts
 commit_expectation_explicit
+commit_ownership_classes_explicit_when_committing
+staged_paths_and_diff_limited_to_owned_or_adopted_changes
+exact_path_staging_and_complete_staged_diff_readback
+foreign_staged_paths_removed_index_only_or_commit_stopped
 report_and_patch_paths_explicit
 absolute_report_directory_in_final_chat_when_report_is_produced
 final_chat_deliverable_explicit
