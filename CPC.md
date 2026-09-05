@@ -482,11 +482,20 @@ If a field is intentionally inapplicable, state `none` and why.
 For any prompt with `commit_expected: yes`, also state:
 
 ```text
+authorized_commit_scope:
+  - <exact tracked path permitted to enter the prompt-local commit>
 explicitly_adopted_inherited_changes:
   - <exact inherited path/change and evidence, or none>
 foreign_dirty_change_policy: preserve_and_exclude
 staging_policy: exact_path_only
 ```
+
+`authorized_commit_scope` is the exact prompt-declared subset of
+`allowed_to_modify` eligible for the prompt-local commit. It governs commit
+eligibility only; it does not establish ownership or adopt inherited work. If
+the prompt explicitly allows `commit_not_required`,
+`authorized_commit_scope: none` may be used only when no tracked commit is
+expected to be created.
 
 Require ownership classification at preflight and again immediately before
 staging and commit. A continuation may adopt inherited changes only through
@@ -504,12 +513,16 @@ foreign_dirty_changes:
   every other change
 ```
 
+`explicitly_adopted_inherited_paths` are the exact paths containing
+`explicitly_adopted_inherited_changes`. Derive the term from the exact adopted
+changes; path membership does not adopt or confer ownership on any other
+pre-existing or foreign change in the same path.
+
 If a gate uses `task_owned_paths`, derive it only from the exact paths
 containing proven `task_owned_changes`; the term is not an authorization field
 and does not confer ownership on pre-existing or foreign changes in the same
-path. Treat `authorized_commit_scope` as the exact prompt-declared commit
-subset of `allowed_to_modify`; ownership or continuation adoption must not
-expand it. Require:
+path. Ownership or continuation adoption must not expand the declared
+`authorized_commit_scope`. Require:
 
 ```text
 staged_paths subset_of authorized_commit_scope

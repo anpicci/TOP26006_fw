@@ -1437,9 +1437,15 @@ proximity, or shared workstream membership.
 membership or authorization does not confer ownership on pre-existing or
 foreign changes in the same path.
 
-`authorized_commit_scope` is the exact subset of `allowed_to_modify` that the
-prompt authorizes for the current commit. Ownership or continuation adoption
-does not expand it.
+`explicitly_adopted_inherited_paths` are the exact paths containing
+`explicitly_adopted_inherited_changes`. The term is derived from the exact
+adopted changes; path membership does not adopt or confer ownership on any
+other pre-existing or foreign change in the same path.
+
+When `commit_expected: yes`, the prompt must declare
+`authorized_commit_scope`: the exact subset of `allowed_to_modify` authorized
+for the current commit. It governs commit eligibility only. Ownership or
+continuation adoption does not expand it.
 
 For a prompt-local commit, all invariants are mandatory:
 
