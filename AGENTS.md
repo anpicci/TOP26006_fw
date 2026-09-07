@@ -915,8 +915,13 @@ Supported model labels:
 gpt-5.6-luna
 gpt-5.6-terra
 gpt-5.6-sol
+gpt-6-astra
 explicit_fallback
 ```
+
+Catalog membership is an allowed governance vocabulary, not an empirical model
+ranking. Do not add a task-class routing preference for a model until evidence
+for that preference has been accepted.
 
 Reasoning levels:
 
@@ -936,6 +941,73 @@ allowed
 required
 ```
 
+For Codex CLI execution, derive `model_profile` from the existing prompt fields:
+
+```text
+model_profile:
+  model: preferred_codex_model
+  reasoning_effort: reasoning_level
+```
+
+Do not create duplicate persistent model or reasoning fields to restate this
+profile. `delegation_policy` and `codex_cli_mode` remain separate execution
+controls and are not members of `model_profile`.
+
+Materialize a governed Codex CLI profile invocation-locally:
+
+```text
+model:
+  -m <model>
+
+reasoning_effort:
+  -c 'model_reasoning_effort="<reasoning_level>"'
+```
+
+The governance allow-lists remain authoritative because the local CLI bootstrap
+parser accepts arbitrary strings. Parser or bundled-catalog acceptance does not
+prove runtime application, service availability, or account availability.
+
+The atomic profile-governance boundary is:
+
+```text
+execution_attempt:
+  one Codex execution attempt
+  one immutable model_profile
+```
+
+This boundary does not redefine `one_round_one_decision`. A logical round,
+workstream, or continuation may use later separately dispatched attempts, but a
+material model or reasoning change never occurs silently inside the current
+attempt.
+
+If the executor determines that the dispatched profile no longer fits the
+remaining task, it may recommend a reclassification using:
+
+```text
+direction:
+  upward
+  downward
+
+cause:
+  model_capacity_mismatch
+  reasoning_effort_mismatch
+  both
+```
+
+The executor may recommend the change but must not materialize it. Any model
+change, reasoning-only change, upward change, or downward change requires:
+
+```text
+current_execution_attempt: stop
+next_profile: decided_by_control_plane_or_human
+continuation: new_dispatch_required
+```
+
+Automatic self-routing and silent in-attempt profile substitution are
+forbidden. `explicit_fallback` is an explicitly dispatched new-attempt outcome,
+not permission to replace an unavailable or unsuitable requested model during
+the current attempt. Stop and report before any fallback dispatch.
+
 Default guidance:
 
 ```text
@@ -949,18 +1021,34 @@ deep open-ended archaeology:                sol max
 ```
 
 Do not use Sol merely because a task is important. Do not compensate for an
-undersized model with excessive reasoning. Reports must distinguish:
+undersized model with excessive reasoning. Reports must distinguish these
+semantic values:
 
 ```text
-preferred_or_configured_model
+requested_or_dispatched_model
+requested_or_dispatched_reasoning_effort
 directly_selected_model_if_observable
 runtime_reported_model_label_if_observable
+runtime_reported_reasoning_effort_if_observable
 fallback_or_switch
 ```
 
-An unavailable exact status-line model label is not by itself a blocker. Record
-that limitation honestly; do not infer an exact model from a generic family
-label. Record an observed fallback or switch when one occurred.
+Reuse existing report fields instead of emitting parallel mandatory aliases:
+`preferred_or_configured_model` may carry
+`requested_or_dispatched_model`, and `reasoning_level` may carry
+`requested_or_dispatched_reasoning_effort`, when the meanings are identical.
+Do not rename provider- or CLI-reported metadata as independently observed
+runtime identity. When an exact value is unavailable, report `not_observable`;
+do not infer an exact model from a generic family label. Record an observed
+mismatch, fallback, or switch and stop under the reclassification rule.
+
+When exact `model_profile` identity is decision-material, the prompt must
+declare `required_profile_agreement_evidence`, and execution must fail closed if
+that evidence cannot be established. Empirical model-profile qualification is
+one such case. Otherwise record the requested or dispatched profile and all
+available CLI/runtime reporting honestly; unknown remains unknown. Unavailable
+exact runtime identity is not a universal blocker for ordinary work, but any
+observed profile mismatch or switch requires stop and reclassification.
 
 `Ultra` is an orchestration mode, not a reasoning level. Encode it only when
 explicitly authorized:

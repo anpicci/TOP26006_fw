@@ -207,6 +207,17 @@ anti_self_certification_rules
 evidence_validation_method
 ```
 
+When exact `model_profile` identity is decision-material to the round, also
+state:
+
+```text
+required_profile_agreement_evidence
+profile_agreement_failure_policy: fail_closed
+```
+
+These fields are conditional. Do not make unavailable exact runtime identity a
+universal prompt requirement for ordinary work.
+
 For `pr_publication`, also state:
 
 ```text
@@ -553,14 +564,52 @@ universal ban.
 
 ## 5. Model, reasoning, and delegation selection
 
-Declare model, reasoning, and delegation separately.
+Declare model, reasoning, and delegation separately. Derive `model_profile`
+from `preferred_codex_model` plus `reasoning_level` as defined by AGENTS.md
+section 8; do not add duplicate profile state or fold `delegation_policy` or
+`codex_cli_mode` into it. The supported model and reasoning vocabularies remain
+owned by AGENTS.md. Catalog membership does not establish an empirical routing
+preference, so do not add a default task-class position for `gpt-6-astra`
+without accepted qualification evidence.
+
+For governed Codex CLI dispatch, require invocation-local materialization:
+
+```text
+model:
+  -m <model>
+
+reasoning_effort:
+  -c 'model_reasoning_effort="<reasoning_level>"'
+```
+
+Require values from the AGENTS.md allow-lists. The local bootstrap parser's
+acceptance of an arbitrary string does not establish a supported value, runtime
+application, service availability, or account availability.
+
+Construct each dispatch as one immutable `model_profile` execution attempt
+under AGENTS.md section 8. If the executor recommends any upward, downward,
+model, or reasoning-only reclassification, require the current attempt to stop
+and a control-plane or human to dispatch the next profile. Do not construct
+automatic self-routing or silent fallback. Treat `explicit_fallback` as a new
+explicit dispatch after stop/report, not as an in-attempt substitution.
 
 Reports and prompts must keep model selection separate from model
-observability. Record `preferred_or_configured_model`,
+observability. Distinguish `requested_or_dispatched_model`,
+`requested_or_dispatched_reasoning_effort`,
 `directly_selected_model_if_observable`,
-`runtime_reported_model_label_if_observable`, and `fallback_or_switch` when
-applicable. An unavailable exact status-line label is reported honestly and is
-not itself a blocker; do not infer an exact model from a generic family label.
+`runtime_reported_model_label_if_observable`,
+`runtime_reported_reasoning_effort_if_observable`, and `fallback_or_switch`
+when applicable. Reuse `preferred_or_configured_model` and `reasoning_level`
+when they already carry the requested/dispatched semantics rather than adding
+duplicate aliases. Report an unavailable exact value as `not_observable`; do
+not infer an exact model from a generic family label or promote CLI/provider
+metadata to independently observed runtime identity.
+
+If exact profile identity is decision-material, require the conditional section
+4 profile-agreement fields and the AGENTS.md fail-closed rule. Otherwise require
+honest requested/dispatched and available reported provenance without making
+unknown runtime identity a universal blocker. An observed mismatch, fallback,
+or switch requires stop and reclassification.
 
 Suggested defaults:
 
@@ -593,7 +642,8 @@ Rules:
 * Do not rely on CLI defaults for serious work.
 * Do not use Luna `max` to compensate for model fit.
 * Use `xhigh` or `max` only when necessary.
-* Preserve scope when falling back and record the switch.
+* Preserve scope when recommending fallback; stop and require a new explicit
+  dispatch before changing profile.
 
 Encode Ultra only when explicitly authorized:
 
@@ -602,6 +652,9 @@ reasoning_level: max
 delegation_policy: allowed
 codex_cli_mode: ultra
 ```
+
+Do not add `ultra` to the `reasoning_level` vocabulary. It remains the separate
+CLI orchestration mode represented above.
 
 Use `delegation_policy: required` instead when the exact workflow requires
 delegation; both values remain members of the closed vocabulary.
