@@ -325,6 +325,18 @@ Do not require publication platform, repository, remote, or PR/MR fields for
 explicit user authorization, and resulting local-commit behavior; rebase and
 history rewriting are not implicit alternatives.
 
+When an `integration_only` stage must switch from the current branch to its
+declared integration target, `stage_branch_policy: read_only_current_branch` is
+invalid because that policy forbids switching. Construct the stage with:
+
+```text
+stage_branch_policy: continue_existing_branch
+target_branch: <integration_target_branch>
+```
+
+The `integration_only` mode remains the owner of the exact integration action;
+this rule creates no new branch-policy value or generic branch framework.
+
 For `branch_maintenance_only`, also state:
 
 ```text
@@ -567,16 +579,18 @@ universal ban.
 Declare model, reasoning, and delegation separately. Derive `model_profile`
 from `preferred_codex_model` plus `reasoning_level` as defined by AGENTS.md
 section 8; do not add duplicate profile state or fold `delegation_policy` or
-`codex_cli_mode` into it. The supported model and reasoning vocabularies remain
-owned by AGENTS.md. Catalog membership does not establish an empirical routing
-preference, so do not add a default task-class position for `gpt-6-astra`
-without accepted qualification evidence.
+`codex_cli_mode` into it. The concrete model-label and reasoning vocabularies
+remain owned by AGENTS.md. A prompt is execution-ready only when
+`preferred_codex_model` and the derived `model_profile.model` contain a
+concrete Codex model label. Catalog membership does not establish an empirical
+routing preference, so do not add a default task-class position for
+`gpt-6-astra` without accepted qualification evidence.
 
 For governed Codex CLI dispatch, require invocation-local materialization:
 
 ```text
 model:
-  -m <model>
+  -m <concrete_codex_model_label>
 
 reasoning_effort:
   -c 'model_reasoning_effort="<reasoning_level>"'
@@ -586,12 +600,19 @@ Require values from the AGENTS.md allow-lists. The local bootstrap parser's
 acceptance of an arbitrary string does not establish a supported value, runtime
 application, service availability, or account availability.
 
+`explicit_fallback` is a selection/reporting state, not an executable
+`preferred_codex_model`, `model_profile.model`, or `-m` value. Before a fallback
+attempt, require the control plane or human to select one concrete label, place
+it in `preferred_codex_model` and the derived profile, and record the fallback
+path through `fallback_or_switch`. Do not add a persistent resolved-model field.
+
 Construct each dispatch as one immutable `model_profile` execution attempt
 under AGENTS.md section 8. If the executor recommends any upward, downward,
 model, or reasoning-only reclassification, require the current attempt to stop
 and a control-plane or human to dispatch the next profile. Do not construct
 automatic self-routing or silent fallback. Treat `explicit_fallback` as a new
-explicit dispatch after stop/report, not as an in-attempt substitution.
+selection path after stop/report; the new explicit dispatch uses the concrete
+model selected by the control plane or human, not the sentinel.
 
 Reports and prompts must keep model selection separate from model
 observability. Distinguish `requested_or_dispatched_model`,
@@ -643,7 +664,7 @@ Rules:
 * Do not use Luna `max` to compensate for model fit.
 * Use `xhigh` or `max` only when necessary.
 * Preserve scope when recommending fallback; stop and require a new explicit
-  dispatch before changing profile.
+  dispatch with a control-plane- or human-selected concrete profile.
 
 Encode Ultra only when explicitly authorized:
 

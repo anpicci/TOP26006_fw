@@ -909,19 +909,37 @@ delegation_policy
 model_selection_rationale
 ```
 
-Supported model labels:
+Concrete Codex model labels:
 
 ```text
 gpt-5.6-luna
 gpt-5.6-terra
 gpt-5.6-sol
 gpt-6-astra
-explicit_fallback
 ```
 
-Catalog membership is an allowed governance vocabulary, not an empirical model
-ranking. Do not add a task-class routing preference for a model until evidence
-for that preference has been accepted.
+Concrete catalog membership is an allowed governance vocabulary, not an
+empirical model ranking. Do not add a task-class routing preference for a model
+until evidence for that preference has been accepted.
+
+`explicit_fallback` is a control-plane fallback selection and reporting state,
+not a concrete model identity. It is not valid as `preferred_codex_model` for an
+execution-ready dispatch, as `model_profile.model`, or as the value passed to
+`-m`, and it never authorizes automatic runtime model selection. Before a
+fallback execution attempt begins:
+
+```text
+control_plane_or_human:
+  selects_one_concrete_codex_model_label
+
+new_attempt:
+  preferred_codex_model: selected_concrete_label
+  model_profile.model: selected_concrete_label
+```
+
+Record the fallback path through the existing `fallback_or_switch` provenance
+surface. Do not create a second fallback mechanism or a persistent
+`resolved_model` field.
 
 Reasoning levels:
 
@@ -941,13 +959,18 @@ allowed
 required
 ```
 
-For Codex CLI execution, derive `model_profile` from the existing prompt fields:
+For an execution-ready Codex CLI dispatch, derive `model_profile` from the
+existing prompt fields:
 
 ```text
 model_profile:
   model: preferred_codex_model
   reasoning_effort: reasoning_level
 ```
+
+Both `preferred_codex_model` and `model_profile.model` must be one of the
+concrete Codex model labels above. A fallback selection state is not
+execution-ready until the control plane or human selects that concrete label.
 
 Do not create duplicate persistent model or reasoning fields to restate this
 profile. `delegation_policy` and `codex_cli_mode` remain separate execution
@@ -957,11 +980,13 @@ Materialize a governed Codex CLI profile invocation-locally:
 
 ```text
 model:
-  -m <model>
+  -m <concrete_codex_model_label>
 
 reasoning_effort:
   -c 'model_reasoning_effort="<reasoning_level>"'
 ```
+
+Never pass `explicit_fallback` to `-m`.
 
 The governance allow-lists remain authoritative because the local CLI bootstrap
 parser accepts arbitrary strings. Parser or bundled-catalog acceptance does not
@@ -1004,9 +1029,10 @@ continuation: new_dispatch_required
 ```
 
 Automatic self-routing and silent in-attempt profile substitution are
-forbidden. `explicit_fallback` is an explicitly dispatched new-attempt outcome,
-not permission to replace an unavailable or unsuitable requested model during
-the current attempt. Stop and report before any fallback dispatch.
+forbidden. An explicit fallback is a new-attempt outcome only after the control
+plane or human selects its concrete model; `explicit_fallback` may record that
+selection path but is not the attempted model. Stop and report before any
+fallback dispatch.
 
 Default guidance:
 
