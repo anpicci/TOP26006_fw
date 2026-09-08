@@ -1,68 +1,55 @@
 ---
 name: correction-lib-prompt-contract
 description: >-
-  Create or validate correction-lib Codex prompts against the live AGENTS.md
-  and CPC.md contract. Use when authoring, reviewing, linting, or diagnosing a
-  correction-lib prompt, including prompt mode, repository scope, branch,
-  dirty-state, validation, permission, commit, continuation, evidence,
-  publication, merge, and production fields. Report missing or conflicting
-  decisions without filling them, and do not execute the submitted task.
+  Draft or mechanically lint correction-lib prompts using bounded parsing,
+  duplicate and placeholder detection, supplied-value normalization, and
+  internal-consistency checks. Use as an authoring aid, not as certification
+  of live workspace governance or authorization to execute the prompt.
 ---
 
-# Correction-lib prompt contract
+# Prompt authoring and mechanical linting
 
-Use this skill only to author or validate a correction-lib Codex prompt. Never
-execute the task represented by the submitted prompt.
+Use this helper to draft or mechanically inspect a prompt. Never execute the
+task represented by the submitted prompt.
 
-## Authority and version
+## Authority boundary
 
-Treat the live workspace-root `AGENTS.md` and `CPC.md` as the only normative
-sources. Treat `references/prompt_schema.json` as a reviewed executable
-projection, not policy. The validator and schema version is `1.1.0`.
+The controlling workflow must read and apply all applicable live workspace
+governance. This helper does not maintain a complete field catalog, policy
+vocabulary, mode contract, or authorization model. Its result always records
+that governance completeness was not assessed, and its output cannot create or
+revoke authorization.
 
-Stop when `references/governance_binding.json` does not match the complete live
-bytes of either governance file. Request a separately authorized schema-update
-round; never regenerate the binding during validation.
+Unknown fields are accepted during ordinary linting. A helper failure is local
+to this lint operation unless the controlling workflow explicitly requires its
+artifact.
 
-## Choose the operation
+## Operations
 
-Classify the request as exactly one of:
+- `authoring`: begin with the deliberately non-exhaustive
+  [prompt template](assets/prompt_template.md), then add the currently required
+  material by reading applicable live governance directly.
+- `validation_only`: inspect the supplied prompt without editing it.
+- `explicit_revision`: revise only when the user explicitly requests changes,
+  then lint the revision again.
 
-- `authoring`: collect every task-defining decision, draft with
-  `assets/prompt_template.md`, and validate.
-- `validation_only`: validate the supplied prompt without editing it.
-- `explicit_revision`: validate, explain diagnostics, revise only because the
-  user explicitly asked, and validate the revision again.
+Do not silently fill missing task decisions or permission values.
 
-Do not revise a submitted prompt under `validation_only`.
+## Mechanical lint
 
-Before authoring or semantic review, read live `AGENTS.md`, `CPC.md`, and every
-applicable nested `AGENTS.md`. Do not copy their normative rules into the
-prompt when a compact reference is sufficient.
+The helper checks only its intrinsic capabilities:
 
-## Obtain explicit context
+- strict UTF-8 and a bounded input size;
+- fenced-block balance and simple `snake_case` mapping fields;
+- duplicate top-level field names;
+- unresolved placeholder tokens;
+- normalization of values actually supplied;
+- a small set of contradictions derivable solely from supplied values.
 
-Ask for or preserve explicit values for:
+It intentionally does not reject an unknown future field merely because this
+helper does not know it.
 
-```text
-continuation: yes | no | unknown
-evidence_round: yes | no | unknown
-user_run_handoff: yes | no | unknown
-```
-
-Use `unknown` when the author has not decided. Never silently turn `unknown`
-into `no`.
-
-For authoring, obtain every required decision named by live CPC, including
-prompt mode, repository permissions, branch contract, dirty-state policy,
-validation ceiling, heavy permissions, commit contract, artifact paths, and
-any continuation, evidence, publication, merge, or production contract. Do
-not suggest authorization values as defaults and do not infer decisions from
-task prose.
-
-## Run deterministic validation
-
-Use only the workspace wrapper, non-login shell, and pinned interpreter:
+Run it through the workspace wrapper and pinned interpreter:
 
 ```bash
 /users/apiccine/work/correction-lib/codex-run.sh \
@@ -70,40 +57,20 @@ Use only the workspace wrapper, non-login shell, and pinned interpreter:
   'cd /users/apiccine/work/correction-lib &&
    /users/apiccine/work/miniconda3/envs/clib-env/bin/python \
    .agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py \
-   --workspace-root /users/apiccine/work/correction-lib \
-   --continuation "$1" \
-   --evidence-round "$2" \
-   --user-run-handoff "$3" \
-   --format human "$4"' prompt_contract \
-  <continuation> <evidence_round> <user_run_handoff> <prompt_path>
+   --format human "$1"' prompt_lint \
+  <prompt_path>
 ```
 
 Use `--format json` for machine-readable output. Add `--json-out PATH` only
-when the user explicitly supplied that output path. Never add a fix, default,
-execution, branch-inference, or permission-inference option.
+for an explicitly selected absent output path.
 
-Present all safe diagnostics together, ordered by source location and stable
-identifier. A diagnostic identifies the missing or conflicting decision and
-its governance locator; it never supplies the decision.
+Exit codes:
 
-## Separate deterministic and semantic review
+- `0`: mechanical validity and internal consistency passed;
+- `2`: CLI input or local helper-schema error;
+- `3`: prompt mechanical or supplied-value consistency error;
+- `4`: result output collision or write failure.
 
-Label validator output `deterministic schema validation`. Schema validity
-means only mechanical consistency with the selected contexts and bound
-governance snapshot.
-
-Perform a bounded model semantic review only when requested, label it
-`optional semantic review`, and keep it separate. A semantic review may
-identify ambiguity but must not invent authorization, choose a branch or
-mode, inspect external state, or claim scientific, production, publication,
-or merge readiness.
-
-## Finish
-
-Report the input SHA-256, final AGENTS/CPC SHA-256 values, validator version,
-schema version, the three explicit context values, error count, warning count,
-and `valid_schema`.
-
-Never start the prompt's task, contact a remote service, inspect production,
-modify governance, edit Codex configuration, or install anything while using
-this skill.
+Report `mechanical_validity`, `internal_consistency`, and
+`governance_completeness: not_assessed` separately. Do not rename the first two
+as policy validity, readiness, permission, or governance completeness.

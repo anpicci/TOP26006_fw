@@ -31,7 +31,7 @@
     "require_source_mode": true
   },
   "execution_boundary": {
-    "copy_preparation_authorized": true,
+    "copy_requested": true,
     "execution_not_authorized": true,
     "render_execution_command": false
   }

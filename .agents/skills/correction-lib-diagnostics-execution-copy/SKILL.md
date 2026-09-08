@@ -6,15 +6,15 @@ description: Validate and materialize a bounded, provenance-rich diagnostics cop
 # Diagnostics execution copy
 
 Prepare an inspectable copy and provenance package without changing the source
-or authorizing execution. Treat live workspace-root `AGENTS.md` and `CPC.md` as
-normative and the bundled schema as derived workflow material.
+or authorizing execution. The controlling workflow applies applicable live
+workspace governance; this helper owns only copy safety and artifact consistency.
 
 ## Boundary
 
 Never execute, import, source, submit, monitor, retry, resume, overwrite,
 delete, clean, or render a command for a copied file. Never infer permission
-from skill availability or destination existence. A later prompt may invoke
-`correction-lib-manual-production-handoff` after independent validation.
+from skill availability or destination existence. A later independently
+authorized workflow may consume the copy through any compatible capability.
 
 Use only explicit strict-UTF-8 regular files. Reject directory expansion,
 binary or other encodings, symlinks, hard links, special files, arbitrary
@@ -64,7 +64,6 @@ Exit codes:
 - `2`: manifest or schema contract error;
 - `3`: blocking source, path, type, size, hash, transform, secret, collision,
   provenance, or execution-boundary diagnostic;
-- `4`: governance binding mismatch;
 - `5`: staging, artifact, reopening, incomplete-preservation, or atomic
   publication failure.
 
@@ -106,4 +105,4 @@ zero bytes for an all-exact copy. For transformed entries it must contain a
 timestamp-free, entry-ordered unified diff.
 
 State plainly that the copy was prepared but no copied file was executed and
-no execution was authorized.
+that the helper did not authorize execution.

@@ -5,8 +5,6 @@
   "authorizing_prompt": {
     "path": "/absolute/path/to/authorizing_prompt.md",
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "prompt_contract_validation_path": "/absolute/path/to/prompt_contract_validation.json",
-    "prompt_contract_validation_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "expected_prompt_id": "REPLACE",
     "expected_prompt_mode": "validation_only",
     "expected_commit_policy": {"commit_expected": false, "do_not_commit": true, "expected_subject": null},

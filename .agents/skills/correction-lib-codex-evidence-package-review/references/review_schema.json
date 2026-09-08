@@ -86,8 +86,6 @@
       "required": [
         "path",
         "sha256",
-        "prompt_contract_validation_path",
-        "prompt_contract_validation_sha256",
         "expected_prompt_id",
         "expected_prompt_mode",
         "expected_commit_policy",
@@ -99,25 +97,14 @@
       "properties": {
         "path": {"$ref": "#/$defs/absolute_path"},
         "sha256": {"$ref": "#/$defs/sha256"},
-        "prompt_contract_validation_path": {"$ref": "#/$defs/absolute_path"},
-        "prompt_contract_validation_sha256": {"$ref": "#/$defs/sha256"},
-        "expected_prompt_id": {"type": "string", "minLength": 1, "maxLength": 96},
-        "expected_prompt_mode": {
-          "enum": [
-            "investigation_only",
-            "coding",
-            "validation_only",
-            "test_alignment_only",
-            "documentation_only",
-            "commit_preparation",
-            "pr_preparation",
-            "integration_only",
-            "branch_maintenance_only",
-            "orchestrated_workflow",
-            "pr_publication",
-            "production_execution"
-          ]
+        "prompt_helper_result_path": {"$ref": "#/$defs/absolute_path"},
+        "prompt_helper_result_sha256": {"$ref": "#/$defs/sha256"},
+        "required_helper_capabilities": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/snake_id"}
         },
+        "expected_prompt_id": {"type": "string", "minLength": 1, "maxLength": 96},
+        "expected_prompt_mode": {"type": "string", "minLength": 1, "maxLength": 96},
         "expected_commit_policy": {
           "type": "object",
           "additionalProperties": false,
@@ -137,15 +124,7 @@
           "type": "array",
           "items": {"type": "string", "minLength": 1, "maxLength": 160}
         },
-        "expected_validation_ceiling": {
-          "enum": [
-            "static_inspection_only",
-            "lightweight_import_or_cli_probe",
-            "targeted_unit_test",
-            "workflow_dry_run_or_config_validation",
-            "production_execution"
-          ]
-        },
+        "expected_validation_ceiling": {"type": "string", "minLength": 1, "maxLength": 96},
         "expected_patch_kind": {"$ref": "#/$defs/patch_kind"}
       }
     },

@@ -1,9 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "renderer_version": "1.0.0",
+  "renderer_version": "1.0.1",
   "manifest_version": "1.0.0",
-  "projection_status": "derived_workflow_material_not_normative",
-  "normative_sources": ["AGENTS.md", "CPC.md"],
+  "format_scope": "diagnostics_copy_artifact_contract",
   "required_top_level_fields": [
     "manifest_version", "copy_id", "title", "source_roots",
     "destination_root", "entries", "limits", "secret_policy",
@@ -39,7 +38,7 @@
   },
   "secret_policy_mode": "block_documented_matches_no_redaction",
   "execution_boundary": {
-    "copy_preparation_authorized": true,
+    "copy_requested": true,
     "execution_not_authorized": true,
     "render_execution_command": false
   },
@@ -66,8 +65,6 @@
     "PROVENANCE001": "required_provenance_or_expected_state",
     "PROVENANCE002": "optional_git_unavailable",
     "EXECUTION001": "execution_surface",
-    "GOVERNANCE001": "governance_hash_mismatch",
-    "GOVERNANCE002": "invalid_binding",
     "RENDER001": "publication_failure",
     "RENDER002": "generated_artifact_failure"
   },
@@ -75,7 +72,6 @@
     "success": 0,
     "manifest_or_schema_error": 2,
     "blocking_validation_error": 3,
-    "governance_error": 4,
     "render_error": 5
   }
 }

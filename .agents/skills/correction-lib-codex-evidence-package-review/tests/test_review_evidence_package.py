@@ -22,8 +22,9 @@ SPEC.loader.exec_module(reviewer)
 
 class ContractTests(unittest.TestCase):
     def test_closed_counts(self):
-        self.assertEqual(len(reviewer.DIAGNOSTIC_IDS), 65)
-        self.assertEqual(len({item.rstrip("0123456789") for item in reviewer.DIAGNOSTIC_IDS}), 19)
+        self.assertEqual(reviewer.REVIEWER_VERSION, "1.1.1")
+        self.assertEqual(len(reviewer.DIAGNOSTIC_IDS), 63)
+        self.assertEqual(len({item.rstrip("0123456789") for item in reviewer.DIAGNOSTIC_IDS}), 18)
         self.assertEqual(len(reviewer.PATCH_KINDS), 4)
         self.assertEqual(len(reviewer.LOCATOR_TYPES), 8)
         self.assertEqual(len(reviewer.GATE_EVALUATORS), 14)
@@ -38,29 +39,14 @@ class ContractTests(unittest.TestCase):
         reviewer.reject_reserved(manifest)
         reviewer.schema_validate(manifest, schema, schema)
 
-    def test_governance_projection_vocabularies_are_exact(self):
+    def test_prompt_semantics_are_not_closed_governance_vocabularies(self):
         schema = json.loads((SKILL_ROOT / "references" / "review_schema.json").read_text())
-        prompt_modes = set(
-            schema["$defs"]["authorizing_prompt"]["properties"]
-            ["expected_prompt_mode"]["enum"]
-        )
-        self.assertEqual(
-            prompt_modes,
-            {
-                "investigation_only",
-                "coding",
-                "validation_only",
-                "test_alignment_only",
-                "documentation_only",
-                "commit_preparation",
-                "pr_preparation",
-                "integration_only",
-                "branch_maintenance_only",
-                "orchestrated_workflow",
-                "pr_publication",
-                "production_execution",
-            },
-        )
+        prompt_mode = schema["$defs"]["authorizing_prompt"]["properties"]["expected_prompt_mode"]
+        validation_ceiling = schema["$defs"]["authorizing_prompt"]["properties"]["expected_validation_ceiling"]
+        self.assertEqual(prompt_mode["type"], "string")
+        self.assertNotIn("enum", prompt_mode)
+        self.assertEqual(validation_ceiling["type"], "string")
+        self.assertNotIn("enum", validation_ceiling)
         self.assertEqual(
             set(schema["$defs"]["patch_kind"]["enum"]),
             {"prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes"},
@@ -84,7 +70,7 @@ class ContractTests(unittest.TestCase):
 
     def test_cli_shape(self):
         actions = {action.dest for action in reviewer.parser()._actions}
-        self.assertEqual(actions, {"help", "schema", "governance_binding", "format", "json_out", "validate_only", "output_root", "REVIEW_MANIFEST"})
+        self.assertEqual(actions, {"help", "schema", "format", "json_out", "validate_only", "output_root", "REVIEW_MANIFEST"})
         self.assertTrue(actions.isdisjoint({"execute", "apply", "fix", "chain", "command", "shell", "argv"}))
 
     def test_human_json_diagnostic_equivalence(self):
@@ -404,38 +390,39 @@ class ExtendedContractTests(unittest.TestCase):
             reviewer.validate_generated_outputs(target,rows,result)
             with self.assertRaises(reviewer.ReviewError): reviewer.publish_outputs(target,manifest,rows,result)
 
-    def test_prompt_traceability_exact_fields_without_invocation(self):
-        workspace=SCRIPT.resolve().parents[4]
+    def test_prompt_traceability_optional_helper_and_semantic_compatibility(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); prompt=root/"prompt.md"; validation=root/"validation.json"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
             prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
-            payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
+            payload={"input":{"sha256":prompt_hash},"producer":{"name":"compatible-helper","version":"9.7.3"},"capabilities":{"mechanical_validity":True,"internal_consistency":True},"unknown_future_field":{"accepted":True}}
             validation.write_text(json.dumps(payload))
-            record={"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
+            record={"path":str(prompt),"sha256":prompt_hash,"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
             with mock.patch("subprocess.run",side_effect=AssertionError("prompt validator invoked")):
-                self.assertEqual(reviewer.check_prompt_traceability(record)["error_count"],0)
-            payload["error_count"]=1; validation.write_text(json.dumps(payload)); record["prompt_contract_validation_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
+                self.assertFalse(reviewer.check_prompt_traceability(record)["helper_result_supplied"])
+            record.update({"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity","internal_consistency"]})
+            self.assertEqual(reviewer.check_prompt_traceability(record)["producer"]["version"],"9.7.3")
+            payload["input"]["sha256"]="0"*64; validation.write_text(json.dumps(payload)); record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
+            with self.assertRaises(reviewer.ReviewError): reviewer.check_prompt_traceability(record)
+            payload["input"]["sha256"]=prompt_hash; payload["capabilities"].pop("internal_consistency"); validation.write_text(json.dumps(payload)); record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
             with self.assertRaises(reviewer.ReviewError): reviewer.check_prompt_traceability(record)
 
     def test_end_to_end_directory_review_and_generated_artifacts(self):
         workspace=SCRIPT.resolve().parents[4]
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); carrier=root/"carrier"; package=carrier/"package_root"; package.mkdir(parents=True); (package/"empty.patch").write_bytes(b"")
-            prompt=root/"prompt.md"; validation=root/"validation.json"; manifest_path=root/"manifest.json"; output=root/"output"
+            prompt=root/"prompt.md"; manifest_path=root/"manifest.json"; output=root/"output"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
             prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
-            validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
-            validation.write_text(json.dumps(validation_payload))
             manifest=json.loads((SKILL_ROOT/"assets/review_manifest_template.json").read_text())
-            manifest["review_id"]="review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]})
+            manifest["review_id"]="review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]})
             manifest["repositories"][0]["repository_path"]=str(workspace)
             baseline="1"*64
             manifest["repositories"][0].update({"verification_mode":"reviewer_recomputed_patch_and_baseline","expected_head_before":baseline})
             manifest["patch_contract"]["baseline_head"]=baseline
             manifest["package"].update({"carrier_path":str(carrier),"package_inventory_sha256":reviewer.inventory_hash(reviewer.directory_inventory(carrier,"package_root"))})
             manifest_path.write_text(json.dumps(manifest))
-            result=reviewer.review(manifest_path,SKILL_ROOT/"references/review_schema.json",SKILL_ROOT/"references/governance_binding.json",output)
+            result=reviewer.review(manifest_path,SKILL_ROOT/"references/review_schema.json",output)
             self.assertEqual(result["verdict"],"accepted")
             self.assertEqual(result["diagnostics"],[])
             reviewer.validate_generated_outputs(output,reviewer.directory_inventory(carrier,"package_root"),result)
@@ -488,12 +475,12 @@ def _zip(path,members,compression=zipfile.ZIP_DEFLATED):
         for name,data in members: archive.writestr(name,data)
 
 def _prompt_case(root):
-    workspace=SCRIPT.resolve().parents[4]; prompt=root/"prompt.md"; validation=root/"validation.json"
+    prompt=root/"prompt.md"; validation=root/"validation.json"
     prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
     digest=reviewer.sha256_bytes(prompt.read_bytes())
-    payload={"input":{"sha256":digest},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}
+    payload={"input":{"sha256":digest},"producer":{"name":"prompt-helper","version":"newer"},"capabilities":{"mechanical_validity":True}}
     validation.write_text(json.dumps(payload))
-    record={"path":str(prompt),"sha256":digest,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
+    record={"path":str(prompt),"sha256":digest,"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity"],"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
     return prompt,validation,payload,record
 
 def _consistent_manifest():
@@ -546,7 +533,7 @@ def _run_fixture(record):
         elif kind=="invalid_patch_path_escape": diagnostics+=_capture_error(lambda: reviewer.parse_patch("diff --git a/src/a b/src/b\nrename from ../../outside\nrename to src/b\n",_patch_contract(allow_renames=True)))
         elif kind=="invalid_patch_scope": diagnostics+=_capture_error(lambda: reviewer.parse_patch(PATCH_TEXT.replace("src/","outside/"),_patch_contract()))
         elif kind=="invalid_prompt_contract_mismatch":
-            prompt,validation,payload,prompt_record=_prompt_case(root); payload["input"]["sha256"]="0"*64; validation.write_text(json.dumps(payload)); prompt_record["prompt_contract_validation_sha256"]=reviewer.sha256_bytes(validation.read_bytes()); diagnostics+=_capture_error(lambda: reviewer.check_prompt_traceability(prompt_record))
+            prompt,validation,payload,prompt_record=_prompt_case(root); payload["input"]["sha256"]="0"*64; validation.write_text(json.dumps(payload)); prompt_record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes()); diagnostics+=_capture_error(lambda: reviewer.check_prompt_traceability(prompt_record))
             prompt,validation,payload,prompt_record=_prompt_case(root); prompt_record["expected_prompt_id"]="OTHER"; diagnostics+=_capture_error(lambda: reviewer.check_prompt_traceability(prompt_record))
         elif kind=="invalid_prompt_hash":
             prompt,validation,payload,prompt_record=_prompt_case(root); prompt_record["sha256"]="0"*64; diagnostics+=_capture_error(lambda: reviewer.check_prompt_traceability(prompt_record))
@@ -668,10 +655,6 @@ def _trigger_diagnostic(diagnostic_id):
             manifest={"artifacts":[{"artifact_id":"probes","semantic_role":"probe_results"}],"independent_checks":[],"declared_gates":[]}; return reviewer.validate_result_artifacts(manifest,{"probes":{"results":[{"name":"probe","expected":1,"observed":0}]}})[0]
         if diagnostic_id=="CONTRADICTION003": return reviewer.detect_contradictions({"x":{"no_changes":True}},[{"new_path":"src/a"}])[0]
         if diagnostic_id=="SELF_CERTIFICATION003": return reviewer.detect_contradictions({"x":{"blocking_diagnostics":["GATE002"],"summary_diagnostics":[]}},[])[0]
-        if diagnostic_id=="GOVERNANCE001":
-            (root/"AGENTS.md").write_text("a"); (root/"CPC.md").write_text("c"); return _error_record(lambda: reviewer.validate_governance_binding({},root))
-        if diagnostic_id=="GOVERNANCE002":
-            (root/"AGENTS.md").write_text("a"); (root/"CPC.md").write_text("c"); return _error_record(lambda: reviewer.validate_governance_binding({"agents_sha256":"0"*64,"cpc_sha256":"0"*64},root))
         if diagnostic_id=="VERDICT001": return reviewer.detect_contradictions({"x":{"package_authored_verdict":"accepted"}},[])[0]
         if diagnostic_id=="VERDICT002": return reviewer.verify_repository({"repository_id":"r","verification_mode":"not_safely_generic"},{}).diagnostics[0]
         if diagnostic_id=="VERDICT003": return reviewer.validate_verdict_precedence("accepted","blocked_review")
@@ -822,17 +805,17 @@ class CorrectiveHardeningTests(unittest.TestCase):
         workspace=SCRIPT.resolve().parents[4]
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); carrier=root/"carrier"; package=carrier/"package_root"; package.mkdir(parents=True); (package/"empty.patch").write_bytes(b"")
-            prompt=root/"prompt.md"; validation=root/"validation.json"; manifest_path=root/"manifest.json"; output=root/"output"
+            prompt=root/"prompt.md"; manifest_path=root/"manifest.json"; output=root/"output"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
-            prompt_hash=reviewer.sha256_bytes(prompt.read_bytes()); validation_payload={"input":{"sha256":prompt_hash},"error_count":0,"valid_schema":True,"validator_version":"1.1.0","schema_version":"1.1.0","context":{"continuation":"no","evidence_round":"yes","user_run_handoff":"no"},"governance":{"binding_matches":True,"agents_sha256":reviewer.sha256_bytes((workspace/"AGENTS.md").read_bytes()),"cpc_sha256":reviewer.sha256_bytes((workspace/"CPC.md").read_bytes())}}; validation.write_text(json.dumps(validation_payload))
-            manifest=_consistent_manifest(); manifest["review_id"]="execution_boundary_review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"prompt_contract_validation_path":str(validation),"prompt_contract_validation_sha256":reviewer.sha256_bytes(validation.read_bytes()),"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]}); manifest["repositories"][0]["repository_path"]=str(workspace); manifest["package"].update({"carrier_path":str(carrier),"package_inventory_sha256":reviewer.inventory_hash(reviewer.directory_inventory(carrier.resolve(),"package_root"))}); manifest_path.write_text(json.dumps(manifest))
+            prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
+            manifest=_consistent_manifest(); manifest["review_id"]="execution_boundary_review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]}); manifest["repositories"][0]["repository_path"]=str(workspace); manifest["package"].update({"carrier_path":str(carrier),"package_inventory_sha256":reviewer.inventory_hash(reviewer.directory_inventory(carrier.resolve(),"package_root"))}); manifest_path.write_text(json.dumps(manifest))
             blocked=[]
             def forbidden(*args,**kwargs): blocked.append((args,kwargs)); raise AssertionError("execution boundary reached")
             targets=["subprocess.run","subprocess.Popen","os.system","os.popen","importlib.import_module","builtins.compile","builtins.eval","builtins.exec"]
             targets += [f"os.{name}" for name in ("execl","execle","execlp","execlpe","execv","execve","execvp","execvpe") if hasattr(os,name)]
             with contextlib.ExitStack() as stack:
                 for target_name in targets: stack.enter_context(mock.patch(target_name,side_effect=forbidden))
-                result=reviewer.review(manifest_path,SKILL_ROOT/"references/review_schema.json",SKILL_ROOT/"references/governance_binding.json",output)
+                result=reviewer.review(manifest_path,SKILL_ROOT/"references/review_schema.json",output)
             self.assertEqual(result["verdict"],"accepted"); self.assertEqual(blocked,[]); reviewer.validate_generated_outputs(output,reviewer.directory_inventory(carrier.resolve(),"package_root"),result)
 
 

@@ -1,2104 +1,356 @@
 #!/usr/bin/env python3
-"""Validate correction-lib Codex prompt metadata without executing the prompt."""
+"""Mechanically lint a bounded prompt without certifying workspace policy."""
 
 from __future__ import annotations
 
 import argparse
-import difflib
 import hashlib
 import json
+import os
 import re
 import sys
-from dataclasses import asdict, dataclass, field as dataclass_field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-VALIDATOR_VERSION = "1.1.0"
-SCHEMA_VERSION = "1.1.0"
-CONTEXT_VALUES = ("yes", "no", "unknown")
-PRIMARY_HEADING = "metadata and governance"
-AUXILIARY_HEADINGS = {
-    "accepted prior evidence": "accepted_prior_evidence",
-    "evidence requirements": "evidence_requirements",
-    "classification rules": "classification_rules",
-    "anti-self-certification rules": "anti_self_certification_rules",
-    "evidence validation method": "evidence_validation_method",
-}
-REMOTE_CAPABILITIES = (
-    "remote_git_write",
-    "pr_or_mr_write",
-    "pr_or_mr_merge",
-    "remote_branch_deletion",
+VALIDATOR_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.0.0"
+MAX_INPUT_BYTES = 2 * 1024 * 1024
+FIELD_RE = re.compile(r"^([a-z][a-z0-9_]*):(?:[ \t]*(.*))?$")
+PLACEHOLDER_PATTERNS = (
+    re.compile(r"<[^>\n]+>"),
+    re.compile(r"\{\{[^}\n]+\}\}"),
+    re.compile(r"\$\{[^}\n]+\}"),
+    re.compile(r"(?i)\b(?:TODO|TBD|FIXME)\b"),
 )
-PRODUCTION_CAPABILITIES = (
-    "condor_submission",
-    "work_queue_or_lobster_submission",
-    "storage_writes",
-    "large_pkl_production",
-    "plot_campaign",
-    "datacard_production",
-    "correction_payload_generation",
-    "payload_installation",
-)
-PLACEHOLDER_RE = re.compile(
-    r"(?i)(?:<[^>]+>|\bTBD\b|\bTODO\b|author_must_|choose_(?:a_)?value)"
-)
-KEY_RE = re.compile(r"^(?P<indent> *)(?P<key>[A-Za-z_][A-Za-z0-9_]*):(?P<rest>.*)$")
-UNSUPPORTED_RE = re.compile(
-    r"(^|[\s:])(?:&[A-Za-z0-9_-]+|\*[A-Za-z0-9_-]+|![A-Za-z0-9_-]+|<<:)|\$\(|\{\{"
-)
-REPOSITORY_SCOPED_BRANCH_FIELDS = (
-    "branch_policy",
-    "current_checked_out_branch",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "current_baseline_branch",
-)
-ORCHESTRATED_STAGE_MODES = {
-    "investigation_only",
-    "coding",
-    "validation_only",
-    "test_alignment_only",
-    "documentation_only",
-    "commit_preparation",
-    "pr_preparation",
-    "integration_only",
-    "branch_maintenance_only",
-    "pr_publication",
-}
+TRUE_VALUES = {"yes", "true"}
+FALSE_VALUES = {"no", "false"}
+NONE_VALUES = {"none", "null", "n/a", "not_applicable"}
 
 
 @dataclass(frozen=True)
-class Diagnostic:
-    id: str
-    severity: str
-    category: str
-    field: str
-    line: int
-    message: str
-    governance_locator: str
-    suggestion: str
-
-
-@dataclass
 class FieldRecord:
+    name: str
     value: str
-    raw: str
     line: int
-    children: dict[str, "ChildRecord"] = dataclass_field(default_factory=dict)
-    is_mapping: bool = False
-
-
-@dataclass(frozen=True)
-class ChildRecord:
-    child_key: str
-    child_value: str
-    child_line: int
-    raw_child_text: str
-    has_nested_structure: bool = False
-
-
-class InputFailure(Exception):
-    """A CLI/input failure that maps to exit code 2."""
-
-
-class ValidatorDefect(Exception):
-    """A schema/binding failure that maps to exit code 4."""
 
 
 def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def normalize_heading(line: str) -> str | None:
-    match = re.match(r"^\s{0,3}#{1,6}\s+(.+?)\s*$", line)
-    if not match:
+def diagnostic(
+    diagnostic_id: str,
+    message: str,
+    *,
+    line: int | None = None,
+    field: str | None = None,
+    severity: str = "error",
+) -> dict[str, Any]:
+    return {
+        "diagnostic_id": diagnostic_id,
+        "severity": severity,
+        "line": line,
+        "field": field,
+        "message": message,
+    }
+
+
+def normalize_scalar(value: str) -> Any:
+    normalized = " ".join(value.strip().split())
+    lowered = normalized.lower()
+    if lowered in TRUE_VALUES:
+        return True
+    if lowered in FALSE_VALUES:
+        return False
+    if lowered in NONE_VALUES:
         return None
-    return re.sub(r"[`*_]", "", match.group(1)).strip().lower()
+    return normalized
 
 
-def normalize_scalar(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1]
-    return value
-
-
-def none_like(value: str) -> bool:
-    value = normalize_scalar(value).strip().lower().replace("-", "_")
-    return (
-        not value
-        or value == "none"
-        or value.startswith("none,")
-        or value.startswith("none ")
-        or value.startswith("not_applicable")
-        or value.startswith("inapplicable")
-    )
-
-
-def value_is_missing(record: FieldRecord | None) -> bool:
-    if record is None:
-        return True
-    text = (record.value + "\n" + record.raw).strip()
-    return not text or bool(PLACEHOLDER_RE.search(text))
-
-
-def child_value_is_missing(record: ChildRecord | None) -> bool:
-    if record is None:
-        return True
-    text = (record.child_value + "\n" + record.raw_child_text).strip()
-    return not text or bool(PLACEHOLDER_RE.search(text))
-
-
-def parse_child_records(
-    parent_key: str,
-    child_lines: list[tuple[int, str]],
-    diagnostics: list[Diagnostic],
-) -> tuple[dict[str, ChildRecord], bool]:
-    meaningful = [
-        (line_number, line)
-        for line_number, line in child_lines
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    if not meaningful:
-        return {}, False
-    first_match = KEY_RE.match(meaningful[0][1])
-    if not first_match or len(first_match.group("indent")) == 0:
-        return {}, False
-    child_indent = len(first_match.group("indent"))
-    children: dict[str, ChildRecord] = {}
-    index = 0
-    while index < len(child_lines):
-        line_number, line = child_lines[index]
-        match = KEY_RE.match(line)
-        if not match or len(match.group("indent")) != child_indent:
-            index += 1
-            continue
-        child_key = match.group("key")
-        rest = match.group("rest").strip()
-        start = index + 1
-        end = start
-        while end < len(child_lines):
-            candidate = KEY_RE.match(child_lines[end][1])
-            if candidate and len(candidate.group("indent")) == child_indent:
-                break
-            end += 1
-        nested_lines = child_lines[start:end]
-        nested_text = "\n".join(nested for _, nested in nested_lines).strip()
-        if rest in ("|", ">"):
-            child_value = "\n".join(
-                nested.lstrip() for _, nested in nested_lines
-            ).strip()
-            has_nested_structure = False
-        elif rest:
-            child_value = normalize_scalar(rest)
-            has_nested_structure = bool(nested_text)
-        else:
-            child_value = nested_text
-            has_nested_structure = bool(nested_text)
-        raw_child_text = (
-            rest + (("\n" + nested_text) if nested_text else "")
-        ).strip()
-        child_path = f"{parent_key}.{child_key}"
-        if child_key in children:
-            diagnostics.append(
-                Diagnostic(
-                    "PARSE002",
-                    "error",
-                    "parse_error",
-                    child_path,
-                    line_number,
-                    "The structured child field is defined more than once.",
-                    "CPC.md sections 2 and 4",
-                    "Keep one explicit repository entry; do not infer which duplicate should win.",
-                )
-            )
-        else:
-            children[child_key] = ChildRecord(
-                child_key=child_key,
-                child_value=child_value,
-                child_line=line_number,
-                raw_child_text=raw_child_text,
-                has_nested_structure=has_nested_structure,
-            )
-        index = end
-    return children, True
-
-
-def parse_mapping_block(
-    block_lines: list[tuple[int, str]],
-    diagnostics: list[Diagnostic],
-) -> dict[str, FieldRecord]:
+def parse_prompt(text: str) -> tuple[dict[str, FieldRecord], list[dict[str, Any]]]:
     fields: dict[str, FieldRecord] = {}
-    index = 0
-    while index < len(block_lines):
-        line_number, line = block_lines[index]
-        if "\t" in line:
+    diagnostics: list[dict[str, Any]] = []
+    in_fence = False
+    fence_start = 0
+    active: FieldRecord | None = None
+    continuation: list[str] = []
+
+    def finish_active() -> None:
+        nonlocal active, continuation
+        if active is None:
+            return
+        value = "\n".join([active.value, *continuation]).strip()
+        record = FieldRecord(active.name, value, active.line)
+        if record.name in fields:
             diagnostics.append(
-                Diagnostic(
-                    "PARSE003",
-                    "error",
-                    "parse_error",
-                    "<mapping>",
-                    line_number,
-                    "Tabs are not supported in CPC mappings.",
-                    "CPC.md section 2",
-                    "Use space indentation and resubmit the decision text.",
-                )
-            )
-            index += 1
-            continue
-        if UNSUPPORTED_RE.search(line):
-            diagnostics.append(
-                Diagnostic(
-                    "PARSE003",
-                    "error",
-                    "parse_error",
-                    "<mapping>",
-                    line_number,
-                    "The mapping contains an unsupported anchor, alias, tag, merge, or interpolation construct.",
-                    "CPC.md section 2",
-                    "Express the value with the restricted CPC mapping grammar.",
-                )
-            )
-        if not line.strip() or line.lstrip().startswith("#"):
-            index += 1
-            continue
-        match = KEY_RE.match(line)
-        if not match or len(match.group("indent")) != 0:
-            index += 1
-            continue
-        key = match.group("key")
-        rest = match.group("rest").strip()
-        start = index + 1
-        end = start
-        while end < len(block_lines):
-            candidate = KEY_RE.match(block_lines[end][1])
-            if candidate and len(candidate.group("indent")) == 0:
-                break
-            end += 1
-        children = block_lines[start:end]
-        child_text = "\n".join(child for _, child in children)
-        child_records: dict[str, ChildRecord] = {}
-        is_mapping = False
-        if rest in ("|", ">"):
-            value = "\n".join(child.lstrip() for _, child in children).strip()
-        elif rest:
-            value = normalize_scalar(rest)
-        else:
-            value = child_text.strip()
-            child_records, is_mapping = parse_child_records(
-                key, children, diagnostics
-            )
-        raw = (rest + ("\n" + child_text if child_text else "")).strip()
-        if key in fields:
-            diagnostics.append(
-                Diagnostic(
+                diagnostic(
                     "PARSE002",
-                    "error",
-                    "parse_error",
-                    key,
-                    line_number,
-                    "The structured field is defined more than once.",
-                    "CPC.md section 4",
-                    "Keep one explicit definition; do not infer which duplicate should win.",
+                    f"duplicate field; first supplied on line {fields[record.name].line}",
+                    line=record.line,
+                    field=record.name,
                 )
             )
         else:
-            fields[key] = FieldRecord(
-                value=value,
-                raw=raw,
-                line=line_number,
-                children=child_records,
-                is_mapping=is_mapping,
-            )
-        index = end
-    return fields
+            fields[record.name] = record
+        active = None
+        continuation = []
 
-
-def extract_fields(text: str) -> tuple[dict[str, FieldRecord], list[Diagnostic]]:
-    lines = text.splitlines()
-    heading = ""
-    blocks: list[tuple[str, str, int, list[tuple[int, str]]]] = []
-    diagnostics: list[Diagnostic] = []
-    index = 0
-    while index < len(lines):
-        new_heading = normalize_heading(lines[index])
-        if new_heading is not None:
-            heading = new_heading
-        fence = re.match(r"^\s*```([A-Za-z0-9_-]*)\s*$", lines[index])
-        if not fence:
-            index += 1
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if line.startswith("```"):
+            finish_active()
+            if in_fence:
+                in_fence = False
+            else:
+                in_fence = True
+                fence_start = line_number
             continue
-        label = fence.group(1).lower()
-        start_line = index + 2
-        body: list[tuple[int, str]] = []
-        index += 1
-        while index < len(lines) and not re.match(r"^\s*```\s*$", lines[index]):
-            body.append((index + 1, lines[index]))
-            index += 1
-        if index >= len(lines):
-            diagnostics.append(
-                Diagnostic(
-                    "PARSE001",
-                    "error",
-                    "parse_error",
-                    "<fence>",
-                    start_line - 1,
-                    "The structured fence is not closed.",
-                    "CPC.md section 2",
-                    "Close the fenced block before validation.",
-                )
-            )
-            break
-        if heading == PRIMARY_HEADING or heading in AUXILIARY_HEADINGS:
-            if label not in ("", "text", "yaml"):
-                diagnostics.append(
-                    Diagnostic(
-                        "PARSE001",
-                        "error",
-                        "parse_error",
-                        "<fence>",
-                        start_line - 1,
-                        "The authoritative structured fence must be text, yaml, or unlabeled.",
-                        "CPC.md section 2",
-                        "Use a supported syntax label without changing field values.",
-                    )
-                )
-            elif label == "":
-                diagnostics.append(
-                    Diagnostic(
-                        "WARN005",
-                        "warning",
-                        "warning_only",
-                        "<fence>",
-                        start_line - 1,
-                        "The structured fence is unlabeled.",
-                        "CPC.md section 2",
-                        "Label the fence text or yaml for clarity.",
-                    )
-                )
-            blocks.append((heading, label, start_line, body))
-        index += 1
+        if not in_fence:
+            continue
+        match = FIELD_RE.fullmatch(line)
+        if match:
+            finish_active()
+            active = FieldRecord(match.group(1), match.group(2) or "", line_number)
+            continue
+        if active is not None:
+            continuation.append(line.rstrip())
 
-    primary_blocks = [block for block in blocks if block[0] == PRIMARY_HEADING]
-    if len(primary_blocks) != 1:
+    finish_active()
+    if in_fence:
         diagnostics.append(
-            Diagnostic(
+            diagnostic(
                 "PARSE001",
-                "error",
-                "parse_error",
-                "<metadata>",
-                0,
-                "Exactly one authoritative Metadata and governance block is required.",
-                "CPC.md sections 2 and 4",
-                "Supply one fenced CPC mapping under that heading.",
+                "unclosed fenced block",
+                line=fence_start,
             )
         )
-    fields: dict[str, FieldRecord] = {}
-    for block_heading, _label, _start, body in blocks:
-        parsed = parse_mapping_block(body, diagnostics)
-        allowed_auxiliary = AUXILIARY_HEADINGS.get(block_heading)
-        if allowed_auxiliary is not None:
-            parsed = {
-                key: record for key, record in parsed.items() if key == allowed_auxiliary
-            }
-        for key, record in parsed.items():
-            if key in fields:
-                diagnostics.append(
-                    Diagnostic(
-                        "PARSE002",
-                        "error",
-                        "parse_error",
-                        key,
-                        record.line,
-                        "The structured field is duplicated across recognized blocks.",
-                        "CPC.md section 4",
-                        "Keep one explicit definition in its recognized block.",
-                    )
-                )
-            else:
-                fields[key] = record
     return fields, diagnostics
 
 
-def parse_workflow_stages(value: str) -> list[dict[str, str]]:
-    """Parse only the structured stage list; workflow_graph is never an input."""
-    lines = value.splitlines()
-    starts: list[tuple[int, int, str]] = []
-    for index, line in enumerate(lines):
-        match = re.match(r"^(?P<indent>\s*)-\s+stage_id:\s*(?P<value>.+?)\s*$", line)
-        if match:
-            starts.append((index, len(match.group("indent")), normalize_scalar(match.group("value"))))
-    stages: list[dict[str, str]] = []
-    for position, (start, indent, stage_id) in enumerate(starts):
-        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
-        stage = {"stage_id": stage_id}
-        for line in lines[start + 1 : end]:
-            match = KEY_RE.match(line)
-            if not match:
-                continue
-            key = match.group("key")
-            rest = match.group("rest").strip()
-            stage[key] = normalize_scalar(rest) if rest else "<structured>"
-        stages.append(stage)
-    return stages
-
-
-class PromptValidator:
-    def __init__(
-        self,
-        schema: dict[str, Any],
-        contexts: dict[str, str],
-        strict_unknown: bool,
-    ) -> None:
-        self.schema = schema
-        self.contexts = contexts
-        self.strict_unknown = strict_unknown
-        self.diagnostics: list[Diagnostic] = []
-        self.fields: dict[str, FieldRecord] = {}
-
-    def add(
-        self,
-        diagnostic_id: str,
-        category: str,
-        field: str,
-        message: str,
-        locator: str,
-        suggestion: str,
-        *,
-        line: int | None = None,
-        severity: str = "error",
-    ) -> None:
-        if line is None:
-            line = self.fields.get(field, FieldRecord("", "", 0)).line
-        self.diagnostics.append(
-            Diagnostic(
-                diagnostic_id,
-                severity,
-                category,
-                field,
-                line,
-                message,
-                locator,
-                suggestion,
-            )
-        )
-
-    def scalar(self, field: str) -> str:
-        record = self.fields.get(field)
-        return normalize_scalar(record.value).strip() if record else ""
-
-    def raw(self, field: str) -> str:
-        record = self.fields.get(field)
-        return record.raw if record else ""
-
-    def children(self, field: str) -> dict[str, ChildRecord]:
-        record = self.fields.get(field)
-        return record.children if record and record.is_mapping else {}
-
-    def is_mapping(self, field: str) -> bool:
-        record = self.fields.get(field)
-        return bool(record and record.is_mapping)
-
-    def branch_policy_values(self) -> list[str]:
-        if self.is_mapping("branch_policy"):
-            return [
-                normalize_scalar(record.child_value).strip()
-                for record in self.children("branch_policy").values()
-            ]
-        policy = self.scalar("branch_policy")
-        return [policy] if policy else []
-
-    def permission_values(self, name: str) -> list[tuple[str, str]]:
-        values: list[tuple[str, str]] = []
-        if name in self.fields:
-            values.append(("top_level", self.scalar(name).lower()))
-        heavy = self.raw("heavy_command_permissions")
-        direct = re.search(
-            rf"(?m)^\s{{2,}}{re.escape(name)}:\s*(yes|no|unknown)\s*$", heavy
-        )
-        if direct:
-            values.append(("heavy_command_permissions", direct.group(1)))
-        nested = re.search(
-            rf"(?ms)^\s{{2,}}{re.escape(name)}:\s*$"
-            rf"(?P<body>(?:^\s{{4,}}.*$\n?)*)",
-            heavy,
-        )
-        if nested:
-            allowed = re.search(
-                r"(?m)^\s+allowed:\s*(yes|no|unknown)\s*$", nested.group("body")
-            )
-            if allowed:
-                values.append(("heavy_command_permissions", allowed.group(1)))
-        return values
-
-    def permission(self, name: str) -> str:
-        values = self.permission_values(name)
-        return values[0][1] if values else ""
-
-    def require_group(
-        self,
-        names: list[str],
-        diagnostic_id: str,
-        category: str,
-        locator: str,
-    ) -> None:
-        missing = [name for name in names if value_is_missing(self.fields.get(name))]
-        if missing:
-            self.add(
-                diagnostic_id,
-                category,
-                ",".join(missing),
-                "A conditional contract is incomplete; required decisions are missing.",
-                locator,
-                "Supply each named decision explicitly without inferring its value.",
-            )
-
-    def validate_common(self) -> None:
-        for field in self.schema["common_required_fields"]:
-            record = self.fields.get(field)
-            if (
-                record is not None
-                and record.is_mapping
-                and field in REPOSITORY_SCOPED_BRANCH_FIELDS
-            ):
-                missing = not record.children
-            else:
-                missing = value_is_missing(record)
-            if missing:
-                self.add(
-                    "REQ001",
-                    "missing_required_field",
-                    field,
-                    "A common prompt-contract field is missing or still a placeholder.",
-                    "CPC.md section 4",
-                    "Supply the governing decision explicitly.",
-                )
-            elif (
-                record is not None
-                and record.is_mapping
-                and field in REPOSITORY_SCOPED_BRANCH_FIELDS
-            ):
-                for repository, child in record.children.items():
-                    if child_value_is_missing(child):
-                        self.add(
-                            "REQ001",
-                            "missing_required_field",
-                            f"{field}.{repository}",
-                            "A repository-scoped branch decision is missing or still a placeholder.",
-                            "CPC.md sections 4 and 7",
-                            "Supply this repository decision explicitly.",
-                            line=child.child_line,
-                        )
-        for field, vocabulary in self.schema["closed_vocabularies"].items():
-            if field not in self.fields:
-                continue
-            if field == "branch_policy" and self.is_mapping(field):
-                for repository, child in self.children(field).items():
-                    if child.has_nested_structure or child_value_is_missing(child):
-                        continue
-                    if normalize_scalar(child.child_value).strip() not in vocabulary:
-                        self.add(
-                            "VOC001",
-                            "invalid_closed_vocabulary",
-                            f"{field}.{repository}",
-                            "The repository branch-policy value is not in the live bound vocabulary.",
-                            self.schema["governance_locators"][
-                                "closed_vocabularies"
-                            ],
-                            "Choose and supply one published value for this repository.",
-                            line=child.child_line,
-                        )
-            elif (
-                not value_is_missing(self.fields[field])
-                and self.scalar(field) not in vocabulary
-            ):
-                self.add(
-                    "VOC001",
-                    "invalid_closed_vocabulary",
-                    field,
-                    "The value is not in the live bound vocabulary.",
-                    self.schema["governance_locators"]["closed_vocabularies"],
-                    "Choose and supply one published value.",
-                )
-
-    def validate_unknown_fields(self) -> None:
-        known = set(self.schema["common_required_fields"])
-        for values in self.schema["conditional_rules"].values():
-            known.update(values)
-        known.update(
-            {
-                "accepted_prior_evidence",
-                "unresolved_checks_only",
-                "checks_not_to_repeat",
-                "commit_override_reason",
-                "runtime_intent_evidence",
-                "user_override_locator",
-                "task_specific",
-                "stop_conditions",
-                "acceptance_logic",
-                "checks_not_to_repeat",
-                "configured_codex_model",
-                "reported_codex_model",
-            }
-        )
-        protected = known | set(REMOTE_CAPABILITIES) | {
-            "network_access",
-            "force_push_allowed",
-            "merge_allowed",
-            "draft_allowed",
-            "execution_owner",
-        }
-        for field, record in self.fields.items():
-            if field in known or field.startswith("x_"):
-                continue
-            close = difflib.get_close_matches(field, sorted(protected), n=1, cutoff=0.82)
-            if close:
-                self.add(
-                    "WARN002",
-                    "warning_only",
-                    field,
-                    "The unknown field closely resembles a protected contract field.",
-                    "CPC.md sections 4 and 7",
-                    "Check the field name; an unknown field never grants authorization.",
-                    line=record.line,
-                    severity="error",
-                )
-            else:
-                self.add(
-                    "WARN001",
-                    "warning_only",
-                    field,
-                    "The top-level field is not in the derived schema.",
-                    "CPC.md section 4",
-                    "Keep task-specific data namespaced; this field grants no authorization.",
-                    line=record.line,
-                    severity="error" if self.strict_unknown else "warning",
-                )
-
-    def validate_scalar_branch(self) -> None:
-        policy = self.scalar("branch_policy")
-        target = self.scalar("target_branch")
-        feature = self.scalar("feature_branch")
-        reference = self.scalar("reference_branch")
-        if policy == "create_feature_branch_from_reference":
-            if none_like(reference) or none_like(feature):
-                self.add(
-                    "BRANCH001",
-                    "branch_contract_inconsistency",
-                    "reference_branch,feature_branch",
-                    "Branch creation requires explicit reference and feature branches.",
-                    "AGENTS.md section 7",
-                    "Supply both branch decisions.",
-                )
-            if not none_like(target):
-                self.add(
-                    "BRANCH002",
-                    "branch_contract_inconsistency",
-                    "target_branch",
-                    "A target branch conflicts with feature-branch creation.",
-                    "AGENTS.md section 7",
-                    "Resolve the branch policy/value conflict explicitly.",
-                )
-        elif policy in ("continue_existing_branch", "commit_preparation_on_existing_branch"):
-            if none_like(target):
-                self.add(
-                    "BRANCH001",
-                    "branch_contract_inconsistency",
-                    "target_branch",
-                    "This branch policy requires an explicit target branch.",
-                    "AGENTS.md section 7",
-                    "Supply the target branch.",
-                )
-            if not none_like(feature):
-                self.add(
-                    "BRANCH002",
-                    "branch_contract_inconsistency",
-                    "feature_branch",
-                    "This branch policy forbids creating a feature branch.",
-                    "AGENTS.md section 7",
-                    "Resolve the branch policy/value conflict explicitly.",
-                )
-            if not none_like(reference):
-                self.add(
-                    "BRANCH002",
-                    "branch_contract_inconsistency",
-                    "reference_branch",
-                    "This existing-branch policy forbids a reference-branch value.",
-                    "AGENTS.md section 7",
-                    "Mark the field inapplicable or choose a different explicit policy.",
-                )
-        elif policy == "read_only_current_branch":
-            for field, value in (
-                ("target_branch", target),
-                ("feature_branch", feature),
-                ("reference_branch", reference),
-            ):
-                if not none_like(value):
-                    self.add(
-                        "BRANCH002",
-                        "branch_contract_inconsistency",
-                        field,
-                        "Read-only current-branch work forbids branch switching or creation values.",
-                        "AGENTS.md section 7",
-                        "Mark the field inapplicable or choose a different explicit policy.",
+def placeholder_diagnostics(text: str) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    seen: set[tuple[int, str]] = set()
+    for line_number, line in enumerate(text.splitlines(), 1):
+        for pattern in PLACEHOLDER_PATTERNS:
+            for match in pattern.finditer(line):
+                key = (line_number, match.group(0))
+                if key in seen:
+                    continue
+                seen.add(key)
+                diagnostics.append(
+                    diagnostic(
+                        "PLACEHOLDER001",
+                        f"unresolved token: {match.group(0)}",
+                        line=line_number,
                     )
-
-    def add_repository_key_diagnostic(
-        self,
-        diagnostic_id: str,
-        field: str,
-        repository: str,
-        message: str,
-        *,
-        child: ChildRecord | None = None,
-    ) -> None:
-        self.add(
-            diagnostic_id,
-            "branch_contract_inconsistency",
-            f"{field}.{repository}",
-            message,
-            "AGENTS.md section 7; CPC.md sections 4 and 7",
-            "Supply an explicit repository entry without inheritance or inference.",
-            line=(
-                child.child_line
-                if child is not None
-                else self.fields.get(field, FieldRecord("", "", 0)).line
-            ),
-        )
-
-    def validate_repository_policy(
-        self,
-        repository: str,
-        policy: str,
-        values: dict[str, ChildRecord],
-    ) -> None:
-        missing_or_nested = {
-            field
-            for field, record in values.items()
-            if child_value_is_missing(record) or record.has_nested_structure
-        }
-        def check_required(field: str, message: str) -> None:
-            record = values[field]
-            if field not in missing_or_nested and none_like(record.child_value):
-                self.add_repository_key_diagnostic(
-                    "BRANCH001",
-                    field,
-                    repository,
-                    message,
-                    child=record,
                 )
+    return diagnostics
 
-        def check_none_like(field: str, message: str) -> None:
-            record = values[field]
-            if field not in missing_or_nested and not none_like(record.child_value):
-                self.add_repository_key_diagnostic(
-                    "BRANCH002",
-                    field,
-                    repository,
-                    message,
-                    child=record,
-                )
 
-        if policy == "create_feature_branch_from_reference":
-            check_required(
-                "reference_branch",
-                "Feature-branch creation requires an explicit reference branch.",
-            )
-            check_required(
-                "feature_branch",
-                "Feature-branch creation requires an explicit feature branch.",
-            )
-            check_none_like(
-                "target_branch",
-                "A target branch conflicts with feature-branch creation.",
-            )
-        elif policy in (
-            "continue_existing_branch",
-            "commit_preparation_on_existing_branch",
-        ):
-            check_required(
-                "target_branch",
-                "This existing-branch policy requires an explicit target branch.",
-            )
-            check_none_like(
-                "feature_branch",
-                "This existing-branch policy forbids a feature-branch value.",
-            )
-            check_none_like(
-                "reference_branch",
-                "This existing-branch policy forbids a reference-branch value.",
-            )
-        elif policy == "read_only_current_branch":
-            for field in ("target_branch", "feature_branch", "reference_branch"):
-                check_none_like(
-                    field,
-                    "Read-only current-branch work forbids branch switching or creation values.",
-                )
+def internal_consistency_diagnostics(
+    fields: dict[str, FieldRecord],
+) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    normalized = {name: normalize_scalar(record.value) for name, record in fields.items()}
 
-    def validate_repository_branch(self) -> None:
-        policy_children = self.children("branch_policy")
-        repo_location_record = self.fields.get("repo_locations")
-        if repo_location_record is None or not repo_location_record.is_mapping:
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                "repo_locations",
-                "Repository-scoped branch policy requires repo_locations to be a one-level mapping.",
-                "CPC.md sections 4 and 7",
-                "Supply explicit repository locations; do not infer repository keys.",
+    commit_expected = normalized.get("commit_expected")
+    do_not_commit = normalized.get("do_not_commit")
+    if isinstance(commit_expected, bool) and isinstance(do_not_commit, bool):
+        if commit_expected == do_not_commit:
+            diagnostics.append(
+                diagnostic(
+                    "CONSISTENCY001",
+                    "commit_expected and do_not_commit must express opposite states",
+                    line=fields["commit_expected"].line,
+                    field="commit_expected",
+                )
             )
-            return
 
-        repository_keys = list(repo_location_record.children)
-        policy_keys = list(policy_children)
-        for repository in repository_keys:
-            if repository not in policy_children:
-                self.add_repository_key_diagnostic(
-                    "BRANCH001",
-                    "branch_policy",
-                    repository,
-                    "The branch-policy mapping is missing a repository declared by repo_locations.",
-                )
-        for repository, child in policy_children.items():
-            if repository not in repo_location_record.children:
-                self.add_repository_key_diagnostic(
-                    "BRANCH002",
-                    "branch_policy",
-                    repository,
-                    "The branch-policy mapping contains a repository not declared by repo_locations.",
-                    child=child,
-                )
-
-        branch_value_fields = REPOSITORY_SCOPED_BRANCH_FIELDS[1:]
-        usable_fields: set[str] = set()
-        for field in branch_value_fields:
-            record = self.fields.get(field)
-            if record is None or not record.is_mapping:
-                self.add(
-                    "XFLD001",
-                    "cross_field_conflict",
-                    field,
-                    "Repository-scoped branch policy requires this field to be a one-level repository mapping.",
-                    "AGENTS.md section 7; CPC.md sections 4 and 7",
-                    "Use the same explicit repository keys as branch_policy.",
-                )
-                continue
-            usable_fields.add(field)
-            for repository in policy_keys:
-                if repository not in record.children:
-                    self.add_repository_key_diagnostic(
-                        "BRANCH001",
-                        field,
-                        repository,
-                        "The repository-scoped branch field is missing a branch-policy repository.",
+    if normalized.get("execution_not_authorized") is True:
+        for field in ("execute", "execution_requested", "task_execution_requested"):
+            if normalized.get(field) is True:
+                diagnostics.append(
+                    diagnostic(
+                        "CONSISTENCY002",
+                        f"{field} conflicts with execution_not_authorized",
+                        line=fields[field].line,
+                        field=field,
                     )
-            for repository, child in record.children.items():
-                if repository not in policy_children:
-                    self.add_repository_key_diagnostic(
-                        "BRANCH002",
-                        field,
-                        repository,
-                        "The repository-scoped branch field contains an extra repository.",
-                        child=child,
-                    )
-
-        for field in REPOSITORY_SCOPED_BRANCH_FIELDS:
-            for repository, child in self.children(field).items():
-                if child.has_nested_structure:
-                    self.add(
-                        "PARSE003",
-                        "parse_error",
-                        f"{field}.{repository}",
-                        "Branch-contract mappings support exactly one repository level with scalar child values.",
-                        "CPC.md sections 2, 4, and 7",
-                        "Replace the deeper structure with one explicit scalar repository value.",
-                        line=child.child_line,
-                    )
-
-        required_fields = set(branch_value_fields)
-        for repository in repository_keys:
-            policy_record = policy_children.get(repository)
-            if (
-                policy_record is None
-                or policy_record.has_nested_structure
-                or child_value_is_missing(policy_record)
-                or required_fields != usable_fields
-            ):
-                continue
-            values: dict[str, ChildRecord] = {}
-            if any(repository not in self.children(field) for field in branch_value_fields):
-                continue
-            for field in branch_value_fields:
-                values[field] = self.children(field)[repository]
-            policy = normalize_scalar(policy_record.child_value).strip()
-            self.validate_repository_policy(repository, policy, values)
-
-    def validate_branch(self) -> None:
-        if self.is_mapping("branch_policy"):
-            self.validate_repository_branch()
-            return
-        mapping_fields = [
-            field
-            for field in REPOSITORY_SCOPED_BRANCH_FIELDS[1:]
-            if self.is_mapping(field)
-        ]
-        for field in mapping_fields:
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                field,
-                "A scalar branch policy conflicts with a repository-scoped branch-value mapping.",
-                "AGENTS.md section 7; CPC.md sections 4 and 7",
-                "Use either the scalar form for all branch fields or the repository-scoped form for all branch fields.",
-            )
-        if not mapping_fields:
-            self.validate_scalar_branch()
-
-    def validate_commit(self) -> None:
-        do_not = self.scalar("do_not_commit").lower()
-        expected = self.scalar("commit_expected").lower()
-        if do_not in ("yes", "no") and expected in ("yes", "no"):
-            if do_not == expected:
-                self.add(
-                    "COMMIT001",
-                    "commit_contract_inconsistency",
-                    "do_not_commit,commit_expected",
-                    "The commit flags are not logical opposites.",
-                    "AGENTS.md section 14",
-                    "Choose the commit contract explicitly.",
-                )
-        mode = self.scalar("prompt_mode")
-        read_only_modes = {
-            "investigation_only",
-            "validation_only",
-            "pr_preparation",
-            "pr_publication",
-            "integration_only",
-            "branch_maintenance_only",
-        }
-        if mode in read_only_modes and (do_not != "yes" or expected != "no"):
-            self.add(
-                "COMMIT002",
-                "commit_contract_inconsistency",
-                "do_not_commit,commit_expected",
-                "The mode requires a no-commit contract.",
-                "AGENTS.md sections 6 and 14",
-                "Resolve the mode and commit decisions without inferring either.",
-            )
-        if mode in ("coding", "documentation_only"):
-            if (do_not, expected) == ("yes", "no") and value_is_missing(
-                self.fields.get("commit_override_reason")
-            ):
-                self.add(
-                    "COMMIT002",
-                    "commit_contract_inconsistency",
-                    "commit_override_reason",
-                    "A no-commit coding/documentation exception needs an explicit user override locator.",
-                    "AGENTS.md section 14",
-                    "Supply the override reason or choose a different commit contract.",
-                )
-        if mode == "commit_preparation":
-            branch_policies = self.branch_policy_values()
-            if (
-                "commit_preparation_on_existing_branch" not in branch_policies
-                or do_not != "no"
-                or expected != "yes"
-            ):
-                self.add(
-                    "COMMIT002",
-                    "commit_contract_inconsistency",
-                    "branch_policy,do_not_commit,commit_expected",
-                    "Commit preparation requires its dedicated branch and commit contract.",
-                    "AGENTS.md sections 7 and 14",
-                    "Supply a consistent commit-preparation contract.",
                 )
 
-    def validate_mode(self) -> None:
-        mode = self.scalar("prompt_mode")
-        if mode in {
-            "investigation_only",
-            "validation_only",
-            "pr_preparation",
-            "pr_publication",
-            "integration_only",
-            "branch_maintenance_only",
-        }:
-            writable = self.raw("allowed_to_modify").lower()
-            if re.search(r"\b(?:source|tests?|configs?|agents\.md|cpc\.md)\b", writable):
-                self.add(
-                    "MODE050",
-                    "forbidden_mode_specific_field",
-                    "allowed_to_modify",
-                    "A read-only mode names a tracked source, test, config, or governance surface as writable.",
-                    "AGENTS.md section 6",
-                    "Resolve the mode or writable-surface decision explicitly.",
-                )
-        if mode == "test_alignment_only" and value_is_missing(
-            self.fields.get("runtime_intent_evidence")
-        ) and value_is_missing(self.fields.get("accepted_prior_evidence")):
-            self.add(
-                "MODE001",
-                "missing_mode_specific_field",
-                "runtime_intent_evidence",
-                "Test alignment requires explicit evidence that runtime intent is established.",
-                "AGENTS.md section 6",
-                "Supply the evidence reference without asserting its truth automatically.",
-            )
-        conditional_mode_groups = {
-            "integration_only": (
-                "integration_fields",
-                "AGENTS.md section 6; CPC.md section 4",
-            ),
-            "branch_maintenance_only": (
-                "branch_maintenance_fields",
-                "AGENTS.md section 6; CPC.md section 4",
-            ),
-            "orchestrated_workflow": (
-                "orchestrated_workflow_fields",
-                "AGENTS.md section 6; CPC.md sections 4 and 6",
-            ),
-        }
-        if mode in conditional_mode_groups:
-            group, locator = conditional_mode_groups[mode]
-            self.require_group(
-                self.schema["conditional_rules"][group],
-                "MODE001",
-                "missing_mode_specific_field",
-                locator,
-            )
-        if mode == "integration_only":
-            if self.scalar("integration_method") != "ff_only":
-                self.require_group(
-                    self.schema["conditional_rules"]["non_fast_forward_integration_fields"],
-                    "MODE001",
-                    "missing_mode_specific_field",
-                    "AGENTS.md section 6; CPC.md section 4",
-                )
-            if self.scalar("local_branch_deletion").lower() != "no":
-                self.add(
-                    "AUTH003",
-                    "authorization_inconsistency",
-                    "local_branch_deletion",
-                    "Integration does not authorize local branch deletion.",
-                    "AGENTS.md section 6; CPC.md section 4",
-                    "Keep deletion denied and authorize any lifecycle decision separately.",
-                )
-        if mode == "orchestrated_workflow" and self.scalar(
-            "workflow_stop_policy"
-        ) != "stop_on_failed_gate_or_new_decision_boundary":
-            self.add(
-                "MODE001",
-                "missing_mode_specific_field",
-                "workflow_stop_policy",
-                "The workflow stop policy does not match the live fail-closed contract.",
-                "AGENTS.md section 6; CPC.md section 6",
-                "Use the published stop policy; workflow_graph is not a substitute.",
-            )
-
-    def validate_contexts(self) -> None:
-        continuation = self.schema["conditional_rules"]["continuation_fields"]
-        present = [name for name in continuation if name in self.fields]
-        if present or self.contexts["continuation"] == "yes":
-            self.require_group(
-                continuation,
-                "CONT001",
-                "continuation_contract_inconsistency",
-                "CPC.md sections 4 and 9",
-            )
-        if self.contexts["continuation"] == "unknown":
-            self.add(
-                "WARN003",
-                "warning_only",
-                "continuation_context",
-                "Continuation context is unknown; completeness is not certified.",
-                "CPC.md section 9",
-                "Obtain an explicit yes, no, or unknown decision from the author.",
-                severity="warning",
-            )
-
-        evidence = self.schema["conditional_rules"]["evidence_round_fields"]
-        present = [name for name in evidence if name in self.fields]
-        if present or self.contexts["evidence_round"] == "yes":
-            self.require_group(
-                evidence,
-                "EVID001",
-                "evidence_contract_inconsistency",
-                "CPC.md sections 4 and 10",
-            )
-            if all(name in self.fields for name in evidence):
-                joined = " ".join(self.raw(name).lower() for name in evidence)
-                positions = [
-                    joined.find("collect"),
-                    joined.find("serializ"),
-                    max(joined.find("reopen"), joined.find("validat")),
-                    joined.find("classif"),
-                    joined.find("verdict"),
-                ]
-                if any(position < 0 for position in positions) or positions != sorted(positions):
-                    self.add(
-                        "EVID001",
-                        "evidence_contract_inconsistency",
-                        "evidence_requirements",
-                        "The evidence plan does not mechanically establish collect, serialize, validate, classify, then verdict order.",
-                        "CPC.md section 10",
-                        "Supply an explicit ordered evidence method.",
-                    )
-        if self.contexts["evidence_round"] == "unknown":
-            self.add(
-                "WARN003",
-                "warning_only",
-                "evidence_round_context",
-                "Evidence-round context is unknown; completeness is not certified.",
-                "CPC.md section 10",
-                "Obtain an explicit yes, no, or unknown decision from the author.",
-                severity="warning",
-            )
-        if self.contexts["user_run_handoff"] == "unknown":
-            self.add(
-                "WARN003",
-                "warning_only",
-                "user_run_handoff_context",
-                "User-run-handoff context is unknown; ownership completeness is not certified.",
-                "AGENTS.md section 18",
-                "Obtain an explicit yes, no, or unknown decision from the author.",
-                severity="warning",
-            )
-
-    def validate_orchestration(self) -> None:
-        if self.scalar("prompt_mode") != "orchestrated_workflow":
-            return
-        record = self.fields.get("workflow_stages")
-        stages = parse_workflow_stages(record.value if record else "")
-        if len(stages) < 2:
-            self.add(
-                "ORCH001",
-                "orchestration_contract_inconsistency",
-                "workflow_stages",
-                "Orchestration requires at least two structured, gated stages; multi-step prose is not a stage contract.",
-                "AGENTS.md section 6; CPC.md sections 4 and 6",
-                "Supply a structured stage list with serialized evidence dependencies.",
-            )
-            return
-        stage_ids = [stage.get("stage_id", "") for stage in stages]
-        if len(stage_ids) != len(set(stage_ids)):
-            self.add(
-                "ORCH001",
-                "orchestration_contract_inconsistency",
-                "workflow_stages.stage_id",
-                "Stage identifiers are not unique.",
-                "AGENTS.md section 6; CPC.md section 6",
-                "Use one stable unique stage_id per stage.",
-            )
-        core = {
-            "stage_id",
-            "stage_mode",
-            "stage_goal",
-            "stage_preconditions",
-            "stage_acceptance_gate",
-            "stage_outputs",
-            "stage_inputs_from_prior",
-            "stage_on_failure",
-        }
-        rules = self.schema["conditional_rules"]
-        action_groups = {
-            "create_or_reuse_open_pr_or_mr": set(rules["create_or_reuse_fields"]),
-            "synchronize_declared_remote_branch": set(rules["synchronize_remote_branch_fields"]),
-            "normalize_declared_post_squash_staging_ref": set(rules["normalization_fields"]),
-        }
-        publication_stage_permissions: list[dict[str, str]] = []
-        for index, stage in enumerate(stages):
-            missing = sorted(core - set(stage))
-            if missing:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}",
-                    "A structured stage omits required gate/evidence fields: " + ",".join(missing),
-                    "AGENTS.md section 6; CPC.md sections 4 and 6",
-                    "Supply the applicable stage contract without using workflow_graph as authority.",
-                )
-            stage_mode = stage.get("stage_mode", "")
-            if stage_mode not in ORCHESTRATED_STAGE_MODES:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}.stage_mode",
-                    "The stage mode is not allowed inside orchestration.",
-                    "AGENTS.md section 6; CPC.md section 6",
-                    "Use a published non-nested, non-production stage mode.",
-                )
-            if index > 0 and none_like(stage.get("stage_inputs_from_prior", "")):
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}.stage_inputs_from_prior",
-                    "A later stage has no serialized input dependency on prior validated evidence.",
-                    "AGENTS.md section 6; CPC.md section 6",
-                    "Bind the later stage to observed validated prior-stage outputs.",
-                )
-            if stage_mode != "pr_publication":
-                continue
-            action = stage.get("publication_action", "")
-            if action not in action_groups:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}.publication_action",
-                    "The publication stage lacks a supported non-merge action.",
-                    "AGENTS.md section 6; CPC.md section 6",
-                    "Declare one exact non-merge publication action.",
-                )
-                continue
-            required = set(rules["publication_common_fields"]) | action_groups[action]
-            missing_publication = sorted(required - set(stage))
-            if missing_publication:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}",
-                    "A publication stage omits action-specific fields: " + ",".join(missing_publication),
-                    "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
-                    "Supply the complete selected action contract inside the stage.",
-                )
-            forbidden_yes = [
-                key
-                for key in ("pr_or_mr_merge", "merge_allowed", "remote_branch_deletion")
-                if stage.get(key, "").lower() == "yes"
-            ]
-            if forbidden_yes or (
-                stage.get("force_push_allowed", "").lower() == "yes"
-                and action != "normalize_declared_post_squash_staging_ref"
-            ):
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}",
-                    "The publication stage requests merge, deletion, or force outside the guarded normalization exception.",
-                    "AGENTS.md section 6; CPC.md section 6",
-                    "Keep orchestration non-merge and non-force except for exact-lease normalization.",
-                )
-            expected_by_action = {
-                "create_or_reuse_open_pr_or_mr": {
-                    "network_access": "yes",
-                    "remote_git_write": "yes",
-                    "pr_or_mr_write": "yes",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "no",
-                    "merge_allowed": "no",
-                    "draft_allowed": "no",
-                    "duplicate_pr_or_mr_policy": "reuse_exact_open_match_else_create_one",
-                },
-                "synchronize_declared_remote_branch": {
-                    "network_access": "yes",
-                    "pr_or_mr_write": "no",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "no",
-                    "merge_allowed": "no",
-                },
-                "normalize_declared_post_squash_staging_ref": {
-                    "network_access": "yes",
-                    "remote_git_write": "yes",
-                    "pr_or_mr_write": "no",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "yes",
-                    "merge_allowed": "no",
-                    "generic_force": "forbidden",
-                    "lease_refresh_after_unexplained_remote_movement": "forbidden",
-                    "post_write_remote_readback": "required",
-                    "final_expected_identity_readback": "required",
-                },
-            }
-            action_conflicts = [
-                key
-                for key, expected in expected_by_action[action].items()
-                if stage.get(key, "").lower() != expected
-            ]
-            if action == "synchronize_declared_remote_branch" and stage.get(
-                "remote_git_write", ""
-            ).lower() not in ("yes", "no"):
-                action_conflicts.append("remote_git_write")
-            if action == "normalize_declared_post_squash_staging_ref":
-                expected_lease = (
-                    "--force-with-lease="
-                    f"{stage.get('exact_remote_ref', '')}:{stage.get('exact_observed_old_sha', '')}"
-                )
-                if stage.get("force_with_lease_argument") != expected_lease:
-                    action_conflicts.append("force_with_lease_argument")
-                if none_like(
-                    stage.get(
-                        "explicit_user_authorization_for_the_exact_ref_rewrite", ""
-                    )
-                ):
-                    action_conflicts.append(
-                        "explicit_user_authorization_for_the_exact_ref_rewrite"
-                    )
-            if action_conflicts:
-                self.add(
-                    "ORCH001",
-                    "orchestration_contract_inconsistency",
-                    f"workflow_stages.{stage.get('stage_id', index)}",
-                    "The publication stage conflicts with its action-specific authorization values: "
-                    + ",".join(sorted(set(action_conflicts))),
-                    "AGENTS.md section 6; CPC.md sections 4, 6, and 12",
-                    "Use the exact selected action contract; generic force is never available.",
-                )
-            stage_expected = {
-                key: value
-                for key, value in expected_by_action[action].items()
-                if key
-                in {
-                    "network_access",
-                    "remote_git_write",
-                    "pr_or_mr_write",
-                    "pr_or_mr_merge",
-                    "remote_branch_deletion",
-                    "force_push_allowed",
-                    "merge_allowed",
-                }
-            }
-            if action == "synchronize_declared_remote_branch":
-                stage_expected["remote_git_write"] = stage.get(
-                    "remote_git_write", ""
-                ).lower()
-            publication_stage_permissions.append(stage_expected)
-        if not publication_stage_permissions:
-            return
-        outer_expected = {
-            capability: (
-                "yes"
-                if any(
-                    stage_permissions[capability] == "yes"
-                    for stage_permissions in publication_stage_permissions
-                )
-                else "no"
-            )
-            for capability in (
-                "network_access",
-                "remote_git_write",
-                "pr_or_mr_write",
-                "force_push_allowed",
-            )
-        }
-        outer_expected.update(
-            {
-                "pr_or_mr_merge": "no",
-                "remote_branch_deletion": "no",
-                "merge_allowed": "no",
-            }
-        )
-        outer_conflicts = [
-            key
-            for key, expected in outer_expected.items()
-            if self.permission(key) != expected
-        ]
-        if outer_conflicts:
-            self.add(
-                "ORCH001",
-                "orchestration_contract_inconsistency",
-                "workflow_stages",
-                "The outer workflow permission envelope is not the least-privilege maximum of the publication-stage contracts: "
-                + ",".join(sorted(outer_conflicts)),
-                "AGENTS.md section 6; CPC.md sections 4 and 6",
-                "Declare each outer capability as yes only when at least one stage requires it; stage-local permissions remain controlling.",
-            )
-
-    def has_orchestrated_normalization_stage(self) -> bool:
-        record = self.fields.get("workflow_stages")
-        return any(
-            stage.get("stage_mode") == "pr_publication"
-            and stage.get("publication_action")
-            == "normalize_declared_post_squash_staging_ref"
-            for stage in parse_workflow_stages(record.value if record else "")
-        )
-
-    def validate_authorization(self) -> None:
-        network = self.permission("network_access")
-        for capability in REMOTE_CAPABILITIES:
-            values = self.permission_values(capability)
-            if len({value for _, value in values}) > 1:
-                self.add(
-                    "XFLD001",
-                    "cross_field_conflict",
-                    capability,
-                    "Top-level and heavy-command permission values conflict.",
-                    "AGENTS.md sections 3 and 11",
-                    "Resolve the duplicated permission decision explicitly.",
-                )
-            if self.permission(capability) == "yes" and network != "yes":
-                self.add(
-                    "AUTH002",
-                    "authorization_inconsistency",
-                    capability,
-                    "A remote capability is enabled without explicit network authorization.",
-                    "AGENTS.md sections 3 and 11",
-                    "Supply or deny each independent authorization explicitly.",
-                )
-        for capability in PRODUCTION_CAPABILITIES:
-            if (
-                self.permission(capability) == "yes"
-                and self.scalar("prompt_mode") != "production_execution"
-                and value_is_missing(self.fields.get("user_override_locator"))
-            ):
-                self.add(
-                    "AUTH001",
-                    "authorization_inconsistency",
-                    capability,
-                    "A production capability is enabled outside production mode without an explicit override locator.",
-                    "AGENTS.md sections 6 and 11",
-                    "Resolve the mode or authorization explicitly.",
-                )
-        if (
-            self.permission("remote_branch_deletion") == "yes"
-            and self.scalar("publication_action") != "merge_existing_pr_or_mr"
-        ):
-            self.add(
-                "AUTH003",
-                "authorization_inconsistency",
-                "remote_branch_deletion",
-                "Remote deletion is enabled without a matching explicit merge action.",
-                "AGENTS.md sections 3 and 11",
-                "State the independent action and permission decisions explicitly.",
-            )
-        force_is_guarded_normalization = (
-            self.scalar("publication_action")
-            == "normalize_declared_post_squash_staging_ref"
-            or (
-                self.scalar("prompt_mode") == "orchestrated_workflow"
-                and self.has_orchestrated_normalization_stage()
-            )
-        )
-        if self.permission("force_push_allowed") == "yes" and not force_is_guarded_normalization:
-            self.add(
-                "AUTH003",
-                "authorization_inconsistency",
-                "force_push_allowed",
-                "Force is enabled outside the sole guarded normalization action.",
-                "AGENTS.md sections 3, 6, and 12",
-                "Deny force or use the exact separately authorized normalization contract.",
-            )
-        if (
-            self.scalar("publication_action")
-            == "normalize_declared_post_squash_staging_ref"
-            and none_like(
-                self.scalar("explicit_user_authorization_for_the_exact_ref_rewrite")
-            )
-        ):
-            self.add(
-                "AUTH003",
-                "authorization_inconsistency",
-                "explicit_user_authorization_for_the_exact_ref_rewrite",
-                "The guarded normalization action lacks explicit authorization for the exact ref rewrite.",
-                "AGENTS.md section 12; CPC.md section 12",
-                "Record explicit user authorization for the exact declared ref rewrite.",
-            )
-
-    def validate_publication(self) -> None:
-        rules = self.schema["conditional_rules"]
-        publication = rules["publication_common_fields"]
-        mode = self.scalar("prompt_mode")
-        action = self.scalar("publication_action")
-        if mode == "pr_publication":
-            self.require_group(
-                publication,
-                "PUB001",
-                "publication_contract_inconsistency",
-                "CPC.md sections 4 and 12",
-            )
-            if action == "create_or_reuse_open_pr_or_mr":
-                self.require_group(
-                    rules["create_or_reuse_fields"],
-                    "PUB001",
-                    "publication_contract_inconsistency",
-                    "CPC.md sections 4 and 12",
-                )
-                expected = {
-                    "network_access": "yes",
-                    "remote_git_write": "yes",
-                    "pr_or_mr_write": "yes",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "no",
-                    "merge_allowed": "no",
-                    "draft_allowed": "no",
-                    "duplicate_pr_or_mr_policy": "reuse_exact_open_match_else_create_one",
-                }
-                conflicts = [
-                    field
-                    for field, value in expected.items()
-                    if self.scalar(field).lower() != value
-                ]
-                if conflicts:
-                    self.add(
-                        "PUB003",
-                        "publication_contract_inconsistency",
-                        ",".join(conflicts),
-                        "The create/reuse action conflicts with required independent publication decisions.",
-                        "CPC.md section 12",
-                        "Resolve every named publication decision explicitly.",
-                    )
-            elif action == "synchronize_declared_remote_branch":
-                self.require_group(
-                    rules["synchronize_remote_branch_fields"],
-                    "PUB001",
-                    "publication_contract_inconsistency",
-                    "AGENTS.md section 6; CPC.md sections 4 and 12",
-                )
-                expected = {
-                    "network_access": "yes",
-                    "pr_or_mr_write": "no",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "no",
-                    "merge_allowed": "no",
-                }
-                conflicts = [
-                    field
-                    for field, value in expected.items()
-                    if self.scalar(field).lower() != value
-                ]
-                if self.scalar("remote_git_write").lower() not in ("yes", "no"):
-                    conflicts.append("remote_git_write")
-                if conflicts:
-                    self.add(
-                        "PUB003",
-                        "publication_contract_inconsistency",
-                        ",".join(conflicts),
-                        "The branch synchronization action conflicts with its non-force authorization boundary.",
-                        "AGENTS.md section 6; CPC.md section 12",
-                        "Use the published branch-only fields and independent safe permission values.",
-                    )
-            elif action == "normalize_declared_post_squash_staging_ref":
-                self.require_group(
-                    rules["normalization_fields"],
-                    "PUB001",
-                    "publication_contract_inconsistency",
-                    "AGENTS.md section 6; CPC.md sections 4 and 12",
-                )
-                expected = {
-                    "network_access": "yes",
-                    "remote_git_write": "yes",
-                    "pr_or_mr_write": "no",
-                    "pr_or_mr_merge": "no",
-                    "remote_branch_deletion": "no",
-                    "force_push_allowed": "yes",
-                    "merge_allowed": "no",
-                    "generic_force": "forbidden",
-                    "lease_refresh_after_unexplained_remote_movement": "forbidden",
-                    "post_write_remote_readback": "required",
-                    "final_expected_identity_readback": "required",
-                }
-                conflicts = [
-                    field
-                    for field, value in expected.items()
-                    if self.scalar(field).lower() != value
-                ]
-                lease = self.scalar("force_with_lease_argument")
-                expected_lease = (
-                    "--force-with-lease="
-                    f"{self.scalar('exact_remote_ref')}:{self.scalar('exact_observed_old_sha')}"
-                )
-                if lease != expected_lease:
-                    conflicts.append("force_with_lease_argument")
-                if conflicts:
-                    self.add(
-                        "PUB003",
-                        "publication_contract_inconsistency",
-                        ",".join(conflicts),
-                        "The normalization action lacks its exact archive, identity, lease, or readback safety boundary.",
-                        "AGENTS.md section 6; CPC.md sections 4 and 12",
-                        "Use the exact action-specific values; generic force and lease refresh are forbidden.",
-                    )
-            elif action == "merge_existing_pr_or_mr":
-                self.require_group(
-                    self.schema["conditional_rules"]["merge_fields"],
-                    "PUB001",
-                    "publication_contract_inconsistency",
-                    "CPC.md section 12.4",
-                )
-                if (
-                    self.scalar("pr_or_mr_merge").lower() != "yes"
-                    or self.scalar("merge_allowed").lower() != "yes"
-                    or self.scalar("remote_branch_deletion").lower()
-                    not in ("yes", "no")
-                    or self.scalar("merge_method") not in ("merge", "squash", "rebase")
-                ):
-                    self.add(
-                        "PUB003",
-                        "publication_contract_inconsistency",
-                        "publication_action",
-                        "The merge action lacks a complete, internally consistent merge authorization.",
-                        "CPC.md section 12.4",
-                        "Supply each merge and deletion decision independently.",
-                    )
-            elif action:
-                self.add(
-                    "PUB002",
-                    "publication_contract_inconsistency",
-                    "publication_action",
-                    "The publication action is not supported by the bound contract.",
-                    "CPC.md section 12",
-                    "Choose and supply a published action.",
-                )
-            action_groups = {
-                "create_or_reuse_open_pr_or_mr": set(rules["create_or_reuse_fields"]),
-                "synchronize_declared_remote_branch": set(
-                    rules["synchronize_remote_branch_fields"]
-                ),
-                "normalize_declared_post_squash_staging_ref": set(
-                    rules["normalization_fields"]
-                ),
-                "merge_existing_pr_or_mr": set(rules["merge_fields"]),
-            }
-            applicable = action_groups.get(action, set())
-            all_action_specific = set().union(*action_groups.values())
-            inapplicable = sorted(
-                field
-                for field in all_action_specific - applicable
-                if field in self.fields
-            )
-            if inapplicable:
-                self.add(
-                    "PUB002",
-                    "publication_contract_inconsistency",
-                    ",".join(inapplicable),
-                    "Fields from a different publication action are present.",
-                    "CPC.md sections 4 and 12",
-                    "Keep only the common fields and the selected action's conditional fields.",
-                )
-        elif mode != "orchestrated_workflow" and any(
-            name in self.fields for name in publication if name != "network_access"
-        ):
-            self.add(
-                "MODE050",
-                "forbidden_mode_specific_field",
-                "publication_action",
-                "Publication-specific fields appear outside pr_publication mode.",
-                "CPC.md sections 4 and 12",
-                "Resolve the mode or remove the inapplicable publication contract.",
-            )
-
-    def validate_production(self) -> None:
-        production = self.schema["conditional_rules"]["production_fields"]
-        handoff = self.schema["conditional_rules"]["user_handoff_fields"]
-        mode = self.scalar("prompt_mode")
-        handoff_context = self.contexts["user_run_handoff"]
-        if mode == "production_execution" or handoff_context == "yes":
-            self.require_group(
-                production,
-                "PROD001",
-                "production_contract_inconsistency",
-                "AGENTS.md section 18; CPC.md section 4",
-            )
-            policy = self.scalar("overwrite_or_resume_policy").lower()
-            retry = self.scalar("interruption_retry_policy").lower()
-            vague = ("", "as needed", "unspecified", "implicit", "default")
-            if policy in vague:
-                self.add(
-                    "PROD003",
-                    "production_contract_inconsistency",
-                    "overwrite_or_resume_policy",
-                    "Overwrite or resume behavior is missing or implicit.",
-                    "AGENTS.md section 18",
-                    "Supply an explicit bounded policy.",
-                )
-            if retry in vague:
-                self.add(
-                    "PROD001",
-                    "production_contract_inconsistency",
-                    "interruption_retry_policy",
-                    "Interruption and retry behavior is missing or implicit.",
-                    "AGENTS.md section 18",
-                    "Supply an explicit bounded policy.",
-                )
-        if self.scalar("execution_owner").lower() == "user" or handoff_context == "yes":
-            self.require_group(
-                handoff,
-                "PROD002",
-                "production_contract_inconsistency",
-                "AGENTS.md section 18",
-            )
-
-    def validate_cross_fields(self) -> None:
-        if (
-            not value_is_missing(self.fields.get("workspace_root"))
-            and self.scalar("workspace_root")
-            != "/users/apiccine/work/correction-lib"
-            and value_is_missing(self.fields.get("user_override_locator"))
-        ):
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                "workspace_root",
-                "The workspace root differs from the correction-lib root without an override locator.",
-                "AGENTS.md section 2",
-                "Resolve the workspace decision explicitly.",
-            )
-        report = self.scalar("report_path")
-        patch = self.scalar("patch_path")
-        if (
-            not value_is_missing(self.fields.get("report_path"))
-            and not report.startswith("/")
-        ):
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                "report_path",
-                "The report path is not absolute.",
-                "AGENTS.md section 20",
-                "Supply the exact absolute artifact path.",
-            )
-        if (
-            not value_is_missing(self.fields.get("patch_path"))
-            and not patch.startswith("/")
-        ):
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                "patch_path",
-                "The patch path is not absolute.",
-                "AGENTS.md section 20",
-                "Supply the exact absolute artifact path.",
-            )
-        if (
-            not value_is_missing(self.fields.get("report_path"))
-            and not value_is_missing(self.fields.get("patch_path"))
-            and report == patch
-        ):
-            self.add(
-                "XFLD001",
-                "cross_field_conflict",
-                "report_path,patch_path",
-                "Report and patch paths must be distinct.",
-                "AGENTS.md section 20",
-                "Supply distinct artifact paths.",
-            )
-        for field, record in self.fields.items():
-            if "expected" in field.lower() and re.search(
-                r"(?i)\b(pass(?:ed)?|success|ready|valid|zero failures?)\b",
-                record.raw,
-            ):
-                if field not in {"commit_expected", "expected_local_head"}:
-                    self.add(
-                        "EVID001",
-                        "evidence_contract_inconsistency",
-                        field,
-                        "A mechanically recognizable desired verdict is encoded as expected evidence.",
-                        "CPC.md sections 8 and 10",
-                        "Replace the desired conclusion with falsifiable acceptance logic.",
-                        line=record.line,
-                    )
-
-    def run(self, fields: dict[str, FieldRecord]) -> list[Diagnostic]:
-        self.fields = fields
-        self.validate_common()
-        self.validate_unknown_fields()
-        self.validate_mode()
-        self.validate_branch()
-        self.validate_commit()
-        self.validate_contexts()
-        self.validate_orchestration()
-        self.validate_authorization()
-        self.validate_publication()
-        self.validate_production()
-        self.validate_cross_fields()
-        return self.diagnostics
-
-
-def load_json_resource(path: Path, kind: str) -> dict[str, Any]:
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise ValidatorDefect(f"Cannot load {kind}: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValidatorDefect(f"{kind} must contain a JSON object")
-    return data
-
-
-def discover_workspace(start: Path) -> Path:
-    start = start.resolve()
-    for candidate in (start, *start.parents):
-        if (candidate / "AGENTS.md").is_file() and (candidate / "CPC.md").is_file():
-            return candidate
-    raise InputFailure("No workspace root containing both AGENTS.md and CPC.md was found.")
-
-
-def governance_evidence(
-    workspace_root: Path,
-    binding: dict[str, Any],
-) -> tuple[dict[str, Any], list[Diagnostic]]:
-    diagnostics: list[Diagnostic] = []
-    required = {
-        "binding_version",
-        "schema_version",
-        "agents_path",
-        "agents_sha256",
-        "cpc_path",
-        "cpc_sha256",
-    }
-    if not required.issubset(binding) or binding.get("schema_version") != SCHEMA_VERSION:
-        raise ValidatorDefect("governance binding is missing required versioned fields")
-    agents_path = workspace_root / str(binding["agents_path"])
-    cpc_path = workspace_root / str(binding["cpc_path"])
-    try:
-        agents_bytes = agents_path.read_bytes()
-        cpc_bytes = cpc_path.read_bytes()
-    except OSError as exc:
-        raise ValidatorDefect(f"cannot read live governance: {exc}") from exc
-    agents_sha = sha256_bytes(agents_bytes)
-    cpc_sha = sha256_bytes(cpc_bytes)
-    matches = (
-        agents_sha == binding["agents_sha256"] and cpc_sha == binding["cpc_sha256"]
-    )
-    if not matches:
+    if (
+        normalized.get("materialization_requested") is False
+        and normalized.get("materialization_completed") is True
+    ):
         diagnostics.append(
-            Diagnostic(
-                "GOV001",
-                "error",
-                "governance_version_mismatch",
-                "governance_binding",
-                0,
-                "Live AGENTS.md or CPC.md bytes do not match the reviewed binding.",
-                "AGENTS.md section 0; CPC.md section 0",
-                "Stop and request a separately authorized schema/binding review.",
+            diagnostic(
+                "CONSISTENCY003",
+                "materialization_completed conflicts with materialization_requested",
+                line=fields["materialization_completed"].line,
+                field="materialization_completed",
             )
         )
-    return (
-        {
-            "agents_path": str(agents_path),
-            "agents_sha256": agents_sha,
-            "cpc_path": str(cpc_path),
-            "cpc_sha256": cpc_sha,
-            "binding_matches": matches,
-        },
-        diagnostics,
-    )
+    return diagnostics
 
 
-def result_payload(
-    prompt_label: str,
-    prompt_bytes: bytes,
-    schema: dict[str, Any],
-    governance: dict[str, Any],
-    contexts: dict[str, str],
-    diagnostics: list[Diagnostic],
-    defect: bool,
-) -> dict[str, Any]:
-    severity_rank = {"error": 0, "warning": 1, "info": 2}
+def load_schema(path: Path) -> dict[str, Any]:
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"schema is not readable strict-UTF-8 JSON: {exc}") from exc
+    if not isinstance(schema, dict):
+        raise ValueError("schema resource must be an object")
+    if schema.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError("schema resource version is incompatible with this linter")
+    if schema.get("validator_version") != VALIDATOR_VERSION:
+        raise ValueError("schema resource validator version is incompatible with this linter")
+    return schema
+
+
+def validate_content(content: bytes, input_path: Path) -> dict[str, Any]:
+    if len(content) > MAX_INPUT_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_INPUT_BYTES} bytes")
+    try:
+        text = content.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"prompt is not strict UTF-8: {exc}") from exc
+
+    fields, parse_diagnostics = parse_prompt(text)
+    unresolved = placeholder_diagnostics(text)
+    contradictions = internal_consistency_diagnostics(fields)
     diagnostics = sorted(
-        diagnostics,
+        [*parse_diagnostics, *unresolved, *contradictions],
         key=lambda item: (
-            item.line if item.line > 0 else 10**9,
-            severity_rank[item.severity],
-            item.id,
-            item.field,
+            item["line"] if item["line"] is not None else -1,
+            item["diagnostic_id"],
+            item["field"] or "",
+            item["message"],
         ),
     )
-    error_count = sum(item.severity == "error" for item in diagnostics)
-    warning_count = sum(item.severity == "warning" for item in diagnostics)
-    valid = not defect and error_count == 0 and governance.get("binding_matches", False)
-    if valid:
-        diagnostics.append(
-            Diagnostic(
-                "OK000",
-                "info",
-                "valid_schema",
-                "<summary>",
-                0,
-                "The prompt is mechanically schema-valid for the supplied contexts.",
-                "AGENTS.md and CPC.md bound contract",
-                "Treat schema validity separately from semantic or external-state review.",
-            )
-        )
+    mechanical_errors = [
+        item
+        for item in diagnostics
+        if item["diagnostic_id"].startswith(("PARSE", "PLACEHOLDER"))
+        and item["severity"] == "error"
+    ]
+    consistency_errors = [
+        item
+        for item in diagnostics
+        if item["diagnostic_id"].startswith("CONSISTENCY")
+        and item["severity"] == "error"
+    ]
+    mechanical_validity = not mechanical_errors
+    internal_consistency = not consistency_errors
     return {
-        "validator_version": VALIDATOR_VERSION,
-        "schema_version": schema.get("schema_version", "unknown"),
-        "input": {"path": prompt_label, "sha256": sha256_bytes(prompt_bytes)},
-        "governance": governance,
-        "context": contexts,
-        "valid_schema": valid,
-        "diagnostics": [asdict(item) for item in diagnostics],
-        "error_count": error_count,
-        "warning_count": warning_count,
+        "producer": {
+            "name": "correction-lib-prompt-contract",
+            "version": VALIDATOR_VERSION,
+            "schema_version": SCHEMA_VERSION,
+        },
+        "input": {
+            "path": str(input_path.resolve()),
+            "sha256": sha256_bytes(content),
+            "size_bytes": len(content),
+        },
+        "capabilities": {
+            "bounded_prompt_parsing": True,
+            "duplicate_field_detection": True,
+            "placeholder_detection": True,
+            "mapping_and_fence_structure_checks": True,
+            "supplied_value_normalization": True,
+            "internal_consistency": internal_consistency,
+            "mechanical_validity": mechanical_validity,
+        },
+        "mechanical_validity": mechanical_validity,
+        "internal_consistency": internal_consistency,
+        "governance_completeness": "not_assessed",
+        "governance_completeness_not_assessed": True,
+        "field_count": len(fields),
+        "normalized_fields": {
+            name: normalize_scalar(record.value) for name, record in sorted(fields.items())
+        },
+        "error_count": sum(item["severity"] == "error" for item in diagnostics),
+        "warning_count": sum(item["severity"] == "warning" for item in diagnostics),
+        "diagnostics": diagnostics,
     }
 
 
-def validate_content(
-    prompt_label: str,
-    prompt_bytes: bytes,
-    workspace_root: Path,
-    schema_path: Path,
-    binding_path: Path,
-    contexts: dict[str, str],
-    strict_unknown: bool = False,
-) -> tuple[dict[str, Any], int]:
-    try:
-        text = prompt_bytes.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise InputFailure(f"Prompt is not valid UTF-8: {exc}") from exc
-    schema = load_json_resource(schema_path, "prompt schema")
-    if (
-        schema.get("schema_version") != SCHEMA_VERSION
-        or schema.get("validator_version") != VALIDATOR_VERSION
-        or schema.get("projection_status")
-        != "derived_reviewed_executable_projection_not_normative"
-    ):
-        raise ValidatorDefect("schema version or derived-projection marker is invalid")
-    binding = load_json_resource(binding_path, "governance binding")
-    governance, governance_diagnostics = governance_evidence(workspace_root, binding)
-    fields, parse_diagnostics = extract_fields(text)
-    validator = PromptValidator(schema, contexts, strict_unknown)
-    validation_diagnostics = validator.run(fields)
-    diagnostics = governance_diagnostics + parse_diagnostics + validation_diagnostics
-    defect = bool(governance_diagnostics)
-    payload = result_payload(
-        prompt_label,
-        prompt_bytes,
-        schema,
-        governance,
-        contexts,
-        diagnostics,
-        defect,
-    )
-    if defect:
-        return payload, 4
-    if payload["error_count"]:
-        return payload, 3
-    return payload, 0
-
-
-def human_output(payload: dict[str, Any]) -> str:
+def human_output(result: dict[str, Any]) -> str:
     lines = [
-        f"prompt: {payload['input']['path']}",
-        f"input_sha256: {payload['input']['sha256']}",
-        f"validator_version: {payload['validator_version']}",
-        f"schema_version: {payload['schema_version']}",
-        "governance:",
-        f"  agents_sha256: {payload['governance'].get('agents_sha256', 'unavailable')}",
-        f"  cpc_sha256: {payload['governance'].get('cpc_sha256', 'unavailable')}",
-        f"  binding_matches: {str(payload['governance'].get('binding_matches', False)).lower()}",
-        "context:",
-        f"  continuation: {payload['context']['continuation']}",
-        f"  evidence_round: {payload['context']['evidence_round']}",
-        f"  user_run_handoff: {payload['context']['user_run_handoff']}",
+        f"input_sha256: {result['input']['sha256']}",
+        f"mechanical_validity: {str(result['mechanical_validity']).lower()}",
+        f"internal_consistency: {str(result['internal_consistency']).lower()}",
+        "governance_completeness: not_assessed",
+        f"errors: {result['error_count']}",
+        f"warnings: {result['warning_count']}",
         "diagnostics:",
     ]
-    for item in payload["diagnostics"]:
-        location = f"line {item['line']}" if item["line"] else "global"
+    for item in result["diagnostics"]:
+        location = f"line {item['line']}" if item["line"] is not None else "input"
+        field = f" {item['field']}" if item["field"] else ""
         lines.append(
-            f"  {item['severity']} {item['id']} {item['field']} ({location}): "
-            f"{item['message']} [{item['governance_locator']}]"
+            f"  {item['severity']} {item['diagnostic_id']} {location}{field}: {item['message']}"
         )
-        lines.append(f"    suggestion: {item['suggestion']}")
-    lines.extend(
-        [
-            "summary:",
-            f"  errors: {payload['error_count']}",
-            f"  warnings: {payload['warning_count']}",
-            f"  valid_schema: {str(payload['valid_schema']).lower()}",
-        ]
-    )
     return "\n".join(lines)
 
 
+def write_exclusive(path: Path, content: str) -> None:
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(content)
+
+
 def build_parser() -> argparse.ArgumentParser:
+    skill_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(
-        description="Validate a correction-lib Codex prompt without executing it."
+        description="Mechanically lint a prompt without assessing governance completeness."
     )
-    parser.add_argument("--workspace-root", type=Path)
-    parser.add_argument("--schema", type=Path)
-    parser.add_argument("--governance-binding", type=Path)
-    parser.add_argument("--continuation", choices=CONTEXT_VALUES, default="unknown")
-    parser.add_argument("--evidence-round", choices=CONTEXT_VALUES, default="unknown")
-    parser.add_argument("--user-run-handoff", choices=CONTEXT_VALUES, default="unknown")
-    parser.add_argument("--strict-unknown", action="store_true")
+    parser.add_argument(
+        "--schema",
+        type=Path,
+        default=skill_root / "references" / "prompt_schema.json",
+    )
     parser.add_argument("--format", choices=("human", "json"), default="human")
     parser.add_argument("--json-out", type=Path)
-    parser.add_argument("prompt")
+    parser.add_argument("prompt", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    script_root = Path(__file__).resolve().parents[1]
-    schema_path = (args.schema or script_root / "references/prompt_schema.json").resolve()
-    binding_path = (
-        args.governance_binding
-        or script_root / "references/governance_binding.json"
-    ).resolve()
     try:
-        workspace_root = (
-            args.workspace_root.resolve()
-            if args.workspace_root
-            else discover_workspace(Path.cwd())
-        )
-        if args.prompt == "-":
-            prompt_bytes = sys.stdin.buffer.read()
-            prompt_label = "stdin"
-        else:
-            prompt_path = Path(args.prompt)
-            prompt_bytes = prompt_path.read_bytes()
-            prompt_label = str(prompt_path)
-        contexts = {
-            "continuation": args.continuation,
-            "evidence_round": args.evidence_round,
-            "user_run_handoff": args.user_run_handoff,
+        load_schema(args.schema)
+        content = args.prompt.read_bytes()
+        result = validate_content(content, args.prompt)
+        exit_code = 0 if result["error_count"] == 0 else 3
+    except (OSError, ValueError) as exc:
+        result = {
+            "producer": {"name": "correction-lib-prompt-contract", "version": VALIDATOR_VERSION},
+            "input": {"path": str(args.prompt), "sha256": None, "size_bytes": None},
+            "capabilities": {},
+            "mechanical_validity": False,
+            "internal_consistency": False,
+            "governance_completeness": "not_assessed",
+            "governance_completeness_not_assessed": True,
+            "error_count": 1,
+            "warning_count": 0,
+            "diagnostics": [diagnostic("INPUT001", str(exc))],
         }
-        payload, exit_code = validate_content(
-            prompt_label,
-            prompt_bytes,
-            workspace_root,
-            schema_path,
-            binding_path,
-            contexts,
-            args.strict_unknown,
-        )
-        json_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-        if args.json_out:
-            args.json_out.write_text(json_text, encoding="utf-8")
-        if args.format == "json":
-            sys.stdout.write(json_text)
-        else:
-            sys.stdout.write(human_output(payload) + "\n")
-        return exit_code
-    except (OSError, InputFailure) as exc:
-        print(f"input_error: {exc}", file=sys.stderr)
-        return 2
-    except ValidatorDefect as exc:
-        diagnostic = Diagnostic(
-            "GOV002",
-            "error",
-            "governance_version_mismatch",
-            "schema_or_binding",
-            0,
-            str(exc),
-            "AGENTS.md section 0; CPC.md section 0",
-            "Stop and repair the reviewed derived resources in an authorized round.",
-        )
-        payload = result_payload(
-            args.prompt,
-            b"",
-            {"schema_version": SCHEMA_VERSION},
-            {"binding_matches": False},
-            {
-                "continuation": args.continuation,
-                "evidence_round": args.evidence_round,
-                "user_run_handoff": args.user_run_handoff,
-            },
-            [diagnostic],
-            True,
-        )
-        if args.format == "json":
-            sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        else:
-            sys.stdout.write(human_output(payload) + "\n")
-        return 4
+        exit_code = 2
+
+    serialized = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if args.json_out:
+        try:
+            write_exclusive(args.json_out, serialized)
+        except OSError as exc:
+            print(f"output_error: {exc}", file=sys.stderr)
+            return 4
+    if args.format == "json":
+        sys.stdout.write(serialized)
+    else:
+        sys.stdout.write(human_output(result) + "\n")
+    return exit_code
 
 
 if __name__ == "__main__":

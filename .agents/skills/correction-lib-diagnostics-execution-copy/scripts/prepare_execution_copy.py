@@ -41,7 +41,6 @@ DIAGNOSTIC_ORDER = [
     "SECRET001", "SECRET002", "SECRET003",
     "PROVENANCE001", "PROVENANCE002",
     "EXECUTION001",
-    "GOVERNANCE001", "GOVERNANCE002",
     "RENDER001", "RENDER002",
 ]
 DIAGNOSTIC_INDEX = {value: index for index, value in enumerate(DIAGNOSTIC_ORDER)}
@@ -130,29 +129,6 @@ class CopyError(Exception):
         self.summary = summary or {}
 
 
-def workspace_root() -> Path:
-    return Path(__file__).resolve().parents[4]
-
-
-def verify_governance(binding_path: Path) -> Dict[str, Any]:
-    try:
-        binding = json.loads(binding_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CopyError(4, [make_diag("GOVERNANCE002", f"Governance binding is invalid: {exc}", field="governance_binding")])
-    required = {"binding_version", "schema_version", "renderer_version", "agents_path", "agents_sha256", "cpc_path", "cpc_sha256"}
-    if not required.issubset(binding) or binding.get("schema_version") != SCHEMA_VERSION or binding.get("renderer_version") != RENDERER_VERSION:
-        raise CopyError(4, [make_diag("GOVERNANCE002", "Governance binding metadata is incomplete or inconsistent.", field="governance_binding")])
-    root = workspace_root()
-    try:
-        agents_hash = sha256_bytes((root / binding["agents_path"]).read_bytes())
-        cpc_hash = sha256_bytes((root / binding["cpc_path"]).read_bytes())
-    except OSError as exc:
-        raise CopyError(4, [make_diag("GOVERNANCE002", f"Governance source cannot be read: {exc}", field="governance_binding")])
-    if agents_hash != binding["agents_sha256"] or cpc_hash != binding["cpc_sha256"]:
-        raise CopyError(4, [make_diag("GOVERNANCE001", "Governance binding does not match complete live AGENTS.md and CPC.md bytes.", field="governance_binding")])
-    return {"agents_sha256": agents_hash, "cpc_sha256": cpc_hash}
-
-
 def _find_forbidden_key(value: Any, prefix: str = "") -> Optional[Tuple[str, str]]:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -228,7 +204,7 @@ def validate_manifest_shape(manifest: Any) -> Tuple[List[Dict[str, Any]], Dict[O
         diags.append(make_diag("PROVENANCE001", "The required provenance policy must be enabled exactly.", field="provenance"))
     boundary = manifest["execution_boundary"]
     expected_boundary = {
-        "copy_preparation_authorized": True,
+        "copy_requested": True,
         "execution_not_authorized": True,
         "render_execution_command": False,
     }
@@ -793,7 +769,7 @@ def _resolved_manifest(manifest: Dict[str, Any], prepared: Sequence[Dict[str, An
     return resolved
 
 
-def _provenance(manifest: Dict[str, Any], prepared: Sequence[Dict[str, Any]], manifest_hash: str, governance: Dict[str, Any], timestamp: str, warnings: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+def _provenance(manifest: Dict[str, Any], prepared: Sequence[Dict[str, Any]], manifest_hash: str, timestamp: str, warnings: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     records = []
     for item in prepared:
         entry = item["entry"]
@@ -824,7 +800,6 @@ def _provenance(manifest: Dict[str, Any], prepared: Sequence[Dict[str, Any]], ma
         "renderer_version": RENDERER_VERSION,
         "schema_version": SCHEMA_VERSION,
         "manifest_hash": manifest_hash,
-        "governance": governance,
         "warnings": list(warnings),
         "entries": records,
         "execution_not_authorized": True,
@@ -835,7 +810,6 @@ def materialize(
     manifest: Dict[str, Any],
     prepared: Sequence[Dict[str, Any]],
     destination_fd: int,
-    governance: Dict[str, Any],
     warnings: Sequence[Dict[str, Any]],
 ) -> Dict[str, Any]:
     nonce = secrets.token_hex(6)
@@ -853,7 +827,7 @@ def materialize(
         staging_created = True
         staging_fd = os.open(staging_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=destination_fd)
         resolved = _resolved_manifest(manifest, prepared, manifest_hash)
-        provenance = _provenance(manifest, prepared, manifest_hash, governance, timestamp, warnings)
+        provenance = _provenance(manifest, prepared, manifest_hash, timestamp, warnings)
         generated: Dict[str, bytes] = {
             "copy_manifest.resolved.json": json.dumps(resolved, indent=2, sort_keys=True).encode("utf-8") + b"\n",
             "copy_inventory.csv": _inventory_bytes(prepared),
@@ -881,7 +855,7 @@ def materialize(
             "valid_schema": True,
             "materialization_requested": True,
             "materialization_completed": True,
-            "copy_preparation_authorized": True,
+            "copy_requested": True,
             "copy_materialization_completed": True,
             "execution_not_authorized": True,
             "error_count": 0,
@@ -1014,7 +988,7 @@ def _preserve_incomplete(destination_fd: int, staging_name: str, incomplete_name
                 "valid_schema": True,
                 "materialization_requested": True,
                 "materialization_completed": False,
-                "copy_preparation_authorized": True,
+                "copy_requested": True,
                 "copy_materialization_completed": False,
                 "execution_not_authorized": True,
                 "error_count": sum(bool(d["blocking"]) for d in diagnostics),
@@ -1044,8 +1018,7 @@ def _preserve_incomplete(destination_fd: int, staging_name: str, incomplete_name
         return str(Path(manifest["destination_root"]) / staging_name)
 
 
-def validate_and_prepare(manifest_path: Path, binding_path: Path, validate_only: bool) -> Dict[str, Any]:
-    governance = verify_governance(binding_path)
+def validate_and_prepare(manifest_path: Path, validate_only: bool) -> Dict[str, Any]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -1070,7 +1043,7 @@ def validate_and_prepare(manifest_path: Path, binding_path: Path, validate_only:
             "valid_schema": True,
             "materialization_requested": False,
             "materialization_completed": False,
-            "copy_preparation_authorized": True,
+            "copy_requested": True,
             "copy_materialization_completed": False,
             "execution_not_authorized": True,
             "error_count": 0,
@@ -1081,7 +1054,7 @@ def validate_and_prepare(manifest_path: Path, binding_path: Path, validate_only:
             "incomplete_root": None,
         }
     try:
-        return materialize(manifest, prepared, destination_fd, governance, warnings)
+        return materialize(manifest, prepared, destination_fd, warnings)
     finally:
         if destination_fd >= 0:
             os.close(destination_fd)
@@ -1105,7 +1078,6 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description="Validate or materialize a bounded diagnostics copy without executing copied files.")
     skill_root = Path(__file__).resolve().parents[1]
     result.add_argument("--schema", type=Path, default=skill_root / "references" / "copy_schema.json")
-    result.add_argument("--governance-binding", type=Path, default=skill_root / "references" / "governance_binding.json")
     result.add_argument("--format", choices=("human", "json"), default="human")
     result.add_argument("--json-out", type=Path)
     result.add_argument("--validate-only", action="store_true")
@@ -1120,11 +1092,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         schema = json.loads(args.schema.read_text(encoding="utf-8"))
         if (
             schema.get("schema_version") != SCHEMA_VERSION
-            or schema.get("renderer_version") != "1.0.0"
+            or schema.get("renderer_version") != RENDERER_VERSION
             or schema.get("manifest_version") != MANIFEST_VERSION
         ):
             raise CopyError(2, [_type_error("--schema", "Schema version metadata is invalid.")])
-        summary = validate_and_prepare(args.manifest, args.governance_binding, args.validate_only)
+        summary = validate_and_prepare(args.manifest, args.validate_only)
         diagnostics = summary.get("diagnostics", [])
         exit_code = 0
     except CopyError as exc:
@@ -1133,7 +1105,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "valid_schema": exc.exit_code not in {2, 4},
             "materialization_requested": not args.validate_only,
             "materialization_completed": False,
-            "copy_preparation_authorized": True,
+            "copy_requested": True,
             "copy_materialization_completed": False,
             "execution_not_authorized": True,
             "error_count": sum(diag["blocking"] for diag in diagnostics),
@@ -1149,7 +1121,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "valid_schema": False,
             "materialization_requested": not args.validate_only,
             "materialization_completed": False,
-            "copy_preparation_authorized": True,
+            "copy_requested": True,
             "copy_materialization_completed": False,
             "execution_not_authorized": True,
             "error_count": 1,

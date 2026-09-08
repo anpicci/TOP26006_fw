@@ -1,296 +1,36 @@
 {
-  "schema_version": "1.1.0",
-  "validator_version": "1.1.0",
-  "projection_status": "derived_reviewed_executable_projection_not_normative",
-  "normative_sources": [
-    "AGENTS.md",
-    "CPC.md"
-  ],
-  "common_required_fields": [
-    "prompt_id",
-    "short_title",
-    "prompt_mode",
-    "preferred_codex_model",
-    "reasoning_level",
-    "delegation_policy",
-    "model_selection_rationale",
-    "workspace_root",
-    "repo_locations",
-    "allowed_to_modify",
-    "read_only",
-    "branch_policy",
-    "current_checked_out_branch",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "current_baseline_branch",
-    "comparison_baseline",
-    "integrated_baseline_mode",
-    "dirty_worktree_policy",
-    "preflight_profile",
-    "preflight_scope_paths",
-    "validation_ceiling",
-    "heavy_command_permissions",
-    "source_control_policy",
-    "do_not_commit",
-    "commit_expected",
-    "commit_message_policy",
-    "goal",
-    "decision_question",
-    "out_of_scope",
-    "report_path",
-    "patch_path",
-    "patch_kind_expected",
-    "final_chat_deliverable"
-  ],
-  "closed_vocabularies": {
-    "prompt_mode": [
-      "investigation_only",
-      "coding",
-      "validation_only",
-      "test_alignment_only",
-      "documentation_only",
-      "commit_preparation",
-      "pr_preparation",
-      "integration_only",
-      "branch_maintenance_only",
-      "orchestrated_workflow",
-      "pr_publication",
-      "production_execution"
-    ],
-    "branch_policy": [
-      "create_feature_branch_from_reference",
-      "continue_existing_branch",
-      "read_only_current_branch",
-      "commit_preparation_on_existing_branch"
-    ],
-    "dirty_worktree_policy": [
-      "require_clean_worktree",
-      "work_on_dirty_branch_as_is",
-      "allow_declared_preexisting_changes",
-      "commit_preparation_existing_changes"
-    ],
-    "preflight_profile": [
-      "compact_preflight",
-      "expanded_preflight"
-    ],
-    "validation_ceiling": [
-      "static_inspection_only",
-      "lightweight_import_or_cli_probe",
-      "targeted_unit_test",
-      "workflow_dry_run_or_config_validation",
-      "production_execution"
-    ],
-    "preferred_codex_model": [
-      "gpt-5.6-luna",
-      "gpt-5.6-terra",
-      "gpt-5.6-sol",
-      "explicit_fallback"
-    ],
-    "reasoning_level": [
-      "low",
-      "medium",
-      "high",
-      "xhigh",
-      "max"
-    ],
-    "delegation_policy": [
-      "forbidden",
-      "allowed",
-      "required"
-    ],
-    "patch_kind_expected": [
-      "prompt_local",
-      "cumulative",
-      "touched_file_cumulative",
-      "empty_no_changes"
-    ],
-    "publication_action": [
-      "create_or_reuse_open_pr_or_mr",
-      "synchronize_declared_remote_branch",
-      "normalize_declared_post_squash_staging_ref",
-      "merge_existing_pr_or_mr"
-    ]
+  "schema_version": "2.0.0",
+  "validator_version": "2.0.0",
+  "scope": "mechanical_prompt_lint_result",
+  "governance_completeness": "not_assessed",
+  "input_contract": {
+    "encoding": "strict_utf8",
+    "maximum_bytes": 2097152,
+    "field_name_pattern": "^[a-z][a-z0-9_]*$",
+    "unknown_field_policy": "accept"
   },
-  "branch_contract_forms": [
-    "scalar",
-    "repository_scoped"
-  ],
-  "repository_key_source": "repo_locations top-level children",
-  "repository_scoped_branch_fields": [
-    "branch_policy",
-    "current_checked_out_branch",
-    "reference_branch",
-    "target_branch",
-    "feature_branch",
-    "current_baseline_branch"
-  ],
-  "conditional_rules": {
-    "continuation_fields": [
-      "accepted_prior_evidence",
-      "unresolved_checks_only",
-      "checks_not_to_repeat"
-    ],
-    "evidence_round_fields": [
-      "evidence_requirements",
-      "classification_rules",
-      "anti_self_certification_rules",
-      "evidence_validation_method"
-    ],
-    "publication_common_fields": [
-      "publication_action",
-      "publication_platform",
-      "publication_repository",
-      "publication_remote",
-      "expected_local_head",
-      "network_access",
-      "remote_git_write",
-      "pr_or_mr_write",
-      "pr_or_mr_merge",
-      "remote_branch_deletion",
-      "force_push_allowed",
-      "merge_allowed"
-    ],
-    "create_or_reuse_fields": [
-      "publication_base_branch",
-      "publication_feature_branch",
-      "duplicate_pr_or_mr_policy",
-      "draft_allowed"
-    ],
-    "synchronize_remote_branch_fields": [
-      "publication_local_branch",
-      "publication_remote_branch",
-      "publication_remote_tracking_ref"
-    ],
-    "normalization_fields": [
-      "exact_remote_ref",
-      "exact_observed_old_sha",
-      "exact_target_sha",
-      "verified_local_archive_ref",
-      "verified_remote_archive_ref_when_remote_history_is_being_rewritten",
-      "archive_reachability",
-      "normalization_identity_basis",
-      "force_with_lease_argument",
-      "generic_force",
-      "lease_refresh_after_unexplained_remote_movement",
-      "post_write_remote_readback",
-      "final_expected_identity_readback",
-      "explicit_user_authorization_for_the_exact_ref_rewrite"
-    ],
-    "merge_fields": [
-      "pr_or_mr_number_or_url",
-      "merge_method"
-    ],
-    "integration_fields": [
-      "integration_source_branch",
-      "integration_target_branch",
-      "integration_method",
-      "expected_source_head",
-      "local_branch_deletion"
-    ],
-    "non_fast_forward_integration_fields": [
-      "resulting_local_commit_behavior",
-      "user_override_locator"
-    ],
-    "branch_maintenance_fields": [
-      "branch_maintenance_action",
-      "affected_local_branches",
-      "expected_preserved_head",
-      "preservation_ref",
-      "reference_restore_source",
-      "non_fast_forward_ref_move_authorized",
-      "local_branch_deletion"
-    ],
-    "orchestrated_workflow_fields": [
-      "workflow_goal",
-      "workflow_stages",
-      "workflow_stop_policy",
-      "workflow_stage_ledger_path"
-    ],
-    "production_fields": [
-      "execution_owner",
-      "intended_output_paths",
-      "overwrite_or_resume_policy",
-      "interruption_retry_policy"
-    ],
-    "user_handoff_fields": [
-      "codex_validated_configuration",
-      "user_executed_command",
-      "user_supplied_runtime_evidence",
-      "codex_post_run_interpretation"
-    ]
-  },
-  "cross_field_rules": [
-    "commit_flags_are_logical_opposites",
-    "branch_values_match_branch_policy",
-    "repository_branch_keys_match_repo_locations",
-    "repository_branch_values_are_validated_independently",
-    "remote_writes_require_network",
-    "permissions_are_independent",
-    "conditional_groups_are_complete",
-    "publication_action_matches_authorization",
-    "orchestrated_workflow_uses_structured_stage_contracts_not_workflow_graph",
-    "normalization_force_is_action_specific_exact_lease_only",
-    "production_owner_matches_handoff_contract",
-    "unknown_fields_never_authorize",
-    "desired_verdict_is_not_expected_evidence"
+  "capabilities": [
+    "bounded_prompt_parsing",
+    "duplicate_field_detection",
+    "placeholder_detection",
+    "mapping_and_fence_structure_checks",
+    "supplied_value_normalization",
+    "internal_consistency",
+    "mechanical_validity"
   ],
   "diagnostic_ids": {
-    "PARSE001": "invalid_fence_or_mapping",
+    "INPUT001": "unreadable_or_unsupported_input",
+    "PARSE001": "unclosed_fence",
     "PARSE002": "duplicate_field",
-    "PARSE003": "unsupported_mapping_construct",
-    "REQ001": "missing_common_field",
-    "VOC001": "invalid_closed_vocabulary",
-    "MODE001": "missing_mode_specific_field",
-    "MODE050": "forbidden_mode_specific_field",
-    "XFLD001": "conflicting_duplicate_semantics",
-    "AUTH001": "capability_without_required_authorization",
-    "AUTH002": "remote_write_without_network",
-    "AUTH003": "implied_permission_detected",
-    "BRANCH001": "missing_applicable_branch_value",
-    "BRANCH002": "forbidden_branch_value_present",
-    "COMMIT001": "do_not_commit_conflicts_with_commit_expected",
-    "COMMIT002": "mode_commit_contract_conflict",
-    "CONT001": "partial_continuation_contract",
-    "CONT002": "continuation_context_unknown",
-    "EVID001": "partial_or_invalid_evidence_contract",
-    "EVID002": "evidence_context_unknown",
-    "PUB001": "incomplete_publication_contract",
-    "PUB002": "publication_action_conflict",
-    "PUB003": "merge_authorization_conflict",
-    "ORCH001": "orchestration_contract_inconsistency",
-    "PROD001": "incomplete_production_contract",
-    "PROD002": "incomplete_user_handoff_contract",
-    "PROD003": "overwrite_or_resume_policy_missing",
-    "GOV001": "governance_hash_mismatch",
-    "GOV002": "schema_binding_malformed",
-    "WARN001": "unknown_field",
-    "WARN002": "suspected_field_typo",
-    "WARN003": "conditional_context_unknown",
-    "WARN004": "semantic_review_not_performed",
-    "WARN005": "unlabeled_structured_fence",
-    "OK000": "valid_schema"
-  },
-  "governance_locators": {
-    "common_required_fields": "CPC.md section 4",
-    "closed_vocabularies": "AGENTS.md sections 6-8, 13, and 17; CPC.md sections 5-7",
-    "authorization": "AGENTS.md sections 3 and 11; CPC.md section 12",
-    "continuation": "CPC.md sections 4 and 9",
-    "evidence": "CPC.md sections 4 and 10",
-    "publication": "AGENTS.md sections 6, 11, 12, and 23; CPC.md section 12",
-    "production": "AGENTS.md sections 6 and 18; CPC.md section 4",
-    "governance_binding": "AGENTS.md section 0; CPC.md section 0"
-  },
-  "unknown_field_policy": {
-    "default": "warning",
-    "strict_unknown": "error",
-    "protected_field_typo": "error",
-    "task_specific_and_x_namespaces": "warning_and_never_authorizing"
+    "PLACEHOLDER001": "unresolved_token",
+    "CONSISTENCY001": "commit_state_contradiction",
+    "CONSISTENCY002": "execution_state_contradiction",
+    "CONSISTENCY003": "materialization_state_contradiction"
   },
   "exit_codes": {
-    "valid_with_or_without_warnings": 0,
-    "cli_or_input_error": 2,
-    "prompt_error": 3,
-    "schema_or_governance_error": 4
+    "mechanically_valid_and_internally_consistent": 0,
+    "cli_input_or_local_schema_error": 2,
+    "prompt_mechanical_or_consistency_error": 3,
+    "output_collision_or_write_error": 4
   }
 }

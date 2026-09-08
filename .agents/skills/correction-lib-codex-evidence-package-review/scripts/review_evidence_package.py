@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic, inert evidence-package reviewer (version 1.1.0)."""
+"""Deterministic, inert evidence-package reviewer (version 1.1.1)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from typing import NamedTuple
 import zipfile
 import zlib
 
-REVIEWER_VERSION = "1.1.0"
+REVIEWER_VERSION = "1.1.1"
 SCHEMA_VERSION = "1.1.0"
 MANIFEST_VERSION = "1.0.0"
 HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100}
@@ -35,7 +35,7 @@ FINDING_STATUSES = ("confirmed_new", "confirmed_preexisting", "resolved_by_corre
 VERDICTS = ("accepted", "accepted_with_nonblocking_findings", "corrective_follow_up_required", "blocked_incomplete_package", "blocked_prompt_traceability", "blocked_baseline_mismatch", "blocked_patch_scope", "blocked_validation_evidence", "blocked_declared_gate", "blocked_self_certification", "blocked_review")
 RESERVED_FIELDS = frozenset(("execute", "execution", "run", "test_command", "command", "commands", "argv", "shell", "callback", "python", "source_code", "code", "plugin", "template", "activate", "activation", "invoke", "chain", "apply", "patch_apply", "fix", "autofix", "overwrite", "cleanup", "retry", "resume", "submit", "network", "github_action"))
 OUTPUT_NAMES = ("review_manifest.resolved.json", "package_inventory.csv", "review_findings.csv", "review_validation.json", "review_report.md", "review_plan.json")
-DIAGNOSTIC_IDS = tuple("""PACKAGE001 PACKAGE002 PACKAGE003 PACKAGE004 ARCHIVE001 ARCHIVE002 ARCHIVE003 ARCHIVE004 ARCHIVE005 ARCHIVE006 ARCHIVE007 ARCHIVE008 PATH001 PATH002 PATH003 PATH004 HASH001 HASH002 HASH003 SCHEMA001 SCHEMA002 SCHEMA003 PROMPT001 PROMPT002 PROMPT003 BASELINE001 BASELINE002 BASELINE003 PATCH001 PATCH002 PATCH003 PATCH004 SCOPE001 SCOPE002 SCOPE003 SCOPE004 ARTIFACT001 ARTIFACT002 ARTIFACT003 EVIDENCE001 EVIDENCE002 EVIDENCE003 GATE001 GATE002 GATE003 GATE004 TEST001 TEST002 TEST003 PROBE001 PROBE002 CONTRADICTION001 CONTRADICTION002 CONTRADICTION003 CONTRADICTION004 SELF_CERTIFICATION001 SELF_CERTIFICATION002 SELF_CERTIFICATION003 GOVERNANCE001 GOVERNANCE002 VERDICT001 VERDICT002 VERDICT003 RENDER001 RENDER002""".split())
+DIAGNOSTIC_IDS = tuple("""PACKAGE001 PACKAGE002 PACKAGE003 PACKAGE004 ARCHIVE001 ARCHIVE002 ARCHIVE003 ARCHIVE004 ARCHIVE005 ARCHIVE006 ARCHIVE007 ARCHIVE008 PATH001 PATH002 PATH003 PATH004 HASH001 HASH002 HASH003 SCHEMA001 SCHEMA002 SCHEMA003 PROMPT001 PROMPT002 PROMPT003 BASELINE001 BASELINE002 BASELINE003 PATCH001 PATCH002 PATCH003 PATCH004 SCOPE001 SCOPE002 SCOPE003 SCOPE004 ARTIFACT001 ARTIFACT002 ARTIFACT003 EVIDENCE001 EVIDENCE002 EVIDENCE003 GATE001 GATE002 GATE003 GATE004 TEST001 TEST002 TEST003 PROBE001 PROBE002 CONTRADICTION001 CONTRADICTION002 CONTRADICTION003 CONTRADICTION004 SELF_CERTIFICATION001 SELF_CERTIFICATION002 SELF_CERTIFICATION003 VERDICT001 VERDICT002 VERDICT003 RENDER001 RENDER002""".split())
 NONBLOCKING_DIAGNOSTICS = {"EVIDENCE003": ("warning", False), "TEST003": ("warning", False), "VERDICT001": ("info", False)}
 SUPPORTED_SCHEMA_KEYWORDS = frozenset({
     "$schema", "$id", "$defs", "$ref", "title", "description", "type",
@@ -179,13 +179,6 @@ def validate_artifact_set(declared_paths, actual_paths, required_paths):
 
 def validate_identity(observed,expected,artifact=False,path=""):
     if observed!=expected: raise ReviewError("HASH002" if artifact else "HASH001","artifact identity mismatch" if artifact else "package identity mismatch",path=path)
-
-def validate_governance_binding(binding,workspace):
-    for key,name in (("agents_sha256","AGENTS.md"),("cpc_sha256","CPC.md")):
-        bound=binding.get(key) or binding.get("governance",{}).get(key)
-        if not bound: raise ReviewError("GOVERNANCE001",f"binding missing {key}")
-        if sha256_bytes(read_bytes(workspace/name))!=bound: raise ReviewError("GOVERNANCE002",f"live {name} hash differs")
-    return True
 
 def _descriptor_open(name, flags, parent_fd, diagnostic_id="PATH004"):
     try: return os.open(name, flags | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent_fd)
@@ -529,19 +522,10 @@ def collect_findings(parsed, finding_policy):
     return findings
 
 def check_prompt_traceability(record):
-    prompt_path=Path(record["path"]); validation_path=Path(record["prompt_contract_validation_path"])
-    if not prompt_path.is_absolute() or not validation_path.is_absolute(): raise ReviewError("PROMPT001","prompt paths must be absolute")
-    prompt_data=read_bytes(prompt_path); validation_data=read_bytes(validation_path)
+    prompt_path=Path(record["path"])
+    if not prompt_path.is_absolute(): raise ReviewError("PROMPT001","prompt path must be absolute")
+    prompt_data=read_bytes(prompt_path)
     if sha256_bytes(prompt_data)!=record["sha256"]: raise ReviewError("PROMPT001","authorizing prompt hash mismatch")
-    if sha256_bytes(validation_data)!=record["prompt_contract_validation_sha256"]: raise ReviewError("PROMPT002","prompt validation artifact hash mismatch")
-    validation=strict_json(strict_text(validation_data,"PROMPT002"),"PROMPT002")
-    if validation.get("input",{}).get("sha256")!=record["sha256"] or validation.get("error_count")!=0 or validation.get("valid_schema") is not True: raise ReviewError("PROMPT002","prompt-contract result is invalid or mismatched")
-    required_context={"continuation","evidence_round","user_run_handoff"}
-    if set(validation.get("context",{}))!=required_context or validation.get("validator_version")!="1.1.0" or validation.get("schema_version")!="1.1.0": raise ReviewError("PROMPT002","prompt-contract context or version mismatch")
-    governance=validation.get("governance",{})
-    if governance.get("binding_matches") is not True: raise ReviewError("PROMPT002","prompt-contract governance binding was stale")
-    workspace=Path(__file__).resolve().parents[4]
-    if governance.get("agents_sha256")!=sha256_bytes(read_bytes(workspace/"AGENTS.md")) or governance.get("cpc_sha256")!=sha256_bytes(read_bytes(workspace/"CPC.md")): raise ReviewError("PROMPT002","prompt-contract governance hashes disagree with live bytes")
     text=strict_text(prompt_data,"PROMPT001")
     exact_scalars={"prompt_id":record["expected_prompt_id"],"prompt_mode":record["expected_prompt_mode"],"validation_ceiling":record["expected_validation_ceiling"],"patch_kind_expected":record["expected_patch_kind"]}
     for key,expected in exact_scalars.items():
@@ -556,6 +540,21 @@ def check_prompt_traceability(record):
         if expected not in text: raise ReviewError("PROMPT003","expected allowed path absent")
     for expected in record["expected_forbidden_actions"]:
         if re.search(rf"(?m)^\s*{re.escape(expected)}:\s*no\s*$",text) is None and expected not in text: raise ReviewError("PROMPT003","expected forbidden action absent")
+    helper_keys={"prompt_helper_result_path","prompt_helper_result_sha256","required_helper_capabilities"}
+    present=helper_keys.intersection(record)
+    if not present:
+        return {"helper_result_supplied":False,"required_helper_capabilities":[]}
+    if present!=helper_keys: raise ReviewError("PROMPT002","prompt helper traceability fields are incomplete")
+    validation_path=Path(record["prompt_helper_result_path"])
+    if not validation_path.is_absolute(): raise ReviewError("PROMPT002","prompt helper result path must be absolute")
+    validation_data=read_bytes(validation_path)
+    if sha256_bytes(validation_data)!=record["prompt_helper_result_sha256"]: raise ReviewError("PROMPT002","prompt helper result artifact hash mismatch")
+    validation=strict_json(strict_text(validation_data,"PROMPT002"),"PROMPT002")
+    if validation.get("input",{}).get("sha256")!=record["sha256"]: raise ReviewError("PROMPT002","prompt helper input identity mismatch")
+    capabilities=validation.get("capabilities",{})
+    required=record["required_helper_capabilities"]
+    if not isinstance(capabilities,dict) or any(capabilities.get(name) is not True for name in required):
+        raise ReviewError("PROMPT002","prompt helper lacks a required consumed capability")
     return validation
 
 class RepositoryObservation(NamedTuple):
@@ -743,10 +742,8 @@ def validate_verdict_precedence(claimed, derived):
 def verdict_for_error(error):
     return derive_verdict([diagnostics_record(error)],[])
 
-def review(manifest_path: Path, schema_path: Path, binding_path: Path, output_root: Path|None, validate_only=False):
+def review(manifest_path: Path, schema_path: Path, output_root: Path|None, validate_only=False):
     manifest=strict_json(strict_text(read_bytes(manifest_path),"SCHEMA001"),"SCHEMA001"); schema=strict_json(strict_text(read_bytes(schema_path),"SCHEMA001"),"SCHEMA001"); schema_keywords(schema); reject_reserved(manifest); validate_carrier_shape(manifest); schema_validate(manifest,schema,schema); unique_manifest_ids(manifest); validate_cross_records(manifest)
-    binding=strict_json(strict_text(read_bytes(binding_path),"GOVERNANCE001"),"GOVERNANCE001"); workspace=Path(__file__).resolve().parents[4]
-    validate_governance_binding(binding,workspace)
     check_prompt_traceability(manifest["authorizing_prompt"])
     limits={key:min(manifest["limits"][key],value) for key,value in HARD_LIMITS.items()}
     package=manifest["package"]; carrier=Path(package["carrier_path"]); root=normalize_relative(package["package_root"])
@@ -900,11 +897,11 @@ def publish_outputs(output_root,manifest,rows,result):
 
 def parser():
     base=Path(__file__).resolve().parents[1]
-    p=argparse.ArgumentParser(); p.add_argument("--schema",type=Path,default=base/"references/review_schema.json"); p.add_argument("--governance-binding",type=Path,default=base/"references/governance_binding.json"); p.add_argument("--format",choices=("human","json"),default="human"); p.add_argument("--json-out",type=Path); p.add_argument("--validate-only",action="store_true"); p.add_argument("--output-root",type=Path); p.add_argument("REVIEW_MANIFEST",type=Path); return p
+    p=argparse.ArgumentParser(); p.add_argument("--schema",type=Path,default=base/"references/review_schema.json"); p.add_argument("--format",choices=("human","json"),default="human"); p.add_argument("--json-out",type=Path); p.add_argument("--validate-only",action="store_true"); p.add_argument("--output-root",type=Path); p.add_argument("REVIEW_MANIFEST",type=Path); return p
 def main(argv=None):
     args=parser().parse_args(argv)
-    try: result=review(args.REVIEW_MANIFEST,args.schema,args.governance_binding,args.output_root,args.validate_only); code=0 if result["verdict"] in ("accepted","accepted_with_nonblocking_findings") else 6
-    except ReviewError as exc: result={"reviewer_version":REVIEWER_VERSION,"verdict":verdict_for_error(exc),"diagnostics":[diagnostics_record(exc)]}; code=4 if exc.diagnostic_id.startswith("GOVERNANCE") else 5 if exc.diagnostic_id.startswith("RENDER") else 2 if exc.diagnostic_id.startswith("SCHEMA") else 3
+    try: result=review(args.REVIEW_MANIFEST,args.schema,args.output_root,args.validate_only); code=0 if result["verdict"] in ("accepted","accepted_with_nonblocking_findings") else 6
+    except ReviewError as exc: result={"reviewer_version":REVIEWER_VERSION,"verdict":verdict_for_error(exc),"diagnostics":[diagnostics_record(exc)]}; code=5 if exc.diagnostic_id.startswith("RENDER") else 2 if exc.diagnostic_id.startswith("SCHEMA") else 3
     rendered=json.dumps(result,indent=2,sort_keys=True)+"\n" if args.format=="json" else "\n".join([f"reviewer_verdict: {result['verdict']}"]+[f"{d['diagnostic_id']}: {d['message']}" for d in result.get("diagnostics",[])])+"\n"
     sys.stdout.write(rendered)
     if args.json_out:

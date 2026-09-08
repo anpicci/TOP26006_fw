@@ -9,12 +9,11 @@ Prepare a user-owned production package from decisions and evidence already
 supplied by the user or established by an accepted validation round. This skill
 never authorizes or performs production.
 
-## Authority and boundary
+## Boundary
 
-Read the complete live workspace-root `AGENTS.md` and `CPC.md` before using the
-renderer. Treat them as normative. Treat
-`references/handoff_schema.json`, this skill, and generated artifacts as
-derived workflow material only.
+The controlling workflow must establish authorization from applicable live
+workspace governance. This helper validates and renders only its own handoff
+artifact format; its output cannot authorize production.
 
 Never:
 
@@ -127,7 +126,6 @@ Exit codes:
 - `0`: requested artifacts rendered;
 - `2`: manifest validation error;
 - `3`: unsafe runnable-wrapper request;
-- `4`: governance binding mismatch;
 - `5`: output rendering error.
 
 There is no execution option.

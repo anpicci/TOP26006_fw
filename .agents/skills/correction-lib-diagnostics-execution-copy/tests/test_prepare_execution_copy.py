@@ -48,16 +48,12 @@ class CopyTests(unittest.TestCase):
             "limits": {"max_entries": 64, "max_file_bytes": 16777216, "max_total_bytes": 67108864},
             "secret_policy": {"mode": "block_documented_matches_no_redaction", "additional_forbidden_path_components": []},
             "provenance": {"record_git_when_available": True, "require_working_tree_sha256": True, "require_source_mode": True},
-            "execution_boundary": {"copy_preparation_authorized": True, "execution_not_authorized": True, "render_execution_command": False},
+            "execution_boundary": {"copy_requested": True, "execution_not_authorized": True, "render_execution_command": False},
         }
 
-    def execute(self, manifest, validate=False, binding=None):
+    def execute(self, manifest, validate=False):
         self.manifest_file.write_text(json.dumps(manifest))
-        return tool.validate_and_prepare(
-            self.manifest_file,
-            binding or ROOT / "references/governance_binding.json",
-            validate,
-        )
+        return tool.validate_and_prepare(self.manifest_file, validate)
 
     def diag(self, manifest, diagnostic, code=None, validate=True):
         with self.assertRaises(tool.CopyError) as caught:
@@ -69,10 +65,6 @@ class CopyTests(unittest.TestCase):
 
     def test_renderer_version_is_1_0_1(self):
         self.assertEqual(tool.RENDERER_VERSION, "1.0.1")
-        binding = json.loads(
-            (ROOT / "references/governance_binding.json").read_text()
-        )
-        self.assertEqual(binding["renderer_version"], "1.0.1")
 
     def test_schema_and_manifest_versions_remain_1_0_0(self):
         schema = json.loads((ROOT / "references/copy_schema.json").read_text())
@@ -399,14 +391,10 @@ class CopyTests(unittest.TestCase):
             summary = self.execute(self.manifest(expected_source_state="outside_git"), True)
         self.assertEqual(summary["diagnostics"][0]["diagnostic_id"], "PROVENANCE002")
 
-    def test_governance_drift(self):
-        binding = json.loads((ROOT / "references/governance_binding.json").read_text())
-        binding["agents_sha256"] = "0" * 64
-        path = self.base / "binding.json"; path.write_text(json.dumps(binding))
-        self.manifest_file.write_text(json.dumps(self.manifest()))
-        with self.assertRaises(tool.CopyError) as caught:
-            tool.validate_and_prepare(self.manifest_file, path, True)
-        self.assertEqual(caught.exception.exit_code, 4)
+    def test_unrelated_workspace_policy_content_does_not_disable_copy(self):
+        (self.base / "workspace_policy.txt").write_text("changed independently\n")
+        summary = self.execute(self.manifest(), True)
+        self.assertEqual(summary["error_count"], 0)
 
     def test_execution_fields_rejected(self):
         for field in tool.FORBIDDEN_FIELDS:
@@ -416,6 +404,13 @@ class CopyTests(unittest.TestCase):
     def test_cli_surface(self):
         options = {x for action in tool.parser()._actions for x in action.option_strings}
         self.assertTrue(options.isdisjoint({"--execute", "--run", "--submit", "--retry", "--resume", "--overwrite", "--cleanup", "--shell", "--command"}))
+        self.assertNotIn("--governance-" + "binding", options)
+
+    def test_local_safety_failure_is_copy_operation_local(self):
+        error = self.diag(self.manifest(expected_source_sha256="0" * 64), "HASH001", 3)
+        self.assertEqual(error.summary, {})
+        self.assertNotIn("workflow_authorized", error.summary)
+        self.assertNotIn("workflow_revoked", error.summary)
 
     def test_human_json_equivalence(self):
         self.manifest_file.write_text(json.dumps(self.manifest(expected_source_sha256="0" * 64)))

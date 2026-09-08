@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -19,7 +18,6 @@ SCHEMA_VERSION = "1.0.0"
 EXIT_OK = 0
 EXIT_VALIDATION = 2
 EXIT_UNSAFE = 3
-EXIT_GOVERNANCE = 4
 EXIT_RENDER = 5
 COMMAND_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -56,82 +54,11 @@ def sort_diagnostics(items: list[dict[str, str]]) -> list[dict[str, str]]:
     return sorted(items, key=lambda item: (item["path"], item["id"], item["message"]))
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def load_json(path: Path, label: str) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"{label}: {exc}") from exc
-
-
-def validate_governance(binding_path: Path) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
-    try:
-        binding = load_json(binding_path, "governance binding")
-    except ValueError as exc:
-        return None, [diagnostic("GOV001", "$", str(exc))]
-    if not isinstance(binding, dict):
-        return None, [diagnostic("GOV001", "$", "governance binding must be an object")]
-    required = {
-        "binding_version",
-        "schema_version",
-        "renderer_version",
-        "workspace_root",
-        "agents_path",
-        "agents_sha256",
-        "cpc_path",
-        "cpc_sha256",
-    }
-    missing = sorted(required - set(binding))
-    if missing:
-        return binding, [
-            diagnostic("GOV001", "$", f"governance binding missing: {', '.join(missing)}")
-        ]
-    if (
-        binding["schema_version"] != SCHEMA_VERSION
-        or binding["renderer_version"] != RENDERER_VERSION
-    ):
-        return binding, [
-            diagnostic("GOV001", "$", "governance binding version mismatch")
-        ]
-    workspace_value = binding["workspace_root"]
-    if not isinstance(workspace_value, str) or not Path(workspace_value).is_absolute():
-        return binding, [
-            diagnostic("GOV001", "$.workspace_root", "must be an absolute path")
-        ]
-    workspace_root = Path(workspace_value)
-    checks = (
-        ("AGENTS.md", binding["agents_path"], binding["agents_sha256"]),
-        ("CPC.md", binding["cpc_path"], binding["cpc_sha256"]),
-    )
-    diagnostics: list[dict[str, str]] = []
-    for label, relative_path, expected_hash in checks:
-        if not isinstance(relative_path, str) or not isinstance(expected_hash, str):
-            diagnostics.append(
-                diagnostic("GOV001", label, "binding path and hash must be strings")
-            )
-            continue
-        governed_path = workspace_root / relative_path
-        try:
-            observed_hash = sha256_file(governed_path)
-        except OSError as exc:
-            diagnostics.append(diagnostic("GOV001", label, f"cannot hash: {exc}"))
-            continue
-        if observed_hash != expected_hash:
-            diagnostics.append(
-                diagnostic(
-                    "GOV001",
-                    label,
-                    f"governance drift: expected {expected_hash}, observed {observed_hash}",
-                )
-            )
-    return binding, sort_diagnostics(diagnostics)
 
 
 def require_mapping(
@@ -1243,7 +1170,6 @@ def build_parser() -> argparse.ArgumentParser:
         description="Validate and render a non-executing manual production handoff."
     )
     parser.add_argument("--schema", type=Path)
-    parser.add_argument("--governance-binding", type=Path)
     parser.add_argument("--format", choices=("human", "json"), default="human")
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--output-dir", type=Path)
@@ -1263,22 +1189,6 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     skill_root = Path(__file__).resolve().parents[1]
     schema_path = (args.schema or skill_root / "references/handoff_schema.json").resolve()
-    binding_path = (
-        args.governance_binding
-        or skill_root / "references/governance_binding.json"
-    ).resolve()
-    _, governance_diagnostics = validate_governance(binding_path)
-    if governance_diagnostics:
-        payload = result_payload(
-            args.manifest,
-            False,
-            False,
-            args.runbook_only,
-            governance_diagnostics,
-            {},
-        )
-        emit(payload, args.format)
-        return EXIT_GOVERNANCE
     try:
         schema = load_json(schema_path, "schema")
         manifest = load_json(args.manifest, "manifest")
@@ -1293,7 +1203,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         emit(payload, args.format)
         return EXIT_VALIDATION
-    if not isinstance(schema, dict) or schema.get("schema_version") != SCHEMA_VERSION:
+    if (
+        not isinstance(schema, dict)
+        or schema.get("schema_version") != SCHEMA_VERSION
+        or schema.get("renderer_version") != RENDERER_VERSION
+    ):
         payload = result_payload(
             args.manifest,
             False,

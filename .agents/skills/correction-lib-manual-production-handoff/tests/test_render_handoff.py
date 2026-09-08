@@ -15,7 +15,6 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 RENDERER = SKILL_ROOT / "scripts/render_handoff.py"
 VALID = SKILL_ROOT / "tests/fixtures/valid"
 INVALID = SKILL_ROOT / "tests/fixtures/invalid"
-BINDING = SKILL_ROOT / "references/governance_binding.json"
 SCHEMA = SKILL_ROOT / "references/handoff_schema.json"
 TEMPLATE = SKILL_ROOT / "assets/handoff_manifest_template.json"
 
@@ -64,11 +63,9 @@ class RenderHandoffTests(unittest.TestCase):
 
     def test_schema_versions(self) -> None:
         schema = json.loads(SCHEMA.read_text())
-        binding = json.loads(BINDING.read_text())
         template = json.loads(TEMPLATE.read_text())
         self.assertEqual(schema["schema_version"], "1.0.0")
         self.assertEqual(schema["renderer_version"], "1.0.1")
-        self.assertEqual(binding["renderer_version"], "1.0.1")
         self.assertEqual(template["manifest_version"], "1.0.0")
 
     def test_all_valid_fixtures(self) -> None:
@@ -131,17 +128,10 @@ class RenderHandoffTests(unittest.TestCase):
         human_ids = set(re.findall(r"\b[A-Z]+[0-9]{3}\b", human_result.stdout))
         self.assertEqual(ids, human_ids)
 
-    def test_governance_drift_exits_four(self) -> None:
-        binding = json.loads(BINDING.read_text())
-        binding["agents_sha256"] = "0" * 64
-        drifted = self.temp_path / "drifted_binding.json"
-        drifted.write_text(json.dumps(binding))
-        result = self.run_cli(
-            VALID / "caller_managed_no_git_gates.json",
-            extra=["--governance-binding", str(drifted)],
-        )
-        self.assertEqual(result.returncode, 4)
-        self.assertIn("GOV001", result.stdout)
+    def test_unrelated_workspace_policy_content_is_not_an_input(self) -> None:
+        (self.temp_path / "workspace_policy.txt").write_text("changed independently\n")
+        result = self.run_cli(VALID / "caller_managed_no_git_gates.json")
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
 
     def test_cli_has_no_execution_flag(self) -> None:
         result = subprocess.run(
@@ -153,6 +143,7 @@ class RenderHandoffTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertNotIn("--execute", result.stdout)
         self.assertNotIn("--run-wrapper", result.stdout)
+        self.assertNotIn("--governance-" + "binding", result.stdout)
 
     def test_json_out_matches_stdout_payload(self) -> None:
         json_out = self.temp_path / "cli_result.json"

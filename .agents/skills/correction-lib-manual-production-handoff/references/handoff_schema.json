@@ -1,8 +1,7 @@
 {
   "schema_version": "1.0.0",
   "renderer_version": "1.0.1",
-  "projection_status": "derived_workflow_material_not_normative",
-  "normative_sources": ["AGENTS.md", "CPC.md"],
+  "format_scope": "manual_handoff_artifact_contract",
   "required_top_level_fields": [
     "manifest_version",
     "handoff_id",

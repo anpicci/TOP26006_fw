@@ -1204,6 +1204,13 @@ not invent authorization, broaden scope, or become the sole owner of a
 safety-critical rule. Do not create a specialized-agent registry merely to
 record reusable role names.
 
+Project-local capability helpers do not own workflow authorization. A helper's
+failure, staleness, incompatibility, or unavailability is local to the artifact
+or operation that helper owns unless the current explicitly authorized workflow
+requires that exact helper output. A helper failure cannot revoke or block an
+independently authorized underlying activity, and helper output cannot create
+authorization.
+
 ---
 
 ## 11. Command and capability permissions
