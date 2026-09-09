@@ -14,10 +14,11 @@ from pathlib import Path
 from typing import Any
 
 
-VALIDATOR_VERSION = "2.0.0"
-SCHEMA_VERSION = "2.0.0"
+VALIDATOR_VERSION = "2.1.0"
+SCHEMA_VERSION = "2.1.0"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 FIELD_RE = re.compile(r"^([a-z][a-z0-9_]*):(?:[ \t]*(.*))?$")
+MAPPING_FENCE_LABELS = frozenset(("", "text", "yaml", "yml"))
 PLACEHOLDER_PATTERNS = (
     re.compile(r"<[^>\n]+>"),
     re.compile(r"\{\{[^}\n]+\}\}"),
@@ -27,6 +28,16 @@ PLACEHOLDER_PATTERNS = (
 TRUE_VALUES = {"yes", "true"}
 FALSE_VALUES = {"no", "false"}
 NONE_VALUES = {"none", "null", "n/a", "not_applicable"}
+SUPPORTED_CAPABILITIES = {
+    "bounded_prompt_parsing": True,
+    "duplicate_field_detection": True,
+    "placeholder_detection": True,
+    "block_scoped_mapping_parsing": True,
+    "mapping_and_fence_structure_checks": True,
+    "supplied_value_normalization": True,
+    "internal_consistency_check": True,
+    "mechanical_validity_check": True,
+}
 
 
 @dataclass(frozen=True)
@@ -34,6 +45,15 @@ class FieldRecord:
     name: str
     value: str
     line: int
+
+
+@dataclass(frozen=True)
+class MappingBlock:
+    block_index: int
+    fence_label: str
+    start_line: int
+    end_line: int | None
+    fields: dict[str, FieldRecord]
 
 
 def sha256_bytes(content: bytes) -> str:
@@ -69,55 +89,79 @@ def normalize_scalar(value: str) -> Any:
     return normalized
 
 
-def parse_prompt(text: str) -> tuple[dict[str, FieldRecord], list[dict[str, Any]]]:
-    fields: dict[str, FieldRecord] = {}
+def parse_prompt(text: str) -> tuple[list[MappingBlock], list[dict[str, Any]]]:
+    blocks: list[MappingBlock] = []
     diagnostics: list[dict[str, Any]] = []
     in_fence = False
     fence_start = 0
-    active: FieldRecord | None = None
-    continuation: list[str] = []
+    fence_label = ""
+    fence_lines: list[tuple[int, str]] = []
 
-    def finish_active() -> None:
-        nonlocal active, continuation
-        if active is None:
+    def finish_fence(end_line: int | None) -> None:
+        nonlocal fence_lines
+        if fence_label not in MAPPING_FENCE_LABELS:
+            fence_lines = []
             return
-        value = "\n".join([active.value, *continuation]).strip()
-        record = FieldRecord(active.name, value, active.line)
-        if record.name in fields:
-            diagnostics.append(
-                diagnostic(
-                    "PARSE002",
-                    f"duplicate field; first supplied on line {fields[record.name].line}",
-                    line=record.line,
-                    field=record.name,
+        fields: dict[str, FieldRecord] = {}
+        active: FieldRecord | None = None
+        continuation: list[str] = []
+
+        def finish_active() -> None:
+            nonlocal active, continuation
+            if active is None:
+                return
+            value = "\n".join([active.value, *continuation])
+            record = FieldRecord(active.name, value, active.line)
+            if record.name in fields:
+                diagnostics.append(
+                    diagnostic(
+                        "PARSE002",
+                        f"duplicate field in mapping block; first supplied on line {fields[record.name].line}",
+                        line=record.line,
+                        field=record.name,
+                    )
+                )
+            else:
+                fields[record.name] = record
+            active = None
+            continuation = []
+
+        for line_number, line in fence_lines:
+            match = FIELD_RE.fullmatch(line)
+            if match:
+                finish_active()
+                active = FieldRecord(match.group(1), match.group(2) or "", line_number)
+            elif active is not None:
+                continuation.append(line.rstrip())
+        finish_active()
+        if fields:
+            blocks.append(
+                MappingBlock(
+                    block_index=len(blocks) + 1,
+                    fence_label=fence_label,
+                    start_line=fence_start,
+                    end_line=end_line,
+                    fields=fields,
                 )
             )
-        else:
-            fields[record.name] = record
-        active = None
-        continuation = []
+        fence_lines = []
 
     for line_number, line in enumerate(text.splitlines(), 1):
         if line.startswith("```"):
-            finish_active()
             if in_fence:
+                finish_fence(line_number)
                 in_fence = False
             else:
                 in_fence = True
                 fence_start = line_number
+                fence_label = line[3:].strip().lower()
+                fence_lines = []
             continue
-        if not in_fence:
-            continue
-        match = FIELD_RE.fullmatch(line)
-        if match:
-            finish_active()
-            active = FieldRecord(match.group(1), match.group(2) or "", line_number)
-            continue
-        if active is not None:
-            continuation.append(line.rstrip())
+        if in_fence:
+            fence_lines.append((line_number, line))
 
-    finish_active()
     if in_fence:
+        finish_fence(None)
         diagnostics.append(
             diagnostic(
                 "PARSE001",
@@ -125,26 +169,30 @@ def parse_prompt(text: str) -> tuple[dict[str, FieldRecord], list[dict[str, Any]
                 line=fence_start,
             )
         )
-    return fields, diagnostics
+    return blocks, diagnostics
 
 
-def placeholder_diagnostics(text: str) -> list[dict[str, Any]]:
+def placeholder_diagnostics(blocks: list[MappingBlock]) -> list[dict[str, Any]]:
     diagnostics: list[dict[str, Any]] = []
     seen: set[tuple[int, str]] = set()
-    for line_number, line in enumerate(text.splitlines(), 1):
-        for pattern in PLACEHOLDER_PATTERNS:
-            for match in pattern.finditer(line):
-                key = (line_number, match.group(0))
-                if key in seen:
-                    continue
-                seen.add(key)
-                diagnostics.append(
-                    diagnostic(
-                        "PLACEHOLDER001",
-                        f"unresolved token: {match.group(0)}",
-                        line=line_number,
-                    )
-                )
+    for block in blocks:
+        for field in block.fields.values():
+            for offset, line in enumerate(field.value.splitlines() or [""]):
+                line_number = field.line + offset
+                for pattern in PLACEHOLDER_PATTERNS:
+                    for match in pattern.finditer(line):
+                        key = (line_number, match.group(0))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        diagnostics.append(
+                            diagnostic(
+                                "PLACEHOLDER001",
+                                f"unresolved token: {match.group(0)}",
+                                line=line_number,
+                                field=field.name,
+                            )
+                        )
     return diagnostics
 
 
@@ -216,9 +264,13 @@ def validate_content(content: bytes, input_path: Path) -> dict[str, Any]:
     except UnicodeDecodeError as exc:
         raise ValueError(f"prompt is not strict UTF-8: {exc}") from exc
 
-    fields, parse_diagnostics = parse_prompt(text)
-    unresolved = placeholder_diagnostics(text)
-    contradictions = internal_consistency_diagnostics(fields)
+    blocks, parse_diagnostics = parse_prompt(text)
+    unresolved = placeholder_diagnostics(blocks)
+    contradictions = [
+        item
+        for block in blocks
+        for item in internal_consistency_diagnostics(block.fields)
+    ]
     diagnostics = sorted(
         [*parse_diagnostics, *unresolved, *contradictions],
         key=lambda item: (
@@ -253,23 +305,28 @@ def validate_content(content: bytes, input_path: Path) -> dict[str, Any]:
             "sha256": sha256_bytes(content),
             "size_bytes": len(content),
         },
-        "capabilities": {
-            "bounded_prompt_parsing": True,
-            "duplicate_field_detection": True,
-            "placeholder_detection": True,
-            "mapping_and_fence_structure_checks": True,
-            "supplied_value_normalization": True,
-            "internal_consistency": internal_consistency,
+        "capabilities": dict(SUPPORTED_CAPABILITIES),
+        "results": {
             "mechanical_validity": mechanical_validity,
+            "internal_consistency": internal_consistency,
         },
-        "mechanical_validity": mechanical_validity,
-        "internal_consistency": internal_consistency,
         "governance_completeness": "not_assessed",
         "governance_completeness_not_assessed": True,
-        "field_count": len(fields),
-        "normalized_fields": {
-            name: normalize_scalar(record.value) for name, record in sorted(fields.items())
-        },
+        "mapping_block_count": len(blocks),
+        "field_count": sum(len(block.fields) for block in blocks),
+        "mapping_blocks": [
+            {
+                "block_index": block.block_index,
+                "fence_label": block.fence_label,
+                "start_line": block.start_line,
+                "end_line": block.end_line,
+                "normalized_fields": {
+                    name: normalize_scalar(record.value)
+                    for name, record in sorted(block.fields.items())
+                },
+            }
+            for block in blocks
+        ],
         "error_count": sum(item["severity"] == "error" for item in diagnostics),
         "warning_count": sum(item["severity"] == "warning" for item in diagnostics),
         "diagnostics": diagnostics,
@@ -279,8 +336,8 @@ def validate_content(content: bytes, input_path: Path) -> dict[str, Any]:
 def human_output(result: dict[str, Any]) -> str:
     lines = [
         f"input_sha256: {result['input']['sha256']}",
-        f"mechanical_validity: {str(result['mechanical_validity']).lower()}",
-        f"internal_consistency: {str(result['internal_consistency']).lower()}",
+        f"mechanical_validity: {str(result['results']['mechanical_validity']).lower()}",
+        f"internal_consistency: {str(result['results']['internal_consistency']).lower()}",
         "governance_completeness: not_assessed",
         f"errors: {result['error_count']}",
         f"warnings: {result['warning_count']}",
@@ -328,9 +385,8 @@ def main(argv: list[str] | None = None) -> int:
         result = {
             "producer": {"name": "correction-lib-prompt-contract", "version": VALIDATOR_VERSION},
             "input": {"path": str(args.prompt), "sha256": None, "size_bytes": None},
-            "capabilities": {},
-            "mechanical_validity": False,
-            "internal_consistency": False,
+            "capabilities": dict(SUPPORTED_CAPABILITIES),
+            "results": {"mechanical_validity": False, "internal_consistency": False},
             "governance_completeness": "not_assessed",
             "governance_completeness_not_assessed": True,
             "error_count": 1,

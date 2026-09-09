@@ -22,7 +22,7 @@ SPEC.loader.exec_module(reviewer)
 
 class ContractTests(unittest.TestCase):
     def test_closed_counts(self):
-        self.assertEqual(reviewer.REVIEWER_VERSION, "1.1.1")
+        self.assertEqual(reviewer.REVIEWER_VERSION, "1.2.0")
         self.assertEqual(len(reviewer.DIAGNOSTIC_IDS), 63)
         self.assertEqual(len({item.rstrip("0123456789") for item in reviewer.DIAGNOSTIC_IDS}), 18)
         self.assertEqual(len(reviewer.PATCH_KINDS), 4)
@@ -52,6 +52,11 @@ class ContractTests(unittest.TestCase):
             {"prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes"},
         )
         self.assertEqual(set(reviewer.PATCH_KINDS), set(schema["$defs"]["patch_kind"]["enum"]))
+        helper_results = schema["$defs"]["authorizing_prompt"]["properties"]["required_helper_results"]
+        self.assertEqual(
+            set(helper_results["properties"]), {"mechanical_validity", "internal_consistency"}
+        )
+        self.assertNotIn("prompt_helper_result_path", schema["$defs"]["authorizing_prompt"]["required"])
 
     def test_recursive_additional_property(self):
         schema = json.loads((SKILL_ROOT / "references" / "review_schema.json").read_text())
@@ -395,17 +400,49 @@ class ExtendedContractTests(unittest.TestCase):
             root=Path(temporary); prompt=root/"prompt.md"; validation=root/"validation.json"
             prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
             prompt_hash=reviewer.sha256_bytes(prompt.read_bytes())
-            payload={"input":{"sha256":prompt_hash},"producer":{"name":"compatible-helper","version":"9.7.3"},"capabilities":{"mechanical_validity":True,"internal_consistency":True},"unknown_future_field":{"accepted":True}}
+            payload={"input":{"sha256":prompt_hash},"producer":{"name":"compatible-helper","version":"9.7.3"},"capabilities":{"mechanical_validity_check":True,"internal_consistency_check":True},"results":{"mechanical_validity":True,"internal_consistency":False},"unknown_future_field":{"accepted":True}}
             validation.write_text(json.dumps(payload))
             record={"path":str(prompt),"sha256":prompt_hash,"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
             with mock.patch("subprocess.run",side_effect=AssertionError("prompt validator invoked")):
                 self.assertFalse(reviewer.check_prompt_traceability(record)["helper_result_supplied"])
-            record.update({"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity","internal_consistency"]})
+            record.update({"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity_check","internal_consistency_check"]})
             self.assertEqual(reviewer.check_prompt_traceability(record)["producer"]["version"],"9.7.3")
+            record["required_helper_results"]={"internal_consistency":True}
+            with self.assertRaisesRegex(reviewer.ReviewError,"result is unsatisfied") as caught:
+                reviewer.check_prompt_traceability(record)
+            self.assertEqual(caught.exception.diagnostic_id,"PROMPT002")
+            record["required_helper_results"]={"internal_consistency":False}
+            self.assertFalse(reviewer.check_prompt_traceability(record)["results"]["internal_consistency"])
             payload["input"]["sha256"]="0"*64; validation.write_text(json.dumps(payload)); record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
             with self.assertRaises(reviewer.ReviewError): reviewer.check_prompt_traceability(record)
-            payload["input"]["sha256"]=prompt_hash; payload["capabilities"].pop("internal_consistency"); validation.write_text(json.dumps(payload)); record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
+            payload["input"]["sha256"]=prompt_hash; payload["capabilities"].pop("internal_consistency_check"); validation.write_text(json.dumps(payload)); record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
             with self.assertRaises(reviewer.ReviewError): reviewer.check_prompt_traceability(record)
+
+    def test_prompt_helper_capability_does_not_imply_result_requirement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); prompt,validation,payload,record=_prompt_case(root)
+            payload["capabilities"]={"internal_consistency_check":True}
+            payload["results"]={"internal_consistency":False}
+            payload["producer"]={"name":"compatible-new-producer","version":"2027.4"}
+            validation.write_text(json.dumps(payload))
+            record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
+            record["required_helper_capabilities"]=["internal_consistency_check"]
+            observed=reviewer.check_prompt_traceability(record)
+            self.assertTrue(observed["capabilities"]["internal_consistency_check"])
+            self.assertFalse(observed["results"]["internal_consistency"])
+
+    def test_prompt_helper_missing_explicit_result_is_distinct_from_capability(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); prompt,validation,payload,record=_prompt_case(root)
+            payload["capabilities"]={"internal_consistency_check":True}
+            payload["results"]={}
+            validation.write_text(json.dumps(payload))
+            record["prompt_helper_result_sha256"]=reviewer.sha256_bytes(validation.read_bytes())
+            record["required_helper_capabilities"]=["internal_consistency_check"]
+            record["required_helper_results"]={"internal_consistency":True}
+            with self.assertRaisesRegex(reviewer.ReviewError,"omits required result") as caught:
+                reviewer.check_prompt_traceability(record)
+            self.assertEqual(caught.exception.diagnostic_id,"PROMPT002")
 
     def test_end_to_end_directory_review_and_generated_artifacts(self):
         workspace=SCRIPT.resolve().parents[4]
@@ -478,9 +515,9 @@ def _prompt_case(root):
     prompt=root/"prompt.md"; validation=root/"validation.json"
     prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
     digest=reviewer.sha256_bytes(prompt.read_bytes())
-    payload={"input":{"sha256":digest},"producer":{"name":"prompt-helper","version":"newer"},"capabilities":{"mechanical_validity":True}}
+    payload={"input":{"sha256":digest},"producer":{"name":"prompt-helper","version":"newer"},"capabilities":{"mechanical_validity_check":True},"results":{"mechanical_validity":True}}
     validation.write_text(json.dumps(payload))
-    record={"path":str(prompt),"sha256":digest,"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity"],"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
+    record={"path":str(prompt),"sha256":digest,"prompt_helper_result_path":str(validation),"prompt_helper_result_sha256":reviewer.sha256_bytes(validation.read_bytes()),"required_helper_capabilities":["mechanical_validity_check"],"expected_prompt_id":"TEST","expected_prompt_mode":"validation_only","expected_commit_policy":{"commit_expected":False,"do_not_commit":True,"expected_subject":None},"expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"],"expected_validation_ceiling":"static_inspection_only","expected_patch_kind":"empty_no_changes"}
     return prompt,validation,payload,record
 
 def _consistent_manifest():

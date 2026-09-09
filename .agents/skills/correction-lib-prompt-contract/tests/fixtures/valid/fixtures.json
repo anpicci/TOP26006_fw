@@ -2,5 +2,13 @@
   {
     "fixture_id": "unknown_future_field",
     "purpose": "Unknown supplied fields remain mechanically lintable without a helper policy catalog."
+  },
+  {
+    "fixture_id": "block_scoped_fields",
+    "purpose": "Repeated local keys in distinct mapping fences remain separately lintable."
+  },
+  {
+    "fixture_id": "non_mapping_placeholder",
+    "purpose": "Example and shell-fence placeholders are outside parsed author-value scope."
   }
 ]

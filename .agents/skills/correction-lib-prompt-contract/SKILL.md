@@ -40,14 +40,17 @@ Do not silently fill missing task decisions or permission values.
 The helper checks only its intrinsic capabilities:
 
 - strict UTF-8 and a bounded input size;
-- fenced-block balance and simple `snake_case` mapping fields;
-- duplicate top-level field names;
-- unresolved placeholder tokens;
+- fenced-block balance and simple `snake_case` mapping fields in unlabeled,
+  `text`, `yaml`, or `yml` fences;
+- duplicate top-level field names within each parsed mapping block;
+- unresolved placeholder tokens in parsed mapping values;
 - normalization of values actually supplied;
 - a small set of contradictions derivable solely from supplied values.
 
 It intentionally does not reject an unknown future field merely because this
-helper does not know it.
+helper does not know it. Repeated local keys in distinct mapping blocks are
+kept separately, and non-mapping fences such as shell examples are not treated
+as prompt-field namespaces.
 
 Run it through the workspace wrapper and pinned interpreter:
 
@@ -71,6 +74,8 @@ Exit codes:
 - `3`: prompt mechanical or supplied-value consistency error;
 - `4`: result output collision or write failure.
 
-Report `mechanical_validity`, `internal_consistency`, and
+The JSON result reports helper support under `capabilities` and observed check
+values under `results`. A supported check may have a false result. Report
+`results.mechanical_validity`, `results.internal_consistency`, and
 `governance_completeness: not_assessed` separately. Do not rename the first two
 as policy validity, readiness, permission, or governance completeness.

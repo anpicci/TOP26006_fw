@@ -1,23 +1,28 @@
 {
-  "schema_version": "2.0.0",
-  "validator_version": "2.0.0",
+  "schema_version": "2.1.0",
+  "validator_version": "2.1.0",
   "scope": "mechanical_prompt_lint_result",
   "governance_completeness": "not_assessed",
   "input_contract": {
     "encoding": "strict_utf8",
     "maximum_bytes": 2097152,
     "field_name_pattern": "^[a-z][a-z0-9_]*$",
-    "unknown_field_policy": "accept"
+    "unknown_field_policy": "accept",
+    "mapping_fence_labels": ["", "text", "yaml", "yml"],
+    "field_scope": "mapping_block",
+    "placeholder_scope": "parsed_mapping_values"
   },
   "capabilities": [
     "bounded_prompt_parsing",
     "duplicate_field_detection",
     "placeholder_detection",
+    "block_scoped_mapping_parsing",
     "mapping_and_fence_structure_checks",
     "supplied_value_normalization",
-    "internal_consistency",
-    "mechanical_validity"
+    "internal_consistency_check",
+    "mechanical_validity_check"
   ],
+  "result_fields": ["mechanical_validity", "internal_consistency"],
   "diagnostic_ids": {
     "INPUT001": "unreadable_or_unsupported_input",
     "PARSE001": "unclosed_fence",

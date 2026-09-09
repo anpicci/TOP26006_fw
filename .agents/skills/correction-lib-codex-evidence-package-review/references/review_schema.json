@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://correction-lib.local/schemas/codex-evidence-package-review/1.1.0",
+  "$id": "https://correction-lib.local/schemas/codex-evidence-package-review/1.2.0",
   "title": "Correction-lib Codex evidence-package review manifest",
-  "description": "Schema projection 1.1.0 for the 1.0.0 external reviewer-owned manifest. Validation authorizes no execution.",
+  "description": "Schema projection 1.2.0 for the 1.0.0 external reviewer-owned manifest. Validation authorizes no execution.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -102,6 +102,14 @@
         "required_helper_capabilities": {
           "type": "array",
           "items": {"$ref": "#/$defs/snake_id"}
+        },
+        "required_helper_results": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mechanical_validity": {"type": "boolean"},
+            "internal_consistency": {"type": "boolean"}
+          }
         },
         "expected_prompt_id": {"type": "string", "minLength": 1, "maxLength": 96},
         "expected_prompt_mode": {"type": "string", "minLength": 1, "maxLength": 96},

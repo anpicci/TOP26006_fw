@@ -29,3 +29,6 @@ read_only: <supply_exact_scope>
 The author must replace all placeholders and add current governance-required
 branch, validation, permission, source-control, evidence, and reporting values
 directly from the live authority before dispatch.
+
+Additional mapping blocks may reuse local keys when they describe separate
+objects or stages; each block is linted independently.

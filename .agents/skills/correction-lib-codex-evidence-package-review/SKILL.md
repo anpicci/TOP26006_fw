@@ -33,6 +33,7 @@ Select `--validate-only` for read-only validation. Supply `--output-root` only f
 - Keep package-authored verdicts nonauthoritative and derive the reviewer verdict only after all diagnostics, locators, gates, contradictions, and findings are serialized.
 - Stop this review on unsafe paths, unsupported archive features, inconsistent artifacts, unresolved required gates, or output collisions.
 - A prompt-helper result is optional. When supplied, verify its artifact and prompt-input identities and consume only explicitly named capabilities. Treat producer identity and release as provenance, permit unknown producer fields, and do not infer policy validity from the helper.
+- Treat capability support and check outcomes separately. `required_helper_capabilities` asks whether named operations are supported; an optional `required_helper_results` mapping compares only explicitly named outcomes. A false outcome does not make its check capability unsupported.
 - Failure or absence of an optional helper result blocks only a review that explicitly requires its named capability; it does not revoke an independently authorized underlying activity.
 
 ## Finish

@@ -5,6 +5,6 @@
   "scenario_kind": "invalid_prompt_contract_mismatch",
   "expected_verdict": "blocked_prompt_traceability",
   "implementation_priority": "P0",
-  "scenario": "Prompt-contract JSON input hash or metadata differs",
+  "scenario": "Prompt-helper input identity, explicitly required result, or prompt metadata differs",
   "validity": "invalid"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic, inert evidence-package reviewer (version 1.1.1)."""
+"""Deterministic, inert evidence-package reviewer (version 1.2.0)."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from typing import NamedTuple
 import zipfile
 import zlib
 
-REVIEWER_VERSION = "1.1.1"
-SCHEMA_VERSION = "1.1.0"
+REVIEWER_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.2.0"
 MANIFEST_VERSION = "1.0.0"
 HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100}
 PATCH_KINDS = ("prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes")
@@ -541,10 +541,11 @@ def check_prompt_traceability(record):
     for expected in record["expected_forbidden_actions"]:
         if re.search(rf"(?m)^\s*{re.escape(expected)}:\s*no\s*$",text) is None and expected not in text: raise ReviewError("PROMPT003","expected forbidden action absent")
     helper_keys={"prompt_helper_result_path","prompt_helper_result_sha256","required_helper_capabilities"}
-    present=helper_keys.intersection(record)
+    helper_option_keys=helper_keys|{"required_helper_results"}
+    present=helper_option_keys.intersection(record)
     if not present:
-        return {"helper_result_supplied":False,"required_helper_capabilities":[]}
-    if present!=helper_keys: raise ReviewError("PROMPT002","prompt helper traceability fields are incomplete")
+        return {"helper_result_supplied":False,"required_helper_capabilities":[],"required_helper_results":{}}
+    if not helper_keys.issubset(record): raise ReviewError("PROMPT002","prompt helper traceability fields are incomplete")
     validation_path=Path(record["prompt_helper_result_path"])
     if not validation_path.is_absolute(): raise ReviewError("PROMPT002","prompt helper result path must be absolute")
     validation_data=read_bytes(validation_path)
@@ -553,8 +554,17 @@ def check_prompt_traceability(record):
     if validation.get("input",{}).get("sha256")!=record["sha256"]: raise ReviewError("PROMPT002","prompt helper input identity mismatch")
     capabilities=validation.get("capabilities",{})
     required=record["required_helper_capabilities"]
-    if not isinstance(capabilities,dict) or any(capabilities.get(name) is not True for name in required):
+    if not isinstance(required,list) or not isinstance(capabilities,dict) or any(capabilities.get(name) is not True for name in required):
         raise ReviewError("PROMPT002","prompt helper lacks a required consumed capability")
+    results=validation.get("results",{})
+    required_results=record.get("required_helper_results",{})
+    if not isinstance(results,dict) or not isinstance(required_results,dict):
+        raise ReviewError("PROMPT002","prompt helper results are not a mapping")
+    for name,expected in required_results.items():
+        if name not in results:
+            raise ReviewError("PROMPT002",f"prompt helper omits required result: {name}")
+        if results[name] is not expected:
+            raise ReviewError("PROMPT002",f"prompt helper result is unsatisfied: {name}")
     return validation
 
 class RepositoryObservation(NamedTuple):

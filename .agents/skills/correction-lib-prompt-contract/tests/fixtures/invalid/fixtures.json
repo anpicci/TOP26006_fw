@@ -5,6 +5,6 @@
   },
   {
     "fixture_id": "unresolved_placeholder",
-    "purpose": "Mechanical placeholder behavior is covered directly by test_validate_prompt.py."
+    "purpose": "Unresolved placeholders in parsed mapping values are covered directly by test_validate_prompt.py."
   }
 ]

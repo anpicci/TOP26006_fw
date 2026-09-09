@@ -28,6 +28,8 @@ class PromptLintTests(unittest.TestCase):
         self.assertEqual(schema["schema_version"], helper.SCHEMA_VERSION)
         self.assertEqual(schema["validator_version"], helper.VALIDATOR_VERSION)
         self.assertEqual(schema["governance_completeness"], "not_assessed")
+        self.assertEqual(set(schema["capabilities"]), set(helper.SUPPORTED_CAPABILITIES))
+        self.assertEqual(set(schema["result_fields"]), {"mechanical_validity", "internal_consistency"})
 
     def test_unknown_future_field_is_accepted(self) -> None:
         content = prompt(
@@ -37,9 +39,12 @@ class PromptLintTests(unittest.TestCase):
             "future_workspace_capability: newly_defined_value",
         )
         result = helper.validate_content(content, Path("prompt.md"))
-        self.assertTrue(result["mechanical_validity"])
-        self.assertTrue(result["internal_consistency"])
-        self.assertEqual(result["normalized_fields"]["future_workspace_capability"], "newly_defined_value")
+        self.assertTrue(result["results"]["mechanical_validity"])
+        self.assertTrue(result["results"]["internal_consistency"])
+        self.assertEqual(
+            result["mapping_blocks"][0]["normalized_fields"]["future_workspace_capability"],
+            "newly_defined_value",
+        )
         self.assertEqual(result["governance_completeness"], "not_assessed")
         self.assertTrue(result["governance_completeness_not_assessed"])
 
@@ -51,20 +56,39 @@ class PromptLintTests(unittest.TestCase):
             unrelated.write_text("version one\n")
             unrelated.write_text("version two with unrelated changes\n")
             second = helper.validate_content(content, Path("second.md"))
-        self.assertEqual(first["mechanical_validity"], second["mechanical_validity"])
-        self.assertEqual(first["internal_consistency"], second["internal_consistency"])
+        self.assertEqual(first["results"], second["results"])
         self.assertNotIn("governance", first["capabilities"])
+
+    def test_repeated_local_field_is_allowed_across_mapping_blocks(self) -> None:
+        content = b"""# Prompt
+```text
+stage_id: inspect
+unknown_future_field: first
+```
+```yaml
+stage_id: validate
+unknown_future_field: second
+```
+"""
+        result = helper.validate_content(content, Path("prompt.md"))
+        self.assertTrue(result["results"]["mechanical_validity"])
+        self.assertEqual(result["mapping_block_count"], 2)
+        self.assertEqual(
+            [block["normalized_fields"]["stage_id"] for block in result["mapping_blocks"]],
+            ["inspect", "validate"],
+        )
+        self.assertNotIn("PARSE002", [item["diagnostic_id"] for item in result["diagnostics"]])
 
     def test_duplicate_field_is_rejected_deterministically(self) -> None:
         content = prompt("prompt_id: first", "prompt_id: second")
         result = helper.validate_content(content, Path("prompt.md"))
-        self.assertFalse(result["mechanical_validity"])
+        self.assertFalse(result["results"]["mechanical_validity"])
         self.assertEqual([item["diagnostic_id"] for item in result["diagnostics"]], ["PARSE002"])
 
     def test_unclosed_fence_and_placeholder_are_reported(self) -> None:
         content = b"# Prompt\n```text\nprompt_id: <supply_id>\n"
         result = helper.validate_content(content, Path("prompt.md"))
-        self.assertFalse(result["mechanical_validity"])
+        self.assertFalse(result["results"]["mechanical_validity"])
         self.assertEqual(
             {item["diagnostic_id"] for item in result["diagnostics"]},
             {"PARSE001", "PLACEHOLDER001"},
@@ -73,11 +97,46 @@ class PromptLintTests(unittest.TestCase):
     def test_supplied_commit_values_are_normalized_and_checked(self) -> None:
         content = prompt("commit_expected: YES", "do_not_commit: true")
         result = helper.validate_content(content, Path("prompt.md"))
-        self.assertTrue(result["mechanical_validity"])
-        self.assertFalse(result["internal_consistency"])
-        self.assertEqual(result["normalized_fields"]["commit_expected"], True)
-        self.assertEqual(result["normalized_fields"]["do_not_commit"], True)
+        self.assertTrue(result["results"]["mechanical_validity"])
+        self.assertFalse(result["results"]["internal_consistency"])
+        self.assertEqual(result["mapping_blocks"][0]["normalized_fields"]["commit_expected"], True)
+        self.assertEqual(result["mapping_blocks"][0]["normalized_fields"]["do_not_commit"], True)
         self.assertEqual(result["diagnostics"][0]["diagnostic_id"], "CONSISTENCY001")
+        self.assertTrue(result["capabilities"]["internal_consistency_check"])
+        self.assertTrue(result["capabilities"]["mechanical_validity_check"])
+
+    def test_non_mapping_fence_placeholder_is_ignored(self) -> None:
+        content = b"""# Retrieval example
+```bash
+FOLD=/tmp/<actual_prompt_directory>/
+scp host:${FOLD} .
+```
+```example
+display: <illustrative_value>
+```
+```text
+prompt_id: concrete
+```
+"""
+        result = helper.validate_content(content, Path("prompt.md"))
+        self.assertTrue(result["results"]["mechanical_validity"])
+        self.assertNotIn(
+            "PLACEHOLDER001", [item["diagnostic_id"] for item in result["diagnostics"]]
+        )
+
+    def test_representative_multiblock_fixtures_lint(self) -> None:
+        fixture_root = SKILL_ROOT / "tests" / "fixtures" / "valid"
+        for name in ("repository_scoped_skills002_style.md", "runcr008_corrected.md"):
+            with self.subTest(name=name):
+                result = helper.validate_content((fixture_root / name).read_bytes(), Path(name))
+                self.assertTrue(result["results"]["mechanical_validity"])
+                self.assertTrue(result["results"]["internal_consistency"])
+
+    def test_mapping_value_placeholder_is_rejected(self) -> None:
+        result = helper.validate_content(prompt("prompt_id: <supply_id>"), Path("prompt.md"))
+        self.assertFalse(result["results"]["mechanical_validity"])
+        self.assertEqual(result["diagnostics"][0]["diagnostic_id"], "PLACEHOLDER001")
+        self.assertEqual(result["diagnostics"][0]["field"], "prompt_id")
 
     def test_execution_and_materialization_contradictions(self) -> None:
         content = prompt(
@@ -104,7 +163,8 @@ class PromptLintTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         payload = json.loads(result.stdout)
-        self.assertTrue(payload["mechanical_validity"])
+        self.assertTrue(payload["results"]["mechanical_validity"])
+        self.assertTrue(payload["capabilities"]["mechanical_validity_check"])
         self.assertEqual(payload["governance_completeness"], "not_assessed")
         help_result = subprocess.run(
             [sys.executable, str(SCRIPT), "--help"],

@@ -8,3 +8,9 @@ execution_not_authorized: true
 ```
 
 This inert fixture contains no claim about completeness under external policy.
+
+```bash
+FOLD=/tmp/<actual_prompt_directory>/
+```
+
+The shell example is not an author-supplied mapping namespace.
