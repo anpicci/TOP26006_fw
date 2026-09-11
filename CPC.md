@@ -1117,8 +1117,9 @@ Do not reuse the non-force synchronization action for this rewrite.
 
 ### 12.1 glados Git-over-SSH rule
 
-For Git-over-SSH from Codex on glados, require direct Git commands executed
-from the target repository working directory using:
+For Git-over-SSH from Codex on glados, require direct Git commands that select
+the exact prompt-authorized repository with either its native process working
+directory or `git -C <exact_prompt_authorized_repository_path>`, using:
 
 ```bash
 git \
@@ -1129,10 +1130,18 @@ git \
 This bypasses only the sandbox-rejected system SSH configuration for the
 current command.
 
+For `gh` or `glab`, permit the native repository working directory, an explicit
+repository selector such as `--repo <owner/repository>`, or an explicit
+repository-qualified API/resource endpoint when supported. Require the prompt
+or stage to authorize the exact repository and action independently; command
+location and repository-selection syntax are execution context, not proof of
+authorization, identity, or publication correctness, and must not widen
+writable scope. Require repository-identity readback when it is
+decision-material.
+
 Do not request:
 
 ```text
-git -C for publication commands
 nested shells
 login shells
 env wrappers
@@ -1171,6 +1180,7 @@ Canonical exact-branch fetch when explicitly authorized:
 
 ```bash
 git \
+  -C <exact_prompt_authorized_repository_path> \
   -c core.sshCommand='/usr/bin/ssh -F /dev/null' \
   fetch \
   <remote> \

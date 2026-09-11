@@ -235,8 +235,16 @@ command substitutions that hide the external operation
 combined control-flow blocks
 ```
 
-Use the command working directory to select the repository rather than a
-`cd ... && ...` wrapper.
+Repository selection is execution context, not authorization. For `git`, use
+either the native process working directory at the exact prompt-authorized
+repository or `git -C <exact_prompt_authorized_repository_path> ...`; do not
+use a `cd ... && ...` wrapper. For `gh` or `glab`, use either the native
+repository working directory, an explicit repository selector such as
+`--repo <owner/repository>`, or an explicit repository-qualified API/resource
+endpoint when supported. The prompt or stage must independently authorize the
+exact repository and action. Repository-selection syntax does not prove
+identity or authorization and must not widen writable scope; read back
+repository identity when it is decision-material.
 
 ---
 
@@ -1324,8 +1332,10 @@ configuration with remapped ownership. OpenSSH therefore rejects:
 
 even though the host file has correct ownership and permissions.
 
-For Git-over-SSH commands executed by Codex on glados, run from the target
-repository working directory and use the command-scoped override:
+For Git-over-SSH commands executed by Codex on glados, select the exact
+prompt-authorized repository with either its native process working directory
+or `git -C <exact_prompt_authorized_repository_path>`, and use the
+command-scoped override:
 
 ```bash
 git \
@@ -1358,6 +1368,7 @@ Canonical exact-branch fetch when explicitly authorized:
 
 ```bash
 git \
+  -C <exact_prompt_authorized_repository_path> \
   -c core.sshCommand='/usr/bin/ssh -F /dev/null' \
   fetch \
   <remote> \
@@ -1377,8 +1388,15 @@ git \
 Rules:
 
 * Execute Git, `gh`, and `glab` network operations as separate direct commands.
-* Use the command working directory rather than `git -C` for publication
-  commands so the canonical approval rule remains matchable.
+* Native process working directory and `git -C <exact_prompt_authorized_repository_path>`
+  are both valid Git repository-selection mechanisms. For `gh` or `glab`,
+  native repository working directory, an explicit repository selector, and an
+  explicit repository-qualified API/resource endpoint are valid when supported.
+  Command location and repository-selection syntax are execution context, not
+  proof of authorization, repository identity, or publication correctness.
+* The prompt or stage must independently authorize the exact repository and
+  action. Repository selection must not widen writable scope, and
+  decision-material repository identity requires readback.
 * Use the override for `ls-remote`, fetch, and push.
 * Never use `--force`. Use `--force-with-lease` only for the explicitly
   authorized `normalize_declared_post_squash_staging_ref` action and only in
