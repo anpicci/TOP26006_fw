@@ -244,6 +244,14 @@ duplicate_pr_or_mr_policy
 draft_allowed
 ```
 
+For this action, permit `remote_git_write: no` only for a fail-closed
+already-synchronized path that requires the fresh advertised remote feature
+HEAD to equal `expected_local_head`; require a stop before mutation if it does
+not. Permit `remote_git_write: yes` only when explicit user authorization
+covers one possible normal non-force explicit-refspec feature-branch push. In
+either case, require `remote_branch_already_synchronized` and no push when the
+fresh advertised remote feature HEAD already equals `expected_local_head`.
+
 For `publication_action: synchronize_declared_remote_branch`, additionally
 state:
 
@@ -1066,7 +1074,7 @@ A `create_or_reuse_open_pr_or_mr` round must declare:
 
 ```text
 network_access: yes
-remote_git_write: yes
+remote_git_write: <yes_or_no; conditional source-ref synchronization>
 pr_or_mr_write: yes
 pr_or_mr_merge: no
 remote_branch_deletion: no
@@ -1074,6 +1082,12 @@ force_push_allowed: no
 merge_allowed: no
 draft_allowed: no
 ```
+
+Require the prompt to query the fresh advertised remote feature HEAD and
+compare it with `expected_local_head`: if equal, skip the push and continue
+publication validation; if different and `remote_git_write: yes`, perform the
+exact normal non-force explicit-refspec push and then read the remote feature
+HEAD back; if different and `remote_git_write: no`, stop before mutation.
 
 A `synchronize_declared_remote_branch` round must declare the conditional
 branch-only fields from section 4 and use:
@@ -1134,9 +1148,10 @@ system SSH permission or ownership changes
 Require the action-specific AGENTS.md publication sequence in the prompt.
 Encode each network operation as a separate direct command. For PR/MR creation,
 require exact local branch/HEAD and tracked/index checks, live base and
-feature-head readback, duplicate-PR/MR checks before and after push, and final
-PR/MR metadata readback. For branch-only synchronization, require exact local
-and remote refs, expected local HEAD, the predeclared topology rule, and fresh
+feature-head readback, duplicate-PR/MR checks before and after conditional
+source-ref synchronization, and final PR/MR metadata readback. For branch-only
+synchronization, require exact local and remote refs, expected local HEAD, the
+predeclared topology rule, and fresh
 exact live-remote readback after fetch, push, or no action; also require local
 remote-tracking-ref readback after fetch. Stop on divergence, ambiguous commit
 ownership, or any merge-versus-rebase choice. Retain only the following concise
@@ -1206,8 +1221,8 @@ feature branch
 ```
 
 When a match exists, do not create another PR/MR. Read it back and report it.
-Repeat the duplicate check after push and before creation to guard against a
-race.
+Repeat the duplicate check after source-ref synchronization and before creation
+to guard against a race.
 
 Classify failures precisely:
 
@@ -1371,6 +1386,12 @@ duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one
 draft_allowed: no
 pr_or_mr_write: yes
 ```
+
+Require `remote_git_write: no` only for a fail-closed already-synchronized
+path and `yes` only for one explicitly user-authorized possible normal
+non-force explicit-refspec push. Require fresh advertised remote feature-head
+comparison: equal means skip the push; mismatch with `yes` means push then read
+back; mismatch with `no` means stop before mutation.
 
 For `publication_action: synchronize_declared_remote_branch`, instead append:
 

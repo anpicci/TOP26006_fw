@@ -616,13 +616,22 @@ Required permissions for `create_or_reuse_open_pr_or_mr`:
 
 ```text
 network_access: yes
-remote_git_write: yes
+remote_git_write: <yes_or_no; conditional source-ref synchronization>
 pr_or_mr_write: yes
 pr_or_mr_merge: no
 remote_branch_deletion: no
 force_push_allowed: no
 merge_allowed: no
 ```
+
+For this action, `remote_git_write: no` is valid only when the prompt requires
+the advertised remote feature HEAD to already equal `expected_local_head`; if
+the fresh advertised remote feature HEAD differs, stop before remote mutation.
+Set `remote_git_write: yes` only when the prompt and explicit user
+authorization allow at most one normal non-force explicit-refspec feature-branch
+push when that fresh remote feature HEAD differs. In either case, when the
+fresh advertised remote feature HEAD already equals `expected_local_head`,
+classify `remote_branch_already_synchronized` and skip the push.
 
 The action `synchronize_declared_remote_branch` owns one explicitly declared
 local/remote branch synchronization boundary. It requires:
@@ -746,17 +755,22 @@ PR or MR merge
 
 A `create_or_reuse_open_pr_or_mr` round must:
 
-1. verify local repository, branch, HEAD, and tracked/index state;
+1. verify local repository, branch, HEAD, reviewer material, and tracked/index
+   state;
 2. verify remote identity and repository permission;
 3. query the live remote base;
-4. query for an existing matching open PR/MR;
-5. push with an explicit non-force refspec;
-6. verify the advertised remote feature HEAD;
-7. repeat the duplicate query to handle races;
-8. create at most one non-draft PR/MR when none exists;
-9. query the created or existing PR/MR back;
-10. verify repository, base, head, head commit, title, state, and draft status;
-11. recheck local tracked/index state.
+4. query the live advertised remote feature HEAD;
+5. query for an existing matching open PR/MR;
+6. compare the remote feature HEAD with `expected_local_head`;
+7. if equal, classify `remote_branch_already_synchronized` and do not push;
+   otherwise, if `remote_git_write: yes`, perform exactly one normal non-force
+   explicit-refspec push and freshly verify the advertised remote feature HEAD
+   equals `expected_local_head`; otherwise stop before remote mutation;
+8. repeat the duplicate query to handle races;
+9. create at most one non-draft PR/MR when none exists;
+10. query the created or existing PR/MR back;
+11. verify repository, base, head, head commit, title, state, and draft status;
+12. recheck local tracked/index state.
 
 A `synchronize_declared_remote_branch` round must verify local repository,
 branch/ref, expected HEAD, tracking ref, and tracked/index state; inspect the
@@ -1385,9 +1399,10 @@ repository permission check
 live base resolution
 initial duplicate PR or MR check
 reviewer-material validation
-branch push
+conditional feature-branch push when the fresh remote feature HEAD differs
+and `remote_git_write: yes`
 remote feature HEAD verification
-post-push duplicate check
+post-synchronization duplicate check
 PR or MR creation or update
 PR or MR readback
 final local-state check
@@ -1849,7 +1864,8 @@ Publication validation for `create_or_reuse_open_pr_or_mr` must establish:
 local branch and exact HEAD
 local tracked/index state
 live remote base
-remote feature HEAD after push
+fresh remote feature HEAD equals the exact expected local HEAD
+remote feature synchronization outcome: remote_branch_already_synchronized or pushed_non_force
 duplicate PR/MR state
 PR/MR repository, base, head, head commit, title, state, and draft status
 absence of force push
@@ -2131,6 +2147,7 @@ publication_feature_branch
 expected_local_head
 live_remote_base_head
 remote_feature_head
+remote_feature_sync_outcome
 duplicate_pr_or_mr_checks
 remote_write_commands
 force_push_used
@@ -2143,6 +2160,10 @@ pr_or_mr_head_oid
 merge_performed
 remote_branch_deleted
 ```
+
+For `create_or_reuse_open_pr_or_mr`, `remote_write_commands` may be empty only
+when `remote_feature_sync_outcome` is `remote_branch_already_synchronized` and
+the required fresh remote feature-HEAD readback equals `expected_local_head`.
 
 Reports for `synchronize_declared_remote_branch` instead include:
 
@@ -2422,7 +2443,7 @@ no_production_claim_without_production_execution
 live_remote_base_queried_when_applicable
 glados_ssh_override_used_when_applicable
 network_commands_run_directly
-non_force_explicit_refspec_used
+non_force_explicit_refspec_used_when_push_performed
 duplicate_pr_or_mr_guard_applied
 remote_feature_head_verified
 published_pr_or_mr_read_back
