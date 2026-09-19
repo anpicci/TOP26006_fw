@@ -1100,6 +1100,14 @@ They require a specific reasoning need and a bounded scope or resource
 decision, but no prior failure at a lower tier. They confer no additional
 authority, and a justified future Sol `xhigh` or `max` choice remains allowed.
 
+Choose the appropriate model/reasoning pair directly. Do not require a
+Terra-to-Sol-to-Astra progression, a universal second-model review, or
+consensus seeking. Missing evidence, an ambiguous gate, a qualified warning,
+a short answer, or service rejection does not by itself demonstrate inadequate
+reasoning; address the relevant cause. Availability may justify a manually
+selected alternative under the existing fresh-dispatch rule, not silent
+substitution or a claim of superiority.
+
 Do not use Sol merely because a task is important. Do not compensate for an
 undersized model with excessive reasoning. Reports must distinguish these
 semantic values:
