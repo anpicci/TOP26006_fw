@@ -941,17 +941,28 @@ gpt-6-astra
 ```
 
 Concrete catalog membership is an allowed governance vocabulary, not an
-empirical model ranking. Do not add a task-class routing preference for a model
-until evidence for that preference has been accepted.
+empirical model ranking. The routing guidance below consists of adopted
+operational defaults based on mixed attributed evidence and owner choice. The
+closed pilot produced 6/6 usable reviews for each requested High configuration
+but did not establish a winner, general equivalence, production-critical
+routing qualification, cost or latency claims, or a reason for automatic
+additional benchmarking.
 
-`explicit_fallback` is a control-plane fallback selection and reporting state,
-not a concrete model identity. It is not valid as `preferred_codex_model` for an
-execution-ready dispatch, as `model_profile.model`, or as the value passed to
-`-m`, and it never authorizes automatic runtime model selection. Before a
-fallback execution attempt begins:
+Andrea together with `lane_governance` owns decisions and revisions for these
+general rules. The owning lane's prompt author selects and motivates each
+concrete model/reasoning pair under them. The central control plane receives
+and preserves the rules in checkpoints; it does not author prompts, choose the
+pair, or approve each compliant selection. Codex executes the dispatched
+profile and may report a need to reclassify, but it must not silently switch.
+
+`explicit_fallback` is a fallback selection and reporting state, not a concrete
+model identity. It is not valid as `preferred_codex_model` for an execution-ready
+dispatch, as `model_profile.model`, or as the value passed to `-m`, and it never
+authorizes automatic runtime model selection. Before a fallback execution
+attempt begins:
 
 ```text
-control_plane_or_human:
+owning_lane_prompt_author:
   selects_one_concrete_codex_model_label
 
 new_attempt:
@@ -992,7 +1003,8 @@ model_profile:
 
 Both `preferred_codex_model` and `model_profile.model` must be one of the
 concrete Codex model labels above. A fallback selection state is not
-execution-ready until the control plane or human selects that concrete label.
+execution-ready until the owning lane's prompt author selects that concrete
+label and issues a new explicit dispatch with the relevant owner authorization.
 
 Do not create duplicate persistent model or reasoning fields to restate this
 profile. `delegation_policy` and `codex_cli_mode` remain separate execution
@@ -1046,27 +1058,47 @@ change, reasoning-only change, upward change, or downward change requires:
 
 ```text
 current_execution_attempt: stop
-next_profile: decided_by_control_plane_or_human
+next_profile: selected_by_owning_lane_prompt_author
 continuation: new_dispatch_required
 ```
 
 Automatic self-routing and silent in-attempt profile substitution are
-forbidden. An explicit fallback is a new-attempt outcome only after the control
-plane or human selects its concrete model; `explicit_fallback` may record that
-selection path but is not the attempted model. Stop and report before any
-fallback dispatch.
+forbidden. An explicit fallback is a new-attempt outcome only after the owning
+lane's prompt author selects its concrete model; `explicit_fallback` may record
+that selection path but is not the attempted model. A new model or reasoning
+value, including `high` to `medium`, requires the current attempt to stop and a
+fresh explicit dispatch with the relevant owner authorization. Stop and report
+before any fallback dispatch.
 
-Default guidance:
+Canonical default guidance:
 
-```text
-simple mechanical work:                     luna medium
-narrow read-only evidence extraction:       luna high or terra medium
-structured validation or production:        terra high
-ordinary bounded coding:                    terra high
-ambiguous cross-file or cross-repo coding:  sol high
-physics-policy or difficult architecture:   sol high or xhigh
-deep open-ended archaeology:                sol max
-```
+| Task or decision characteristics | Default |
+|---|---|
+| Mechanical extraction or transformation with a fixed source and format and no new inference | `gpt-5.6-terra` / `medium` when selecting among Terra, Sol, and Astra; existing Luna assignments remain available |
+| Ordinary bounded coding, structured validation or review of complete evidence, and documentation applying an established decision | `gpt-5.6-terra` / `high` |
+| Complex implementation or analysis with interacting components, real alternatives, and tradeoffs | `gpt-5.6-sol` / `high` |
+| The hardest reasoning with competing hypotheses, difficult scientific or technical adjudication, or open-ended adversarial review | `gpt-6-astra` / `high` |
+
+Classify the substantive decision, not the lane label, project importance, or
+file count. Preserve the existing Luna assignments of `gpt-5.6-luna` /
+`medium` for simple mechanical or formatting work and `gpt-5.6-luna` / `high`
+or `gpt-5.6-terra` / `medium` for narrow read-only evidence extraction.
+Executing an already qualified production protocol does not redesign it, and
+profile choice never qualifies or authorizes production or any other campaign.
+
+`medium` is also an explicitly justified downward, low-effort exception to a
+High default for any of Terra, Sol, or Astra where supported. High remains the
+default for substantive rounds. Record the concretely bounded task, directly
+inspectable acceptance criterion, and why the selected pair is appropriate in
+`model_selection_rationale`; retaining Sol or Astra also requires a
+task-specific reason for that model. Serialize `medium`, not `low` or a new
+`low_effort` value. This exception does not relax evidence, correctness,
+permissions, or acceptance criteria.
+
+`xhigh` and `max` are motivated upper exceptions, not automatic assignments.
+They require a specific reasoning need and a bounded scope or resource
+decision, but no prior failure at a lower tier. They confer no additional
+authority, and a justified future Sol `xhigh` or `max` choice remains allowed.
 
 Do not use Sol merely because a task is important. Do not compensate for an
 undersized model with excessive reasoning. Reports must distinguish these

@@ -588,11 +588,16 @@ Declare model, reasoning, and delegation separately. Derive `model_profile`
 from `preferred_codex_model` plus `reasoning_level` as defined by AGENTS.md
 section 8; do not add duplicate profile state or fold `delegation_policy` or
 `codex_cli_mode` into it. The concrete model-label and reasoning vocabularies
-remain owned by AGENTS.md. A prompt is execution-ready only when
-`preferred_codex_model` and the derived `model_profile.model` contain a
-concrete Codex model label. Catalog membership does not establish an empirical
-routing preference, so do not add a default task-class position for
-`gpt-6-astra` without accepted qualification evidence.
+and the canonical routing matrix remain owned by AGENTS.md. Apply that matrix
+to the current round's substantive decision, not its lane label, importance,
+or file count, and explain in `model_selection_rationale` why the selected pair
+fits. A prompt is execution-ready only when `preferred_codex_model` and the
+derived `model_profile.model` contain a concrete Codex model label.
+
+Andrea together with `lane_governance` owns the general policy. The owning
+lane's prompt author selects and motivates each concrete pair. The central
+control plane receives and preserves these rules in checkpoints; it does not
+author prompts, select the pair, or approve each compliant prompt.
 
 For governed Codex CLI dispatch, require invocation-local materialization:
 
@@ -610,17 +615,19 @@ application, service availability, or account availability.
 
 `explicit_fallback` is a selection/reporting state, not an executable
 `preferred_codex_model`, `model_profile.model`, or `-m` value. Before a fallback
-attempt, require the control plane or human to select one concrete label, place
-it in `preferred_codex_model` and the derived profile, and record the fallback
-path through `fallback_or_switch`. Do not add a persistent resolved-model field.
+attempt, require the owning lane's prompt author to select one concrete label,
+place it in `preferred_codex_model` and the derived profile, and record the
+fallback path through `fallback_or_switch`. Do not add a persistent
+resolved-model field.
 
 Construct each dispatch as one immutable `model_profile` execution attempt
 under AGENTS.md section 8. If the executor recommends any upward, downward,
 model, or reasoning-only reclassification, require the current attempt to stop
-and a control-plane or human to dispatch the next profile. Do not construct
-automatic self-routing or silent fallback. Treat `explicit_fallback` as a new
-selection path after stop/report; the new explicit dispatch uses the concrete
-model selected by the control plane or human, not the sentinel.
+and the owning lane's prompt author to issue a fresh explicit dispatch with the
+relevant owner authorization. Do not construct automatic self-routing or silent
+fallback. Treat `explicit_fallback` as a new selection path after stop/report;
+the new explicit dispatch uses the concrete model selected by the prompt author,
+not the sentinel.
 
 Reports and prompts must keep model selection separate from model
 observability. Distinguish `requested_or_dispatched_model`,
@@ -640,39 +647,28 @@ honest requested/dispatched and available reported provenance without making
 unknown runtime identity a universal blocker. An observed mismatch, fallback,
 or switch requires stop and reclassification.
 
-Suggested defaults:
+Use the one canonical default matrix and retained Luna assignments in AGENTS.md
+section 8; do not maintain a second routing table here. Distinguish simple
+formatting from documentation that implements an established substantive
+decision. An explicit deviation uses `model_selection_rationale` and does not
+require central control-plane approval or a new benchmark.
 
-```text
-simple documentation or formatting:
-  gpt-5.6-luna medium
-
-narrow read-only inspection:
-  gpt-5.6-luna high or gpt-5.6-terra medium
-
-structured validation or production:
-  gpt-5.6-terra high
-
-ordinary bounded coding:
-  gpt-5.6-terra high
-
-ambiguous cross-file or cross-repository coding:
-  gpt-5.6-sol high
-
-physics-policy interpretation or difficult architecture:
-  gpt-5.6-sol high or xhigh
-
-deep open-ended archaeology:
-  gpt-5.6-sol max
-```
+For the Medium downward, low-effort exception to a High default, require a
+concretely bounded task, a directly inspectable acceptance criterion, and a
+reason why the chosen pair is appropriate. Retaining Sol or Astra also requires
+a task-specific reason for that model. Serialize `reasoning_level: medium`, not
+`low` or a new alias. For `xhigh` or `max`, require a specific reasoning need
+and a bounded scope or resource decision; do not require a prior lower-tier
+failure. None of these choices changes evidence, correctness, permissions,
+delegation, acceptance criteria, or production authorization.
 
 Rules:
 
 * Do not use Sol merely because a task is important.
 * Do not rely on CLI defaults for serious work.
 * Do not use Luna `max` to compensate for model fit.
-* Use `xhigh` or `max` only when necessary.
 * Preserve scope when recommending fallback; stop and require a new explicit
-  dispatch with a control-plane- or human-selected concrete profile.
+  dispatch with a concrete profile selected by the owning lane's prompt author.
 
 Encode Ultra only when explicitly authorized:
 
