@@ -647,20 +647,22 @@ honest requested/dispatched and available reported provenance without making
 unknown runtime identity a universal blocker. An observed mismatch, fallback,
 or switch requires stop and reclassification.
 
-Use the one canonical default matrix and retained Luna assignments in AGENTS.md
+Use the one canonical default matrix and legacy/fallback conditions in AGENTS.md
 section 8; do not maintain a second routing table here. Distinguish simple
 formatting from documentation that implements an established substantive
 decision. An explicit deviation uses `model_selection_rationale` and does not
 require central control-plane approval or a new benchmark.
 
-For the Medium downward, low-effort exception to a High default, require a
-concretely bounded task, a directly inspectable acceptance criterion, and a
-reason why the chosen pair is appropriate. Retaining Sol or Astra also requires
-a task-specific reason for that model. Serialize `reasoning_level: medium`, not
-`low` or a new alias. For `xhigh` or `max`, require a specific reasoning need
-and a bounded scope or resource decision; do not require a prior lower-tier
-failure. None of these choices changes evidence, correctness, permissions,
-delegation, acceptance criteria, or production authorization.
+Treat `medium` and `high` according to the canonical task tiers in AGENTS.md;
+do not describe every substantive round as requiring `high`. Apply only the
+upper exceptions and their conditions authorized there, including explicit
+exceptional owner/eval-driven selection for Astra `max`. Require a specific
+reasoning need and a bounded scope or resource decision, without a prior
+lower-tier failure. None of these choices changes evidence, correctness,
+permissions, delegation, acceptance criteria, or production authorization.
+Do not construct an automatic model or reasoning ladder. Preserve historical
+benchmark/report labels and require a fresh explicit dispatch with honest
+provenance for any legacy/fallback selection under AGENTS.md.
 
 Rules:
 

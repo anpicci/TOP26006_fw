@@ -934,10 +934,17 @@ model_selection_rationale
 Concrete Codex model labels:
 
 ```text
+gpt-6-luna
+gpt-6-sol
+gpt-6-astra
+```
+
+Legacy/fallback-only concrete labels, subject to the conditions below:
+
+```text
 gpt-5.6-luna
 gpt-5.6-terra
 gpt-5.6-sol
-gpt-6-astra
 ```
 
 Concrete catalog membership is an allowed governance vocabulary, not an
@@ -1074,39 +1081,52 @@ Canonical default guidance:
 
 | Task or decision characteristics | Default |
 |---|---|
-| Mechanical extraction or transformation with a fixed source and format and no new inference | `gpt-5.6-terra` / `medium` when selecting among Terra, Sol, and Astra; existing Luna assignments remain available |
-| Ordinary bounded coding, structured validation or review of complete evidence, and documentation applying an established decision | `gpt-5.6-terra` / `high` |
-| Complex implementation or analysis with interacting components, real alternatives, and tradeoffs | `gpt-5.6-sol` / `high` |
-| The hardest reasoning with competing hypotheses, difficult scientific or technical adjudication, or open-ended adversarial review | `gpt-6-astra` / `high` |
+| Mechanical work with fixed inputs and directly checkable results | `gpt-6-luna` / `medium` |
+| Focused, bounded structured work | `gpt-6-luna` / `high` |
+| Ordinary substantive work | `gpt-6-sol` / `medium` |
+| Complex substantive work | `gpt-6-sol` / `high` |
+| The hardest open or adversarial reasoning | `gpt-6-astra` / `high` |
 
 Classify the substantive decision, not the lane label, project importance, or
-file count. Preserve the existing Luna assignments of `gpt-5.6-luna` /
-`medium` for simple mechanical or formatting work and `gpt-5.6-luna` / `high`
-or `gpt-5.6-terra` / `medium` for narrow read-only evidence extraction.
+file count. Select the minimum sufficient model/reasoning pair directly.
 Executing an already qualified production protocol does not redesign it, and
 profile choice never qualifies or authorizes production or any other campaign.
 
-`medium` is also an explicitly justified downward, low-effort exception to a
-High default for any of Terra, Sol, or Astra where supported. High remains the
-default for substantive rounds. Record the concretely bounded task, directly
-inspectable acceptance criterion, and why the selected pair is appropriate in
-`model_selection_rationale`; retaining Sol or Astra also requires a
-task-specific reason for that model. Serialize `medium`, not `low` or a new
-`low_effort` value. This exception does not relax evidence, correctness,
-permissions, or acceptance criteria.
+These are the five canonical defaults. `gpt-6-astra` / `medium` is not a
+canonical tier. Explain the selected pair in `model_selection_rationale`.
 
-`xhigh` and `max` are motivated upper exceptions, not automatic assignments.
-They require a specific reasoning need and a bounded scope or resource
-decision, but no prior failure at a lower tier. They confer no additional
-authority, and a justified future Sol `xhigh` or `max` choice remains allowed.
+Upper exceptions are limited to:
 
-Choose the appropriate model/reasoning pair directly. Do not require a
-Terra-to-Sol-to-Astra progression, a universal second-model review, or
-consensus seeking. Missing evidence, an ambiguous gate, a qualified warning,
-a short answer, or service rejection does not by itself demonstrate inadequate
-reasoning; address the relevant cause. Availability may justify a manually
-selected alternative under the existing fresh-dispatch rule, not silent
-substitution or a claim of superiority.
+| Model/reasoning pair | Condition |
+|---|---|
+| `gpt-6-sol` / `xhigh` | Rare motivated exception |
+| `gpt-6-astra` / `xhigh` | Rare motivated exception |
+| `gpt-6-astra` / `max` | Explicit exceptional owner/eval-driven exception only |
+
+Each upper exception requires a specific reasoning need and a bounded scope or
+resource decision, without requiring a prior lower-tier failure. It confers no
+additional authority and does not relax evidence or acceptance criteria.
+
+GPT-5.6 Terra, Sol, and Luna are legacy/fallback only. Their use requires either
+actual GPT-6 unavailability or exact historical reproducibility, together with
+a fresh explicit dispatch and honest provenance. Availability does not justify
+silent substitution or a claim of superiority.
+
+Do not require a Luna-to-Sol-to-Astra progression, a reasoning ladder, a
+universal second-model review, or consensus seeking. No automatic model or
+reasoning escalation is allowed. Missing evidence, an ambiguous gate, a
+qualified warning, a short answer, service rejection, or another non-cognitive
+failure does not by itself demonstrate reasoning insufficiency; address the
+relevant cause.
+
+Historical benchmark/report model and reasoning labels remain historical truth;
+do not rewrite them prospectively. Historical evidence does not establish GPT-6
+availability, comparative ranking, cost, latency, or production qualification.
+
+Before workspace unification, correction-lib and ANDOCS AGENTS.md must carry
+semantically identical project-common routing policy. Each CPC.md applies its
+AGENTS.md and must not maintain a competing complete routing matrix.
+CONTRIBUTING.md is not a model-routing authority.
 
 Do not use Sol merely because a task is important. Do not compensate for an
 undersized model with excessive reasoning. Reports must distinguish these
