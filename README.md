@@ -3,9 +3,10 @@
 This is a local meta-repository coordinating work on:
 
 - `topeft/`    (separate git repo)
-- `coffea/`    (separate git repo)
+- `topcoffea/` (separate git repo)
 
-This repo tracks:
-- Task reports under `reports/`
-- AGENTS-style configuration / prompts for Codex
-- Misc meta-scripts for coordinating work between the two analysis repos
+This meta-repository owns the workspace governance and coordination material,
+including the repository-level `AGENTS.md`, `CPC.md`, and `CONTRIBUTING.md`
+policies. It may also contain local reports and coordination artifacts under
+`reports/`; report tracking is determined by the root Git index rather than by
+this directory name alone.
