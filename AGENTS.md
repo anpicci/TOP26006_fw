@@ -822,9 +822,9 @@ commit_preparation_on_existing_branch
 
 ### `create_feature_branch_from_reference`
 
-Use for new coding work by default. Declare `reference_branch` and
-`feature_branch`, verify the reference, record its HEAD, create/switch to the
-feature branch, and report the merge base.
+Use for new coding work only when the development branch lifecycle check permits
+creation. Declare `reference_branch` and `feature_branch`, verify the reference,
+record its HEAD, create/switch to the feature branch, and report the merge base.
 
 ### `continue_existing_branch`
 
@@ -842,16 +842,34 @@ rewrite, clean, reset, stash, or include unrelated files.
 
 ### Development branch lifecycle
 
-Before tracked source, test, configuration, or documentation work, resolve the
-live branch and workstream state. When an applicable active feature branch
-exists, continue it; otherwise create the declared feature branch from the
-verified reference before the first development commit. A declared reference or
-integration branch is a baseline, not a development surface: do not accumulate
-new development commits directly on it or create a parallel active feature
-branch for the same workstream merely for convenience. A split, supersession,
-or other deviation requires explicit user authorization and must be reported
-before modification; otherwise stop with a branch-policy blocker. Do not
-automatically rewrite historical commits that predate this rule.
+Before any tracked source, test, configuration, or documentation mutation,
+fresh-read the live local Git branch state for the target repository and
+workstream. Live Git state is the branch-state authority; do not create a
+registry or cache. Exactly one applicable active feature branch requires
+`continue_existing_branch` unless the owner explicitly authorizes a named split,
+supersession, or integration exception. With none,
+`create_feature_branch_from_reference` may be used. With multiple, stop for
+reconciliation unless the owner authorizes such an exception. A declared
+reference or integration branch is a baseline, not a development surface: do
+not accumulate new development commits directly on it. Contradictory or
+ambiguous live state stops with the existing branch-policy blocker and a
+`branch_escalation_note`; do not silently change the declared branch policy.
+
+An owner-authorized exception must identify the existing applicable branches,
+why continuing one is insufficient, the new repository-facing branch, any
+superseded branches, and any retirement condition. It does not authorize branch
+deletion, publication, remote mutation, merge, force update, or cleanup; those
+actions retain their separate permissions. Do not automatically rewrite
+historical commits that predate this rule.
+
+When creation is permitted, new `topeft` feature branches use
+`te/<repository_facing_name>` and new `topcoffea` feature branches use
+`tc/<repository_facing_name>`. This namespace rule does not govern the
+`correction-lib` meta-repository or unrelated repositories. New branch names
+must describe the repository change and follow its established naming
+conventions; do not encode internal lane, prompt, Codex, control-plane, or
+round or campaign identifiers unless already established as a repository-facing
+convention.
 
 Required branch fields when applicable:
 

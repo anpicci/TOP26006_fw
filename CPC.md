@@ -784,20 +784,31 @@ read_only_current_branch
 commit_preparation_on_existing_branch
 ```
 
-New coding work defaults to `create_feature_branch_from_reference`.
-Continuation work names the existing `target_branch`. Read-only work normally
-uses `read_only_current_branch`. Commit preparation uses
-`commit_preparation_on_existing_branch`.
+Before emitting any prompt that may mutate tracked repository state, the prompt
+author must fresh-resolve applicable active feature branches from live Git state
+for the target repository and workstream. With exactly one applicable branch,
+require `continue_existing_branch` and name it as `target_branch` unless the
+owner explicitly authorizes a named split, supersession, or integration
+exception. With none, `create_feature_branch_from_reference` may be used. With
+multiple, stop for reconciliation unless the owner authorizes such an
+exception. Use the compact exception contract in `AGENTS.md`; do not create a
+second branch-state registry or cache. `AGENTS.md` remains normative for runtime
+branch behavior.
 
-For a prompt that will make tracked source, test, configuration, or
-documentation changes, resolve live branch state for the declared workstream
-before modification. If an applicable active feature branch exists, require
-`continue_existing_branch`; otherwise require
-`create_feature_branch_from_reference`. Reject direct development on the
-declared reference or integration branch and creation of a parallel active
-feature branch for the same workstream unless the user explicitly authorizes a
-reported split or supersession. Do not use a second branch-state registry or
-parallel branch-governance framework.
+When creation is permitted, use `te/<repository_facing_name>` for a new
+`topeft` feature branch and `tc/<repository_facing_name>` for a new `topcoffea`
+feature branch. This namespace rule does not govern the `correction-lib`
+meta-repository or unrelated repositories. Name new branches for the
+repository-facing change, following established conventions rather than
+internal lane, prompt, Codex, control-plane, round, or campaign identifiers
+unless such identifiers already are an established repository-facing
+convention. A prompt that proposes a parallel or new branch while an
+applicable active feature branch exists without the exact owner-authorized
+exception is invalid before execution: `PROMPT_INVALID_BRANCH_POLICY`.
+
+Reject direct development on a declared reference or integration branch.
+Read-only work normally uses `read_only_current_branch`. Commit preparation
+uses `commit_preparation_on_existing_branch`.
 
 PR/MR publication normally uses `read_only_current_branch` because it must
 publish the exact already validated local branch without local mutation.
@@ -1762,6 +1773,10 @@ prompt_relationship_explicit_and_orthogonal_to_prompt_mode
 model_reasoning_and_delegation_explicit
 repo_permissions_explicit
 branch_policy_explicit
+live_applicable_feature_state_resolved_before_mutating_prompt
+reuse_or_owner_exception_selected_from_zero_one_multiple_branches
+new_nested_repository_branch_namespace_and_repository_facing_name_checked
+unauthorized_parallel_branch_prompt_rejected_before_execution
 dirty_policy_and_preflight_explicit
 validation_ceiling_explicit
 heavy_permissions_explicit
