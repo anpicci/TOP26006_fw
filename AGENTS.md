@@ -71,8 +71,9 @@ More specifically:
   invalidation contract, and the simpler fail-closed alternative considered.
 * Use `snake_case` for new helper names, functions, variables, report fields,
   prompt fields, and local scripts unless an existing API requires otherwise.
-* Coding and tracked-documentation work normally ends in a prompt-local commit
-  unless `do_not_commit: yes` is explicit.
+* Coding and tracked-documentation work normally ends in a prompt-local commit.
+  For tracked mutation, `do_not_commit: yes` requires explicit owner
+  authorization for that exact round.
 * Available network access, credentials, executables, or remotes are technical
   capabilities only. The prompt must authorize each network capability and
   remote mutation separately.
@@ -311,7 +312,8 @@ Allowed: minimum source/test/config/doc changes, focused regression coverage,
 validation, and a prompt-local commit.
 
 Forbidden: unrelated refactors, speculative redesign, and uncommitted
-prompt-local tracked changes unless `do_not_commit: yes`.
+prompt-local tracked changes unless the owner explicitly authorizes
+`do_not_commit: yes` for that exact round.
 
 ### `validation_only`
 
@@ -328,7 +330,8 @@ and tests are stale. If runtime intent is ambiguous, stop.
 ### `documentation_only`
 
 Allowed when behavior is established and only tracked documentation changes.
-Commit unless `do_not_commit: yes`.
+Commit unless the owner explicitly authorizes `do_not_commit: yes` for that
+exact tracked-mutation round.
 
 ### `commit_preparation`
 
@@ -817,8 +820,12 @@ Every prompt must declare one branch policy per relevant repository:
 create_feature_branch_from_reference
 continue_existing_branch
 read_only_current_branch
-commit_preparation_on_existing_branch
 ```
+
+Branch policy selects which branch the round may use and whether it may
+create or switch branches. Prompt mode controls which activity is allowed;
+the commit contract controls whether tracked changes must be committed before
+successful closure. Branch policy does not encode a commit phase.
 
 ### `create_feature_branch_from_reference`
 
@@ -834,11 +841,6 @@ Declare `target_branch`. Work directly on it and create no additional branch.
 
 Inspect or publish the current branch without local editing, committing, or
 switching. Remote mutation still requires explicit publication permissions.
-
-### `commit_preparation_on_existing_branch`
-
-Prepare commits from intended existing changes on the declared branch. Do not
-rewrite, clean, reset, stash, or include unrelated files.
 
 ### Development branch lifecycle
 
@@ -1632,6 +1634,20 @@ commit_expected: yes
 do_not_commit: no
 ```
 
+Any round that creates or explicitly adopts tracked source, test, configuration,
+or documentation changes must use these defaults and cannot close successfully
+while its task-owned or explicitly adopted tracked changes remain uncommitted.
+Successful closure requires those changes to be committed in prompt-local
+history, with the task-scope index and tracked worktree clean. For an
+orchestrated workflow, intermediate stages may leave those changes uncommitted
+only until a later declared commit stage in the same workflow commits them.
+This does not require one commit per mutating stage.
+
+For tracked mutation, `do_not_commit: yes` is permitted only when the owner
+explicitly authorizes that exception for the exact round. If a safe commit
+cannot be created, stop incomplete. Read-only rounds that create no tracked
+changes do not require a commit.
+
 Default for investigation, validation, PR preparation, and publication:
 
 ```text
@@ -1639,8 +1655,9 @@ commit_expected: no
 do_not_commit: yes
 ```
 
-A code-changing round must create a prompt-local commit unless explicitly
-forbidden.
+A round that creates or explicitly adopts tracked changes must create a
+prompt-local commit unless the owner explicitly authorizes the tracked-mutation
+exception above.
 
 ### Change ownership and index isolation
 

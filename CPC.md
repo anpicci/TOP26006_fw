@@ -521,6 +521,23 @@ foreign_dirty_change_policy: preserve_and_exclude
 staging_policy: exact_path_only
 ```
 
+For any round that creates or explicitly adopts tracked source, test,
+configuration, or documentation changes, default to:
+
+```text
+commit_expected: yes
+do_not_commit: no
+```
+
+Require successful round or workflow closure to include a prompt-local commit
+of all intended task-owned or explicitly adopted tracked changes, with the
+task-scope index and tracked worktree clean. An orchestrated workflow may defer
+that commit only to a later declared commit stage in the same workflow; do not
+require one commit per mutating stage. If a safe commit cannot be made, the
+round remains incomplete. `do_not_commit: yes` for tracked mutation requires
+explicit owner authorization for that exact round, cited in the prompt.
+Read-only rounds that create no tracked changes do not require a commit.
+
 `authorized_commit_scope` is the exact prompt-declared subset of
 `allowed_to_modify` eligible for the prompt-local commit. It governs commit
 eligibility only; it does not establish ownership or adopt inherited work. If
@@ -781,8 +798,12 @@ Every prompt must declare one of:
 create_feature_branch_from_reference
 continue_existing_branch
 read_only_current_branch
-commit_preparation_on_existing_branch
 ```
+
+Branch policy selects which branch the round may use and whether it may create
+or switch branches. Prompt mode controls the activity allowed in that round;
+the commit contract controls whether tracked changes must be committed before
+successful closure. Do not encode a commit phase in branch policy.
 
 Before emitting any prompt that may mutate tracked repository state, the prompt
 author must fresh-resolve applicable active feature branches from live Git state
@@ -808,7 +829,7 @@ exception is invalid before execution: `PROMPT_INVALID_BRANCH_POLICY`.
 
 Reject direct development on a declared reference or integration branch.
 Read-only work normally uses `read_only_current_branch`. Commit preparation
-uses `commit_preparation_on_existing_branch`.
+on an existing feature branch uses `continue_existing_branch`.
 
 PR/MR publication normally uses `read_only_current_branch` because it must
 publish the exact already validated local branch without local mutation.
@@ -1795,6 +1816,10 @@ evidence_collection_precedes_classification
 anti_self_certification_rules_present_when_relevant
 minimum_sufficient_artifacts
 commit_expectation_explicit
+tracked_mutation_defaults_to_commit_expected_yes_and_do_not_commit_no
+tracked_mutation_successful_closure_requires_prompt_local_commit
+do_not_commit_for_tracked_mutation_has_exact_owner_authorization
+read_only_round_without_tracked_mutation_requires_no_commit
 commit_ownership_classes_explicit_when_committing
 staged_paths_and_diff_limited_to_owned_or_adopted_changes
 exact_path_staging_and_complete_staged_diff_readback
