@@ -829,9 +829,10 @@ successful closure. Branch policy does not encode a commit phase.
 
 ### `create_feature_branch_from_reference`
 
-Use for new coding work only when the development branch lifecycle check permits
-creation. Declare `reference_branch` and `feature_branch`, verify the reference,
-record its HEAD, create/switch to the feature branch, and report the merge base.
+Use to create a new feature branch only when the live development branch
+lifecycle check permits creation. Declare `reference_branch` and
+`feature_branch`, verify the reference, record its HEAD, create/switch to the
+feature branch, and report the merge base.
 
 ### `continue_existing_branch`
 
@@ -844,11 +845,13 @@ switching. Remote mutation still requires explicit publication permissions.
 
 ### Development branch lifecycle
 
-Before any tracked source, test, configuration, or documentation mutation,
+Before tracked repository work that requires a development feature branch,
 fresh-read the live local Git branch state for the target repository and
-workstream. Live Git state is the branch-state authority; do not create a
-registry or cache. Exactly one applicable active feature branch requires
-`continue_existing_branch` unless the owner explicitly authorizes a named split,
+workstream. This branch-selection gate is independent of file category and
+does not apply to pure read-only inspection. Live Git state is the branch-state
+authority; do not create a registry or cache. Exactly one applicable active
+feature branch requires `continue_existing_branch` unless the owner explicitly
+authorizes a named split,
 supersession, or integration exception. With none,
 `create_feature_branch_from_reference` may be used. With multiple, stop for
 reconciliation unless the owner authorizes such an exception. A declared
@@ -1627,16 +1630,16 @@ prompt_local_changes
 
 ## 14. Source-control and commit policy
 
-Default for coding and tracked documentation:
+Default when a round mutates tracked repository files:
 
 ```text
 commit_expected: yes
 do_not_commit: no
 ```
 
-Any round that creates or explicitly adopts tracked source, test, configuration,
-or documentation changes must use these defaults and cannot close successfully
-while its task-owned or explicitly adopted tracked changes remain uncommitted.
+Any round that creates or explicitly adopts changes to tracked repository files
+must use these defaults and cannot close successfully while its task-owned or
+explicitly adopted tracked-file changes remain uncommitted.
 Successful closure requires those changes to be committed in prompt-local
 history, with the task-scope index and tracked worktree clean. For an
 orchestrated workflow, intermediate stages may leave those changes uncommitted
@@ -1655,9 +1658,9 @@ commit_expected: no
 do_not_commit: yes
 ```
 
-A round that creates or explicitly adopts tracked changes must create a
-prompt-local commit unless the owner explicitly authorizes the tracked-mutation
-exception above.
+A round that creates or explicitly adopts tracked repository-file changes
+must create a prompt-local commit unless the owner explicitly authorizes the
+tracked-mutation exception above.
 
 ### Change ownership and index isolation
 

@@ -521,8 +521,8 @@ foreign_dirty_change_policy: preserve_and_exclude
 staging_policy: exact_path_only
 ```
 
-For any round that creates or explicitly adopts tracked source, test,
-configuration, or documentation changes, default to:
+For any round that creates or explicitly adopts changes to tracked repository
+files, default to:
 
 ```text
 commit_expected: yes
@@ -805,9 +805,14 @@ or switch branches. Prompt mode controls the activity allowed in that round;
 the commit contract controls whether tracked changes must be committed before
 successful closure. Do not encode a commit phase in branch policy.
 
-Before emitting any prompt that may mutate tracked repository state, the prompt
-author must fresh-resolve applicable active feature branches from live Git state
-for the target repository and workstream. With exactly one applicable branch,
+Before emitting a prompt that proposes `create_feature_branch_from_reference`
+or may mutate tracked repository state, the prompt author must fresh-resolve
+applicable active feature branches from live Git state for the target
+repository and workstream, regardless of whether the tracked work is described
+as coding, documentation, configuration, testing, maintenance, or another
+repository activity. Base branch selection on whether the repository and
+workstream need a development feature branch, not on a file-category list.
+With exactly one applicable branch,
 require `continue_existing_branch` and name it as `target_branch` unless the
 owner explicitly authorizes a named split, supersession, or integration
 exception. With none, `create_feature_branch_from_reference` may be used. With
