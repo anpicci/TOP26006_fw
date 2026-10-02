@@ -1697,23 +1697,28 @@ needed for the decision.
 
 #### Final chat deliverable
 
-```text
-final_status
-decision_question
-derived_verdict
-branch_and_head
-files_changed
-commit_hash
-validation_or_evidence_results
-report_path
-report_directory: <absolute parent directory when a report is produced>
-patch_path
-patch_kind
-generated_outputs
-unresolved_findings
-recommended_next_action
-final_cleanliness
+Project the final chat from the canonical report as a compact actionable
+summary. Include the verdict/status, direct decision answer, relevant
+repository/branch/HEAD/commit identity, decisive validation/evidence result,
+actual report directory and path, patch/artifact path and kind when produced,
+remote/publication/merge/destructive effects when any, production/output
+effects and paths when any, material blockers/caveats, and recommended next
+action. Keep the canonical report as the full evidence record; a report path
+alone is not a result handoff. `OPERATIVE_COMMANDS.md` is an input/launch
+handoff.
+
+Whenever an actual diagnostics directory exists, end the final response with
+these exact two lines, using the exact actual directory and preserving any
+`_rerun_00N` suffix:
+
+```bash
+FOLD=<exact actual diagnostics directory>
+scp -r apiccine@glados.crc.nd.edu:${FOLD} .
 ```
+
+Do not hide failure, blocked status, indeterminate identity, remote or
+destructive effects, production/output paths, or material caveats. This is a
+response projection only; do not change report requirements or schema.
 
 For PR/MR publication or merge, also require:
 

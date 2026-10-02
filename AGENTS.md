@@ -2490,31 +2490,41 @@ internal workflow labels
 
 ## 24. Final chat response
 
-The final response must include:
+The canonical report is the full evidence record. The final chat response is
+its compact actionable projection; it must not repeat every report field.
+Include the following when applicable:
 
 ```text
-final_status
 decision_question
-report_path
-patch_path
-patch_kind
-commit_hash
-preferred_codex_model
-actual_codex_model
-reasoning_level
-delegation_policy
-validation_ceiling
-heavy_commands_run
-validation_results
-generated_outputs
-open_questions_or_caveats
-recommended_next_action
-final_cleanliness
+final verdict or status
+direct answer to the decision question
+relevant repository, branch, HEAD, and commit identity
+decisive validation or evidence result
+actual report directory and report path
+patch or artifact path and kind, when produced
+remote, publication, merge, or destructive effect, when any
+production or output effect and path, when any
+material blocker or caveat
+recommended next action
 ```
 
-When a round produces a report, also include `report_directory` as the full
-absolute parent directory; do not require the user to derive it from
-`report_path`.
+Keep the canonical report as the detailed record. A report path alone is not
+the result handoff. `OPERATIVE_COMMANDS.md` carries input and launch
+instructions; it does not hand results back.
+
+Whenever an actual diagnostics directory exists, the final response MUST end
+with these two lines, using the exact directory that was created. Preserve any
+actual `_rerun_00N` suffix:
+
+```bash
+FOLD=<exact actual diagnostics directory>
+scp -r apiccine@glados.crc.nd.edu:${FOLD} .
+```
+
+Do not omit or soften failure, blocked status, indeterminate identity, remote
+mutation, merge, destructive or history-normalization effects, production or
+output locations, or material unresolved caveats. This projection does not
+change the canonical report schema.
 
 PR/MR publication or merge responses also include:
 
