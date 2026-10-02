@@ -142,7 +142,6 @@ Every Codex prompt must state:
 prompt_id
 short_title
 prompt_mode
-prompt_relationship
 preferred_codex_model
 reasoning_level
 delegation_policy
@@ -156,13 +155,16 @@ read_only
 branch_policy
 validation_ceiling
 
-goal
 decision_question
 report_path
 patch_path
 patch_kind_expected
 final_chat_deliverable
 ```
+
+`decision_question` is mandatory. Include `goal` only when it adds a distinct
+execution objective beyond that question; omit a redundant restatement.
+Omission does not widen scope or authority.
 
 Use the live applicable `AGENTS.md` source-control policy without a routine
 `source_control_policy: inherit_AGENTS_defaults` field. For ordinary prompts,
@@ -191,21 +193,31 @@ authority. Repository-facing commit-language prohibitions are inherited from
 decision-material. Action-specific publication, merge, and normalization
 permission fields remain governed by their existing contracts.
 
-For continuation rounds, also state:
+Do not serialize `prompt_relationship`; derive it from `continuation_of`:
+
+```text
+continuation_of present and non-empty: continuation
+continuation_of absent: standalone
+```
+
+For a continuation, `continuation_of` is required. Include other continuation
+fields only when they carry actual non-empty state:
 
 ```text
 continuation_of
-accepted_prior_evidence
-accepted_closure_layers
-invalidation_boundary
-delta_scope
-unresolved_checks_only
-checks_not_to_repeat
+delta_scope                 when work is explicitly scoped relative to prior work
+accepted_prior_evidence     when prior evidence is reused
+accepted_closure_layers     when non-empty closure layers are reused
+invalidation_boundary       when accepted evidence/closure is preserved outside a reopened boundary
+unresolved_checks_only     when unresolved checks are carried
+checks_not_to_repeat        when accepted checks are protected from repetition
 ```
 
-Use `prompt_relationship: standalone` or `prompt_relationship: continuation`.
-The relationship is orthogonal to `prompt_mode`; do not add a continuation
-mode.
+The derived relationship is orthogonal to `prompt_mode`; do not add a
+continuation mode, relationship field, or alias. Omit inapplicable continuation
+fields instead of serializing `none`, empty lists, or boilerplate placeholders.
+Omission means no such state is asserted. Reuse accepted evidence outside its
+invalidation boundary, and keep declared `checks_not_to_repeat` authoritative.
 
 For evidence or audit rounds, also state:
 
@@ -952,39 +964,52 @@ must still surface every deficiency material to its sign-off claim.
 
 ## 9. Continuation prompts and accepted evidence
 
-Use compact exact references:
+Use compact exact references for state that applies:
 
 ```text
 continuation_of: <prior_prompt_or_exact_artifact_set>
 
+# Include only when prior evidence is reused:
 accepted_prior_evidence:
   - claim: <already established claim>
     artifact: <exact path>
     locator: <row, key, or section>
 
+# Include only when non-empty closure layers are reused:
 accepted_closure_layers:
   - <accepted_layer_and_evidence_reference>
 
+# Include only when accepted evidence/closure is preserved outside a reopened boundary:
 invalidation_boundary:
   - <change_or_condition_that_reopens_accepted_evidence>
 
+# Include when work is explicitly scoped relative to prior work:
 delta_scope:
   - <changed_newly_unresolved_or_directly_coupled_reachable_surface>
 
+# Include only when unresolved checks are carried:
 unresolved_checks_only:
   - <genuinely unresolved check>
 
+# Include only when accepted checks are protected from repetition:
 checks_not_to_repeat:
   - <accepted check>
 ```
 
+`continuation_of` is required for a continuation. Include `delta_scope` when
+the current work is explicitly scoped relative to prior work. Include
+`accepted_prior_evidence` only when prior evidence is reused,
+`accepted_closure_layers` only when non-empty closure layers are reused,
+`invalidation_boundary` only when accepted evidence or closure is preserved
+outside a reopened boundary, `unresolved_checks_only` only when unresolved
+checks are carried, and `checks_not_to_repeat` only when accepted checks are
+protected from repetition. Omit inapplicable fields; do not use `none`, empty
+lists, or placeholders. Omission asserts no such state and does not weaken
+evidence reuse or invalidation protections.
+
 Do not reproduce whole reports or long summaries.
 
-`accepted_closure_layers: none` is valid when a continuation inherits accepted
-evidence but no formal closure layer. Do not invent a closure claim to satisfy
-the field.
-
-Continuation describes a prompt relationship, not a prompt mode. Validate only
+A continuation is derived from `continuation_of`, not a prompt mode. Validate only
 the declared delta: changed or newly unresolved behavior plus directly coupled
 reachable surfaces. Inherit accepted validation outside the invalidation
 boundary, but require the boundary and delta scope to expand when direct
@@ -1111,8 +1136,8 @@ writable_and_read_only_surfaces
 unique_dirty_state_constraints
 validation_ceiling
 heavy_permissions
-exact_goal_and_decision_question
-accepted_evidence
+decision_question_and_optional_distinct_goal
+accepted_evidence_when_reused
 unresolved_checks
 exact_inputs_and_outputs
 commit_expectation
@@ -1391,10 +1416,10 @@ remote state check and follow the normative AGENTS.md merge policy.
 
 You are Codex working inside the user’s `correction-lib` workspace.
 
-#### Goal
+#### Optional distinct `goal`
 
 ```text
-<one precise testable sentence>
+<include only when this adds information beyond the decision question>
 ```
 
 #### Decision question
@@ -1409,7 +1434,6 @@ You are Codex working inside the user’s `correction-lib` workspace.
 prompt_id: <id>
 short_title: <snake_case_title>
 prompt_mode: <allowed mode>
-prompt_relationship: <standalone_or_continuation>
 preferred_codex_model: <model>
 reasoning_level: <level>
 delegation_policy: <policy>
@@ -1608,28 +1632,35 @@ Read applicable nested `AGENTS.md` files and stop on conflict.
 
 #### Accepted evidence and unresolved checks
 
-For continuation rounds:
+For continuation rounds, always include `continuation_of`; include only the
+non-empty state fields that apply:
 
 ```text
 continuation_of: <prior_prompt_or_exact_artifact_set>
 
+# only when prior evidence is reused
 accepted_prior_evidence:
   - claim: <claim>
     artifact: <path>
     locator: <row_or_section>
 
+# only when non-empty closure layers are reused
 accepted_closure_layers:
   - <accepted_layer_and_evidence_reference>
 
+# only when accepted evidence/closure is preserved outside a reopened boundary
 invalidation_boundary:
   - <change_or_condition_that_reopens_accepted_evidence>
 
+# when work is explicitly scoped relative to prior work
 delta_scope:
   - <changed_newly_unresolved_or_directly_coupled_reachable_surface>
 
+# only when unresolved checks are carried
 unresolved_checks_only:
   - <check>
 
+# only when accepted checks are protected from repetition
 checks_not_to_repeat:
   - <accepted check>
 ```
@@ -1838,7 +1869,8 @@ Before delivering a prompt, verify:
 ```text
 one_decision_question
 narrowest_prompt_mode
-prompt_relationship_explicit_and_orthogonal_to_prompt_mode
+prompt_relationship_derived_from_continuation_of
+goal_omitted_when_redundant_and_optional_when_distinct
 model_reasoning_and_delegation_explicit
 repo_permissions_explicit
 branch_policy_explicit
@@ -1852,7 +1884,7 @@ heavy_permissions_all_no_when_omitted_and_positive_grants_explicit
 technical_network_availability_not_treated_as_authorization
 remote_write_permissions_explicit_when_applicable
 accepted_evidence_referenced_not_repeated
-continuation_fields_complete_when_applicable
+continuation_fields_nonempty_and_present_only_when_applicable
 validation_delta_preserves_directly_coupled_reachable_surfaces
 accepted_closure_layers_reopened_only_at_a_proven_invalidation_boundary
 non_blocking_reporting_defect_does_not_spawn_standalone_round

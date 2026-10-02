@@ -1232,31 +1232,38 @@ or production execution.
 
 ## 9. Decision-focused task contracts
 
-Every round must state:
+Every round must state one substantive question:
 
 ```text
 decision_question
-prompt_relationship
 ```
 
-Allowed relationships are:
+`goal` is optional. Include it only when it adds a distinct execution
+objective that cannot be safely inferred from `decision_question`; omit it
+when it merely restates that question. Omitting `goal` cannot widen scope or
+authority.
+
+Derive prompt relationship from `continuation_of`:
 
 ```text
-standalone
-continuation
+continuation_of present and non-empty: continuation
+continuation_of absent: standalone
 ```
 
-`prompt_relationship` is orthogonal to `prompt_mode`; continuation is not a
-prompt mode. A continuation round must also state:
+Do not serialize `prompt_relationship` in author-facing prompt metadata or add
+a second relationship field or alias. This derived relationship is orthogonal
+to `prompt_mode`; continuation is not a prompt mode.
+
+For a continuation, `continuation_of` is required. Include other continuation
+fields only when they carry actual non-empty state:
 
 ```text
-continuation_of
-accepted_prior_evidence
-accepted_closure_layers
-invalidation_boundary
-delta_scope
-unresolved_checks_only
-checks_not_to_repeat
+delta_scope                 when work is explicitly scoped relative to prior work
+accepted_prior_evidence     when prior evidence is reused
+accepted_closure_layers     when non-empty closure layers are reused
+invalidation_boundary       when accepted evidence/closure is preserved outside a reopened boundary
+unresolved_checks_only     when unresolved checks are carried
+checks_not_to_repeat        when accepted checks are protected from repetition
 ```
 
 `continuation_of` identifies the exact prior round or accepted artifact set.
@@ -1264,9 +1271,12 @@ checks_not_to_repeat
 readable evidence. `invalidation_boundary` states what change or unresolved
 condition can reopen that evidence. `delta_scope` states the changed, newly
 unresolved, and directly coupled reachable surfaces to validate now.
-`accepted_closure_layers: none` is valid when a continuation inherits accepted
-evidence but no formal closure layer. Do not invent a closure claim to satisfy
-the field.
+Omit inapplicable continuation fields. Do not serialize `none`, empty lists, or
+boilerplate placeholders. Omission means no such state is asserted; it must not
+fabricate accepted, closure, invalidation, or deferred-check state. Reuse
+accepted evidence outside its invalidation boundary, and keep any declared
+`checks_not_to_repeat` authoritative; omission does not authorize repeating
+accepted checks.
 
 Rules:
 
