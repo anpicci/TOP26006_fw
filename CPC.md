@@ -821,6 +821,31 @@ exception. Use the compact exception contract in `AGENTS.md`; do not create a
 second branch-state registry or cache. `AGENTS.md` remains normative for runtime
 branch behavior.
 
+For TOPEFT, encode these permanent branch roles in every applicable prompt:
+
+```text
+permanent integration branch: run3_test_mmerged
+permanent personal reference: run3_test_mmerged_anpicci
+feature/development namespace: te/*
+```
+
+Every `te/*` branch remains feature/development, even when cumulative,
+accepted, or the current source-writing authority. Count each applicable
+cumulative `te/*` branch in the reuse-first gate: one applicable active
+feature requires `continue_existing_branch`; multiple require stopping for
+reconciliation unless the exact owner exception authorizes otherwise. Never
+classify a `te/*` branch as a permanent reference or integration branch, or
+exclude it from the active-feature count, based on its cumulative authority.
+
+With zero applicable active TOPEFT features, ordinary new-feature creation may
+use `create_feature_branch_from_reference` only when creation is authorized;
+create `te/<repository_facing_name>` from `run3_test_mmerged_anpicci` by default.
+Keep `run3_test_mmerged` as the permanent integration target. Generic baseline
+fields and `integrated_baseline_mode` cannot override these roles or the
+reuse-first gate. Explicit feature-to-feature consolidation leaves the
+permanent roles unchanged. This TOPEFT rule preserves the generic three-policy
+model and the existing `te/` and `tc/` namespace rules.
+
 When creation is permitted, use `te/<repository_facing_name>` for a new
 `topeft` feature branch and `tc/<repository_facing_name>` for a new `topcoffea`
 feature branch. This namespace rule does not govern the `correction-lib`

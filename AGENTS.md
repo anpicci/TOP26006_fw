@@ -876,6 +876,32 @@ conventions; do not encode internal lane, prompt, Codex, control-plane, or
 round or campaign identifiers unless already established as a repository-facing
 convention.
 
+#### Permanent TOPEFT branch roles
+
+For TOPEFT, these branch roles are permanent:
+
+```text
+permanent integration branch: run3_test_mmerged
+permanent personal reference: run3_test_mmerged_anpicci
+feature/development namespace: te/*
+```
+
+Every `te/*` branch is a feature/development branch, including a cumulative,
+accepted, or current source-writing branch. Cumulative authority does not make
+a `te/*` branch a permanent reference or integration branch. An applicable
+cumulative `te/*` branch remains eligible for the reuse-first gate and counts
+as an applicable active feature when selecting the branch policy. Do not
+reclassify it as inactive or as a baseline because of its cumulative contents.
+
+For TOPEFT, `current_baseline_branch`, `comparison_baseline`,
+`integrated_baseline_mode`, and equivalent fields or prose cannot redefine these
+permanent roles or remove applicable `te/*` branches from reuse-first. When no
+applicable active TOPEFT feature exists and ordinary new-feature creation is
+authorized, use `run3_test_mmerged_anpicci` as `reference_branch`. The permanent
+integration target remains `run3_test_mmerged`. Explicit feature-to-feature
+consolidation does not alter either permanent role. This contract adds no
+branch registry or persistent state mechanism.
+
 Required branch fields when applicable:
 
 ```text
@@ -897,6 +923,10 @@ branch_escalation_note
 When `integrated_baseline_mode: yes`, treat the declared integration branch as
 current source of truth and do not reopen historical feature branches unless
 explicitly requested.
+
+For TOPEFT, this instruction concerns integration/source context only and does
+not change the permanent branch roles or the reuse-first eligibility of an
+applicable cumulative `te/*` feature.
 
 Remote branch commits are live state. Query them when current values matter;
 do not reuse an old remote SHA as current-state evidence.
