@@ -2654,47 +2654,26 @@ no_publication_success_claim_without_remote_readback
 
 ## 26. Project-local skill registry
 
-```text
-logical_id: prompt_contract
-skill_name: correction-lib-prompt-contract
-path: .agents/skills/correction-lib-prompt-contract/SKILL.md
-version: 1.0.0
-trigger: author or validate correction-lib Codex prompts
-normative_sources: live AGENTS.md and CPC.md
-```
-
-Skill availability does not authorize its use or any underlying task action.
+The project-local skills are:
 
 ```text
-logical_id: manual_production_handoff
-skill_name: correction-lib-manual-production-handoff
-path: .agents/skills/correction-lib-manual-production-handoff/SKILL.md
-version: 1.0.0
-trigger: prepare or validate a non-executing user-run production handoff
-normative_sources: live AGENTS.md and CPC.md
+correction-lib-prompt-contract
+correction-lib-manual-production-handoff
+correction-lib-diagnostics-execution-copy
+correction-lib-codex-evidence-package-review
 ```
 
-Skill availability does not authorize production execution.
+Resolve each installed skill from `.agents/skills/<skill_name>/SKILL.md` and
+read its current `name` and description for identity and trigger. The live
+`SKILL.md` owns its operation and safety boundary; live `AGENTS.md` and
+`CPC.md` remain the normative governance sources. This registry does not
+declare a package or executable version. Resolve a decision-material component
+version from that component's own current artifact rather than a duplicated
+registry value.
 
-```text
-logical_id: diagnostics_execution_copy
-skill_name: correction-lib-diagnostics-execution-copy
-path: .agents/skills/correction-lib-diagnostics-execution-copy/SKILL.md
-version: 1.0.0
-trigger: validate or materialize a bounded provenance-rich diagnostics copy
-normative_sources: live AGENTS.md and CPC.md
-```
-
-Skill availability does not authorize execution of copied files.
-
-```text
-logical_id: codex_evidence_package_review
-installed_skill: correction-lib-codex-evidence-package-review
-path: .agents/skills/correction-lib-codex-evidence-package-review/SKILL.md
-version: 1.0.1
-trigger: review a returned local Codex evidence package against an external manifest
-normative_sources: live AGENTS.md and CPC.md
-```
-
-Skill availability does not authorize reviewed work, reviewed-code execution,
-patch application, independent test execution, fixes, or publication.
+Skill availability alone authorizes no task action. In particular, the manual
+handoff skill does not authorize production execution, the diagnostics-copy
+skill does not authorize execution of copied files, and the evidence-review
+skill does not authorize reviewed work, code execution, patch application,
+fixes, other skills, or publication. The prompt-contract skill provides
+mechanical authoring help, not governance certification.
