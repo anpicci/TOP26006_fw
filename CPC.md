@@ -154,7 +154,6 @@ allowed_to_modify
 read_only
 
 branch_policy
-preflight_scope_paths
 validation_ceiling
 
 goal
@@ -176,7 +175,15 @@ dirty_worktree_policy: require_clean_worktree
 ```
 
 Every positive capability, expanded preflight, and alternative dirty-worktree
-policy remains explicit. Keep decision-material `preflight_scope_paths`.
+policy remains explicit. Omit `preflight_scope_paths` only when the exact
+minimum task-path set is already fixed by an exact `authorized_commit_scope`
+or `allowed_to_modify` target, explicitly named read-only targets, and
+decision-relevant input, output, or artifact paths. A broad permission or
+read-only declaration does not determine that set. State
+`preflight_scope_paths` when the intended check differs, the named facts leave
+multiple possible sets, or a special collision or dirty-state check names no
+other path. Omission never widens inspection to a whole repository or unrelated
+untracked files. Follow the preflight rule in `AGENTS.md`.
 Require `out_of_scope` only when exclusions constrain the decision or safety
 boundary; omission never widens `allowed_to_modify`, permissions, or mode
 authority. Repository-facing commit-language prohibitions are inherited from
@@ -1417,8 +1424,6 @@ allowed_to_modify: <exact surfaces>
 read_only: <exact surfaces>
 
 branch_policy: <allowed value>
-preflight_scope_paths:
-  - <task path>
 validation_ceiling: <ceiling>
 
 report_path: <absolute path>
@@ -1432,7 +1437,8 @@ Add `reference_branch` and `feature_branch` for branch creation, or
 Add `do_not_commit: yes` only for an exact owner-authorized tracked-mutation
 exception. Add explicit positive heavy permissions, `expanded_preflight`, an
 alternative `dirty_worktree_policy`, `out_of_scope`, or exact commit-message
-requirements when applicable. The omitted ordinary values and inherited
+requirements when applicable. Add `preflight_scope_paths` when section 4
+requires an explicit path set. The omitted ordinary values and inherited
 prohibitions in section 4 still apply. Keep action-specific publication and
 orchestrated-stage templates as written.
 
@@ -1791,8 +1797,6 @@ CPC overrides:
 - current_baseline_branch: <branch_when_decision_material>
 - comparison_baseline: <reference_when_decision_material>
 - do_not_commit: yes <only with exact owner authorization for tracked mutation>
-- dirty_worktree_policy: <policy>
-- preflight_profile: <profile>
 - validation_ceiling: <ceiling>
 - network_access: <yes_or_no>
 - remote_git_write: <yes_or_no>
@@ -1815,7 +1819,10 @@ CPC overrides:
 - environment_mutation: <yes_or_no>
 ```
 
-No override is implied by another.
+Include `dirty_worktree_policy` only for a requested alternative to
+`require_clean_worktree`, and `preflight_profile` only for a requested
+`expanded_preflight`. Supply the concrete value when either appears. No
+override is implied by another.
 
 ---
 

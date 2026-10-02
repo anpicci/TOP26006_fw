@@ -1566,8 +1566,18 @@ blocked_local_state:
 
 Omitted `preflight_profile` means `compact_preflight`; require explicit
 `expanded_preflight` when needed. Omitted `dirty_worktree_policy` means
-`require_clean_worktree`; any alternative must be explicit. Declare
-decision-material `preflight_scope_paths`.
+`require_clean_worktree`; any alternative must be explicit.
+
+`preflight_scope_paths` may be omitted only when the exact minimum task-path
+set is already determined by `authorized_commit_scope` or an exact
+`allowed_to_modify` target, explicitly named read-only target paths, and
+decision-relevant input, output, or artifact paths. A broad permission or
+read-only declaration does not by itself determine that set. If the intended
+preflight differs from the directly derivable set, the facts permit multiple
+sets, or a special collision or dirty-state check concerns an otherwise
+unnamed path, declare `preflight_scope_paths` explicitly. Omission never means
+the whole repository, a broad untracked inventory, or permission to inspect
+unrelated paths.
 
 Allowed profiles:
 
