@@ -156,11 +156,15 @@ branch_policy
 validation_ceiling
 
 decision_question
-report_path
-patch_path
 patch_kind_expected
 final_chat_deliverable
 ```
+
+Derive expected report and patch paths from the canonical diagnostics root and
+`prompt_id` in `AGENTS.md` section 20. Declare `report_path` or `patch_path`
+only when the round needs a noncanonical exact path or filename. The actual
+resolved runtime directory and paths, including any `_rerun_00N` suffix, must
+be recorded after creation; an expected path cannot prove a collision outcome.
 
 `decision_question` is mandatory. Include `goal` only when it adds a distinct
 execution objective beyond that question; omit a redundant restatement.
@@ -675,17 +679,12 @@ fallback. Treat `explicit_fallback` as a new selection path after stop/report;
 the new explicit dispatch uses the concrete model selected by the prompt author,
 not the sentinel.
 
-Reports and prompts must keep model selection separate from model
-observability. Distinguish `requested_or_dispatched_model`,
-`requested_or_dispatched_reasoning_effort`,
-`directly_selected_model_if_observable`,
-`runtime_reported_model_label_if_observable`,
-`runtime_reported_reasoning_effort_if_observable`, and `fallback_or_switch`
-when applicable. Reuse `preferred_or_configured_model` and `reasoning_level`
-when they already carry the requested/dispatched semantics rather than adding
-duplicate aliases. Report an unavailable exact value as `not_observable`; do
-not infer an exact model from a generic family label or promote CLI/provider
-metadata to independently observed runtime identity.
+Reports and prompts must preserve the distinct selection, dispatch, direct
+observation, runtime report, unknown, and fallback/switch states defined by
+`AGENTS.md` section 8. Reuse existing fields with the same meaning. Report an
+unavailable exact value as `not_observable`; do not infer an exact model from a
+generic family label or promote CLI/provider metadata to independently observed
+runtime identity.
 
 If exact profile identity is decision-material, require the conditional section
 4 profile-agreement fields and the AGENTS.md fail-closed rule. Otherwise require
@@ -1408,8 +1407,6 @@ read_only: <exact surfaces>
 branch_policy: <allowed value>
 validation_ceiling: <ceiling>
 
-report_path: <absolute path>
-patch_path: <absolute path>
 patch_kind_expected: <kind>
 ```
 
@@ -1681,7 +1678,9 @@ prescribing a pass.
 
 #### Minimum deliverables
 
-Require the mandatory report and patch plus only the task-specific artifacts
+Derive canonical report and patch paths from `prompt_id`; add explicit path
+fields only for a justified noncanonical name or location. Require the
+mandatory report and patch plus only the task-specific artifacts
 needed for the decision.
 
 #### Final chat deliverable
@@ -1861,7 +1860,7 @@ commit_ownership_classes_explicit_when_committing
 staged_paths_and_diff_limited_to_owned_or_adopted_changes
 exact_path_staging_and_complete_staged_diff_readback
 foreign_staged_paths_removed_index_only_or_commit_stopped
-report_and_patch_paths_explicit
+report_and_patch_paths_derivable_or_explicit_when_noncanonical
 absolute_report_directory_in_final_chat_when_report_is_produced
 final_chat_deliverable_explicit
 publication_mode_used_for_remote_publication

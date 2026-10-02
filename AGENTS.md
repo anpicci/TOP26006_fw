@@ -2231,17 +2231,23 @@ one_patch_artifact
 Canonical directory:
 
 ```text
-/users/apiccine/work/correction-lib/reports/diagnostics/<prompt_id>_<short_slug>/
+/users/apiccine/work/correction-lib/reports/diagnostics/<prompt_id>/
 ```
 
 Canonical files:
 
 ```text
-<prompt_id>_<short_slug>_report.md
-<prompt_id>_<short_slug>_worktree_diff.patch
+<prompt_id>_report.md
+<prompt_id>_worktree_diff.patch
 ```
 
-If the directory exists, use a rerun suffix and report the earlier path.
+`prompt_id` is the deterministic round slug and must uniquely identify the
+round; do not append a second title-derived slug. A prompt may declare exact
+custom artifact paths when the canonical names do not fit its artifact kind.
+These are expected locations only. Resolve the actual directory at runtime;
+if it exists, use a deterministic `_rerun_00N` suffix and report the earlier
+path. Record the actual report and patch paths, including that suffix, rather
+than deriving collision outcomes from the prompt.
 
 Allowed patch kinds:
 
@@ -2273,22 +2279,28 @@ heavy_command_permissions
 scope_and_repo_permissions
 agents_md_files_read
 preflight_state
-accepted_prior_evidence
-checks_intentionally_not_repeated
 files_changed
 implementation_or_evidence_summary
 validation_commands_and_results
 generated_artifacts
+report_directory
 patch_path
 patch_kind
-prompt_local_diff
-branch_cumulative_diff
 pre_existing_worktree_state
 commit_summary
 open_questions_or_caveats
 recommended_next_action
 final_cleanliness
 ```
+
+Include `accepted_prior_evidence` and `checks_intentionally_not_repeated` only
+when they carry actual prior evidence or protected checks. Include
+`prompt_local_diff` when this round changes tracked files and
+`branch_cumulative_diff` when a cumulative comparison is decision-material.
+For a read-only no-mutation round, record `files_changed: none`,
+`commit_summary: none`, and an `empty_no_changes` patch; do not invent diff
+fields. These conditional omissions do not remove identity, effect,
+validation, provenance, caveat, or actual artifact-path evidence.
 
 Classify an incomplete or inaccurate report field as one of:
 
