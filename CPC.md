@@ -1191,50 +1191,13 @@ Codex to alter its sandbox, approval policy, user configuration, or rules.
 
 Prompt authorization remains mandatory.
 
-A `create_or_reuse_open_pr_or_mr` round must declare:
-
-```text
-network_access: yes
-remote_git_write: <yes_or_no; conditional source-ref synchronization>
-pr_or_mr_write: yes
-pr_or_mr_merge: no
-remote_branch_deletion: no
-force_push_allowed: no
-merge_allowed: no
-draft_allowed: no
-```
-
-Require the prompt to query the fresh advertised remote feature HEAD and
-compare it with `expected_local_head`: if equal, skip the push and continue
-publication validation; if different and `remote_git_write: yes`, perform the
-exact normal non-force explicit-refspec push and then read the remote feature
-HEAD back; if different and `remote_git_write: no`, stop before mutation.
-
-A `synchronize_declared_remote_branch` round must declare the conditional
-branch-only fields from section 4 and use:
-
-```text
-network_access: yes
-pr_or_mr_write: no
-pr_or_mr_merge: no
-remote_branch_deletion: no
-force_push_allowed: no
-merge_allowed: no
-```
-
-Set `remote_git_write: no` for live query and a bounded exact-branch fetch into
-the declared local remote-tracking ref. Set it to `yes` only when the prompt and
-explicit user authorization cover one possible normal non-force push from the
-declared local ref to the declared remote branch. This action does not create,
-update, or merge a PR/MR and does not require PR-specific fields.
-
-A `normalize_declared_post_squash_staging_ref` round must declare the
-action-specific section 4 fields and use the exact guarded normalization
-contract in AGENTS.md. Require exact user authorization, archive reachability,
-an explicit normalization identity basis, the observed old SHA, the target
-SHA, an exact `--force-with-lease=<ref>:<exact_old_sha>` argument, a hard stop
-on unexpected movement, and post-write plus final expected-identity readback.
-Do not reuse the non-force synchronization action for this rewrite.
+For each publication action, declare its action-specific fields from section 4
+and its exact permissions and effect boundary from `AGENTS.md` section 6.
+Encode the observed-state gate that selects any conditional push, fetch, or
+no-action outcome. The prompt must require the action-specific fresh remote
+readbacks and hard stops in `AGENTS.md`; omission of a grant never authorizes a
+remote effect. For guarded post-squash normalization, name the exact rewrite
+and lease in the prompt and use only its separate action contract.
 
 ### 12.1 glados Git-over-SSH rule
 
@@ -1275,16 +1238,9 @@ system SSH permission or ownership changes
 
 ### 12.2 Construction requirements and compact examples
 
-Require the action-specific AGENTS.md publication sequence in the prompt.
-Encode each network operation as a separate direct command. For PR/MR creation,
-require exact local branch/HEAD and tracked/index checks, live base and
-feature-head readback, duplicate-PR/MR checks before and after conditional
-source-ref synchronization, and final PR/MR metadata readback. For branch-only
-synchronization, require exact local and remote refs, expected local HEAD, the
-predeclared topology rule, and fresh
-exact live-remote readback after fetch, push, or no action; also require local
-remote-tracking-ref readback after fetch. Stop on divergence, ambiguous commit
-ownership, or any merge-versus-rebase choice. Retain only the following concise
+Require the action-specific `AGENTS.md` publication sequence and one separate
+direct command per network operation. Bind every conditional action to its
+declared live-state gate and readback. Retain only the following concise
 direct-command examples in the prompt when Git-over-SSH is used:
 
 Canonical live-base query:
@@ -1318,22 +1274,8 @@ git \
   refs/heads/<feature_branch>:refs/heads/<feature_branch>
 ```
 
-Never include:
-
-```text
---force
---force-with-lease
-wildcard refspecs
-implicit multi-ref pushes
-remote branch deletion
-automatic merge
-```
-
-unless the exact action is separately authorized. Fetch, push, or creation
-stdout alone is insufficient; the prompt must require action-specific live
-remote readback. The sole allowed `--force-with-lease` form is the exact
-action-specific post-squash normalization contract. Generic `--force` remains
-forbidden.
+Use the action-specific `AGENTS.md` force, deletion, merge, refspec, and
+readback restrictions. The examples above grant no effect by themselves.
 
 ### 12.3 Duplicate handling and failure classification
 
@@ -1351,9 +1293,8 @@ base branch
 feature branch
 ```
 
-When a match exists, do not create another PR/MR. Read it back and report it.
-Repeat the duplicate check after source-ref synchronization and before creation
-to guard against a race.
+Require the `AGENTS.md` duplicate-check and readback sequence, including the
+check after conditional synchronization and before creation.
 
 Classify failures precisely:
 
@@ -1381,8 +1322,8 @@ pre-spawn failures.
 
 ### 12.4 Merge rounds and manual user merges
 
-When Codex is authorized to merge, require a separate `pr_publication` round
-with one decision question and:
+For an explicitly authorized merge, construct a separate `pr_publication`
+round with one decision question and:
 
 ```text
 publication_action: merge_existing_pr_or_mr
@@ -1390,7 +1331,7 @@ pr_or_mr_merge: yes
 merge_allowed: yes
 ```
 
-Require immediate pre-merge readback of:
+Require the `AGENTS.md` merge gate and immediate pre-merge readback of:
 
 ```text
 open state
