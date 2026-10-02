@@ -154,33 +154,35 @@ allowed_to_modify
 read_only
 
 branch_policy
-current_checked_out_branch
-reference_branch
-target_branch
-feature_branch
-current_baseline_branch
-comparison_baseline
-integrated_baseline_mode
-
-dirty_worktree_policy
-preflight_profile
 preflight_scope_paths
 validation_ceiling
-heavy_command_permissions
-
-source_control_policy
-do_not_commit
-commit_expected
-commit_message_policy
 
 goal
 decision_question
-out_of_scope
 report_path
 patch_path
 patch_kind_expected
 final_chat_deliverable
 ```
+
+Use the live applicable `AGENTS.md` source-control policy without a routine
+`source_control_policy: inherit_AGENTS_defaults` field. For ordinary prompts,
+omission derives these fail-closed values:
+
+```text
+heavy_command_permissions: all_no
+preflight_profile: compact_preflight
+dirty_worktree_policy: require_clean_worktree
+```
+
+Every positive capability, expanded preflight, and alternative dirty-worktree
+policy remains explicit. Keep decision-material `preflight_scope_paths`.
+Require `out_of_scope` only when exclusions constrain the decision or safety
+boundary; omission never widens `allowed_to_modify`, permissions, or mode
+authority. Repository-facing commit-language prohibitions are inherited from
+`AGENTS.md` and `CONTRIBUTING.md`; state exact commit subject or format when
+decision-material. Action-specific publication, merge, and normalization
+permission fields remain governed by their existing contracts.
 
 For continuation rounds, also state:
 
@@ -508,9 +510,11 @@ The default policy is no overwrite, no merge with existing output, and no
 silent resume. A prompt must require an explicit bounded authorization before
 overwriting or resuming an existing or indeterminate target.
 
-If a field is intentionally inapplicable, state `none` and why.
+For fields still required by their applicable contract, state `none` and why
+when intentionally inapplicable. Do not add synthetic `none` values for the
+conditional fields in this P0 schema.
 
-For any prompt with `commit_expected: yes`, also state:
+For any prompt that will commit tracked changes, also state:
 
 ```text
 authorized_commit_scope:
@@ -521,22 +525,21 @@ foreign_dirty_change_policy: preserve_and_exclude
 staging_policy: exact_path_only
 ```
 
-For any round that creates or explicitly adopts changes to tracked repository
-files, default to:
+Derive ordinary commit behavior from tracked repository-file mutation or
+explicit adoption. Routine prompts need not serialize `commit_expected` or
+`do_not_commit`.
 
-```text
-commit_expected: yes
-do_not_commit: no
-```
-
-Require successful round or workflow closure to include a prompt-local commit
-of all intended task-owned or explicitly adopted tracked changes, with the
-task-scope index and tracked worktree clean. An orchestrated workflow may defer
+Except for an exact owner-authorized `do_not_commit: yes` round, require
+successful round or workflow closure to include a prompt-local commit of all
+intended task-owned or explicitly adopted tracked changes, with the task-scope
+index and tracked worktree clean. An orchestrated workflow may defer
 that commit only to a later declared commit stage in the same workflow; do not
-require one commit per mutating stage. If a safe commit cannot be made, the
-round remains incomplete. `do_not_commit: yes` for tracked mutation requires
-explicit owner authorization for that exact round, cited in the prompt.
+require one commit per mutating stage. If a safe commit cannot be made in a
+commit-required round, the round remains incomplete. `do_not_commit: yes` for
+tracked mutation requires explicit owner authorization for that exact round,
+cited in the prompt.
 Read-only rounds that create no tracked changes do not require a commit.
+Omission of `do_not_commit: yes` never authorizes uncommitted tracked changes.
 
 `authorized_commit_scope` is the exact prompt-declared subset of
 `allowed_to_modify` eligible for the prompt-local commit. It governs commit
@@ -804,6 +807,22 @@ Branch policy selects which branch the round may use and whether it may create
 or switch branches. Prompt mode controls the activity allowed in that round;
 the commit contract controls whether tracked changes must be committed before
 successful closure. Do not encode a commit phase in branch policy.
+
+Require branch facts according to the selected policy:
+
+```text
+create_feature_branch_from_reference: reference_branch, feature_branch
+continue_existing_branch: target_branch
+read_only_current_branch: observed current branch from fresh preflight
+```
+
+For `read_only_current_branch`, declare an expected
+`current_checked_out_branch` only when exact identity is a safety invariant;
+stop on a mismatch. Require `current_baseline_branch`,
+`comparison_baseline`, and `integrated_baseline_mode` only when
+decision-material. Do not add synthetic `none` values. Omission of a branch
+fact never authorizes creation, switching, integration, or reclassification;
+an unresolved decision-material fact stops the prompt.
 
 Before emitting a prompt that proposes `create_feature_branch_from_reference`
 or may mutate tracked repository state, the prompt author must fresh-resolve
@@ -1398,37 +1417,24 @@ allowed_to_modify: <exact surfaces>
 read_only: <exact surfaces>
 
 branch_policy: <allowed value>
-current_checked_out_branch: <expected or unknown_until_preflight>
-reference_branch: <reference or none>
-target_branch: <target or none>
-feature_branch: <feature or none>
-current_baseline_branch: <baseline or none>
-comparison_baseline: <reference or none>
-integrated_baseline_mode: <yes_or_no>
-
-dirty_worktree_policy: <policy>
-preflight_profile: compact_preflight
 preflight_scope_paths:
   - <task path>
 validation_ceiling: <ceiling>
-
-source_control_policy: inherit_AGENTS_defaults
-do_not_commit: <yes_or_no>
-commit_expected: <yes_or_no>
-commit_message_policy:
-  format: <format_or_none>
-  prompt_ids_allowed: no
-  codex_jargon_allowed: no
-  internal_workflow_labels_allowed: no
-
-heavy_command_permissions:
-  defaults: all_no
-  overrides: <bounded yes entries or none>
 
 report_path: <absolute path>
 patch_path: <absolute path>
 patch_kind_expected: <kind>
 ```
+
+Add `reference_branch` and `feature_branch` for branch creation, or
+`target_branch` for an existing-branch round. Add an expected
+`current_checked_out_branch` and baseline fields only when decision-material.
+Add `do_not_commit: yes` only for an exact owner-authorized tracked-mutation
+exception. Add explicit positive heavy permissions, `expanded_preflight`, an
+alternative `dirty_worktree_policy`, `out_of_scope`, or exact commit-message
+requirements when applicable. The omitted ordinary values and inherited
+prohibitions in section 4 still apply. Keep action-specific publication and
+orchestrated-stage templates as written.
 
 For `pr_publication`, append:
 
@@ -1779,12 +1785,12 @@ CPC overrides:
 - codex_cli_mode: <standard_or_ultra>
 - allow_topcoffea_modifications: <yes_or_no>
 - branch_policy: <policy>
-- reference_branch: <branch_or_commit>
-- target_branch: <branch_or_none>
-- feature_branch: <branch_or_none>
-- current_baseline_branch: <branch_or_none>
-- comparison_baseline: <reference_or_none>
-- do_not_commit: <yes_or_no>
+- reference_branch: <branch_or_commit_when_applicable>
+- target_branch: <branch_when_applicable>
+- feature_branch: <branch_when_applicable>
+- current_baseline_branch: <branch_when_decision_material>
+- comparison_baseline: <reference_when_decision_material>
+- do_not_commit: yes <only with exact owner authorization for tracked mutation>
 - dirty_worktree_policy: <policy>
 - preflight_profile: <profile>
 - validation_ceiling: <ceiling>
@@ -1828,9 +1834,9 @@ live_applicable_feature_state_resolved_before_mutating_prompt
 reuse_or_owner_exception_selected_from_zero_one_multiple_branches
 new_nested_repository_branch_namespace_and_repository_facing_name_checked
 unauthorized_parallel_branch_prompt_rejected_before_execution
-dirty_policy_and_preflight_explicit
+dirty_policy_and_preflight_derived_or_explicit_when_exceptional
 validation_ceiling_explicit
-heavy_permissions_explicit
+heavy_permissions_all_no_when_omitted_and_positive_grants_explicit
 technical_network_availability_not_treated_as_authorization
 remote_write_permissions_explicit_when_applicable
 accepted_evidence_referenced_not_repeated
@@ -1845,9 +1851,8 @@ expected_values_limited_to_inputs_and_safety_invariants
 evidence_collection_precedes_classification
 anti_self_certification_rules_present_when_relevant
 minimum_sufficient_artifacts
-commit_expectation_explicit
-tracked_mutation_defaults_to_commit_expected_yes_and_do_not_commit_no
-tracked_mutation_successful_closure_requires_prompt_local_commit
+commit_expectation_derived_from_tracked_mutation_or_adoption
+tracked_mutation_successful_closure_requires_prompt_local_commit_absent_exact_exception
 do_not_commit_for_tracked_mutation_has_exact_owner_authorization
 read_only_round_without_tracked_mutation_requires_no_commit
 commit_ownership_classes_explicit_when_committing

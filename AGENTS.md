@@ -842,6 +842,9 @@ Declare `target_branch`. Work directly on it and create no additional branch.
 
 Inspect or publish the current branch without local editing, committing, or
 switching. Remote mutation still requires explicit publication permissions.
+Derive the current branch from fresh preflight Git state. Declare an expected
+current branch only when its exact identity is a safety invariant; stop if the
+observed branch differs.
 
 ### Development branch lifecycle
 
@@ -902,17 +905,16 @@ integration target remains `run3_test_mmerged`. Explicit feature-to-feature
 consolidation does not alter either permanent role. This contract adds no
 branch registry or persistent state mechanism.
 
-Required branch fields when applicable:
-
-```text
-current_checked_out_branch
-reference_branch
-target_branch
-feature_branch
-current_baseline_branch
-comparison_baseline
-integrated_baseline_mode
-```
+Require `reference_branch` and `feature_branch` for
+`create_feature_branch_from_reference`, and `target_branch` for
+`continue_existing_branch`. For `read_only_current_branch`, omit synthetic
+`none` branch fields and require an expected `current_checked_out_branch` only
+when exact branch identity is a declared safety invariant. Require
+`current_baseline_branch`, `comparison_baseline`, and
+`integrated_baseline_mode` only when decision-material; omission does not
+remove or reinterpret their contracts, change permanent TOPEFT roles, or
+bypass the live applicable-feature lifecycle gate. If a decision-material
+branch fact cannot be established, stop rather than infer authority.
 
 If branch behavior is missing or ambiguous, stop and include:
 
@@ -1373,13 +1375,10 @@ git branch
 sha256sum
 ```
 
-Every prompt must declare:
-
-```text
-heavy_command_permissions:
-  defaults: all_no
-  overrides: ...
-```
+For ordinary non-action-specific prompts, omitted
+`heavy_command_permissions` means `all_no`. Every positive capability grant
+must be explicit. Action-specific publication, merge, and normalization
+permission contracts remain mandatory as written.
 
 Capabilities requiring explicit `yes` include:
 
@@ -1565,13 +1564,10 @@ blocked_local_state:
 
 ## 13. Preflight and dirty-worktree policy
 
-Every prompt must declare:
-
-```text
-preflight_profile
-dirty_worktree_policy
-preflight_scope_paths
-```
+Omitted `preflight_profile` means `compact_preflight`; require explicit
+`expanded_preflight` when needed. Omitted `dirty_worktree_policy` means
+`require_clean_worktree`; any alternative must be explicit. Declare
+decision-material `preflight_scope_paths`.
 
 Allowed profiles:
 
@@ -1660,37 +1656,27 @@ prompt_local_changes
 
 ## 14. Source-control and commit policy
 
-Default when a round mutates tracked repository files:
-
-```text
-commit_expected: yes
-do_not_commit: no
-```
-
-Any round that creates or explicitly adopts changes to tracked repository files
-must use these defaults and cannot close successfully while its task-owned or
-explicitly adopted tracked-file changes remain uncommitted.
-Successful closure requires those changes to be committed in prompt-local
-history, with the task-scope index and tracked worktree clean. For an
-orchestrated workflow, intermediate stages may leave those changes uncommitted
-only until a later declared commit stage in the same workflow commits them.
+Derive ordinary commit behavior from tracked repository-file mutation or
+explicit adoption. Except for an exact owner-authorized `do_not_commit: yes`
+round, a round that creates or explicitly adopts such changes cannot close
+successfully while its task-owned or explicitly adopted tracked-file changes
+remain uncommitted.
+Outside that exception, successful closure requires those changes to be
+committed in prompt-local history, with the task-scope index and tracked
+worktree clean. For an orchestrated workflow, intermediate stages may leave
+those changes uncommitted only until a later declared commit stage in the same
+workflow commits them.
 This does not require one commit per mutating stage.
 
 For tracked mutation, `do_not_commit: yes` is permitted only when the owner
 explicitly authorizes that exception for the exact round. If a safe commit
-cannot be created, stop incomplete. Read-only rounds that create no tracked
-changes do not require a commit.
+cannot be created in a commit-required round, stop incomplete. Read-only
+rounds that create no tracked changes do not require a commit.
 
-Default for investigation, validation, PR preparation, and publication:
-
-```text
-commit_expected: no
-do_not_commit: yes
-```
-
-A round that creates or explicitly adopts tracked repository-file changes
-must create a prompt-local commit unless the owner explicitly authorizes the
-tracked-mutation exception above.
+When no tracked repository-file mutation or adoption occurs, no commit is
+required. Routine prompts need not serialize `commit_expected` or
+`do_not_commit`. Absence of `do_not_commit: yes` never permits uncommitted
+tracked mutation. The exact owner exception remains explicit.
 
 ### Change ownership and index isolation
 
@@ -1724,7 +1710,7 @@ foreign changes in the same path.
 adopted changes; path membership does not adopt or confer ownership on any
 other pre-existing or foreign change in the same path.
 
-When `commit_expected: yes`, the prompt must declare
+When the round will commit tracked changes, the prompt must declare
 `authorized_commit_scope`: the exact subset of `allowed_to_modify` authorized
 for the current commit. It governs commit eligibility only. Ownership or
 continuation adoption does not expand it.
