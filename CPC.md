@@ -850,6 +850,14 @@ repository and workstream, regardless of whether the tracked work is described
 as coding, documentation, configuration, testing, maintenance, or another
 repository activity. Base branch selection on whether the repository and
 workstream need a development feature branch, not on a file-category list.
+Use semantic/dependency continuity: a feature-only dependency, the same accepted
+semantic surface, or replay/duplication of accepted feature work strongly
+supports applicability. Package, analysis, or campaign proximity alone does
+not. Require positive bounded evidence for
+`NO_APPLICABLE_ACTIVE_FEATURE_BRANCH`; if evidence is insufficient or
+contradictory, emit `BRANCH_APPLICABILITY_AMBIGUOUS` and stop rather than treat
+uncertainty as zero.
+
 With exactly one applicable branch,
 require `continue_existing_branch` and name it as `target_branch` unless the
 owner explicitly authorizes a named split, supersession, or integration
@@ -898,6 +906,8 @@ exception is invalid before execution: `PROMPT_INVALID_BRANCH_POLICY`.
 Reject direct development on a declared reference or integration branch.
 Read-only work normally uses `read_only_current_branch`. Commit preparation
 on an existing feature branch uses `continue_existing_branch`.
+For read-only investigation, report any future branch disposition as a bounded
+conclusion without reclassifying a cumulative `te/*` feature as a reference.
 
 PR/MR publication normally uses `read_only_current_branch` because it must
 publish the exact already validated local branch without local mutation.

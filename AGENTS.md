@@ -852,7 +852,16 @@ Before tracked repository work that requires a development feature branch,
 fresh-read the live local Git branch state for the target repository and
 workstream. This branch-selection gate is independent of file category and
 does not apply to pure read-only inspection. Live Git state is the branch-state
-authority; do not create a registry or cache. Exactly one applicable active
+authority; do not create a registry or cache. Determine applicability from
+semantic and dependency continuity with the proposed work, not task names,
+prompt IDs, file names, or campaign labels. Strong evidence includes a
+feature-only dependency absent from the reference, continuity of the accepted
+semantic surface owned by the feature, or a need to replay or duplicate accepted
+feature work if starting from the reference. Sharing only a package, analysis,
+or campaign is insufficient. `NO_APPLICABLE_ACTIVE_FEATURE_BRANCH` requires
+positive bounded evidence; missing or contradictory evidence is
+`BRANCH_APPLICABILITY_AMBIGUOUS` and stops branch selection. Uncertainty must
+not be counted as zero applicable features. Exactly one applicable active
 feature branch requires `continue_existing_branch` unless the owner explicitly
 authorizes a named split,
 supersession, or integration exception. With none,
@@ -860,7 +869,7 @@ supersession, or integration exception. With none,
 reconciliation unless the owner authorizes such an exception. A declared
 reference or integration branch is a baseline, not a development surface: do
 not accumulate new development commits directly on it. Contradictory or
-ambiguous live state stops with the existing branch-policy blocker and a
+ambiguous live state stops with the applicable branch-policy blocker and a
 `branch_escalation_note`; do not silently change the declared branch policy.
 
 An owner-authorized exception must identify the existing applicable branches,
@@ -904,6 +913,13 @@ authorized, use `run3_test_mmerged_anpicci` as `reference_branch`. The permanent
 integration target remains `run3_test_mmerged`. Explicit feature-to-feature
 consolidation does not alter either permanent role. This contract adds no
 branch registry or persistent state mechanism.
+
+Read-only investigation may report a future branch disposition from bounded
+evidence, but does not itself perform the development branch-selection action.
+It must preserve the permanent role of any `te/*` feature when describing that
+disposition. With positively proven zero applicable TOPEFT features, ordinary
+new-feature creation still starts from `run3_test_mmerged_anpicci`; with one
+applicable cumulative `te/*` feature, continue that feature.
 
 Require `reference_branch` and `feature_branch` for
 `create_feature_branch_from_reference`, and `target_branch` for
