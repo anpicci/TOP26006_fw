@@ -511,6 +511,14 @@ stage_inputs_from_prior
 stage_on_failure
 ```
 
+Omit `stage_permissions` only when the stage requests no positive capability;
+omission means every capability is denied at that stage, including any positive
+capability in the outer envelope. When a stage needs a capability, name its
+exact positive grant locally and keep all mode-required action fields. Fixed
+denials need not be repeated unless the selected stage mode requires their
+explicit declaration. The first stage may omit `stage_inputs_from_prior` because
+no prior stage exists; later stages must state their observed bindings or `none`.
+
 Mode-specific fields remain required inside the stage that owns them. A stage's
 effective permissions are the intersection of the outer workflow permission
 envelope, its stage-local permissions, the stage mode's normative permissions,

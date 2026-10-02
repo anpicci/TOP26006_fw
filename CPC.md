@@ -428,6 +428,13 @@ stage_inputs_from_prior
 stage_on_failure
 ```
 
+Omit `stage_permissions` only when no positive stage-local capability is
+requested; omission denies every capability at that stage even when the outer
+envelope grants one. Positive grants remain explicit and cannot be inherited
+from the outer envelope or another stage. Keep mode-required explicit fields
+and both writable and read-only stage boundaries. The first stage may omit
+`stage_inputs_from_prior`; later stages state observed bindings or `none`.
+
 Omit genuinely irrelevant stage fields rather than filling them for symmetry,
 but include every conditional field required by the selected stage mode. The
 outer permissions are a maximum envelope; require stage-local authorization
@@ -1542,7 +1549,7 @@ workflow_stages:
     stage_branch_policy: <applicable branch policy>
     stage_allowed_to_modify: <exact surfaces>
     stage_read_only: <exact surfaces>
-    stage_permissions: <stage-local permissions>
+    stage_permissions: <exact positive stage-local grants; omit if none>
     stage_preconditions: <observed gate inputs>
     stage_acceptance_gate: <objective pass condition>
     stage_outputs: <named observed outputs>
