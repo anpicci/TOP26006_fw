@@ -78,6 +78,39 @@ More specifically:
   capabilities only. The prompt must authorize each network capability and
   remote mutation separately.
 
+### Reusable capability lifecycle
+
+Before creating a script, helper, validator, runner, launcher, converter, or
+execution utility, establish whether an applicable maintained capability or
+owner already exists. Decide in this order: reuse the existing maintained
+capability; use configuration or composition; make the minimum compatible
+extension; create a new capability only when the maintained architecture cannot
+own the requirement cleanly. `reuse_before_create` does not require reuse at any
+cost: historical, retired, unsupported, or semantically incompatible tooling
+need not be reused.
+
+Classify newly needed tooling as `EPHEMERAL_DIAGNOSTIC` or
+`REUSABLE_CAPABILITY`, using expected reuse and ownership as the discriminator.
+One-off evidence extraction, temporary comparisons or tables, bounded
+hypothesis checks, and temporary provenance extraction may remain
+diagnostics-local. Capabilities with plausible reuse beyond the current round,
+such as production launchers, resumable runners, retry or recovery machinery,
+manifest generators, package builders, durable validators, format converters,
+and reusable analysis helpers, require an appropriate maintained home. As
+applicable, define the canonical owner and repository surface, supported
+interface, usage contract, appropriate tests, failure semantics,
+provenance/output contract, and documentation needed for that capability. Do
+not leave de facto maintained infrastructure in a diagnostics directory.
+`canonicalize_reusable_capabilities` does not promote every diagnostic into
+repository source.
+
+If a round expected an ephemeral helper and evidence shows that the needed
+functionality is reusable, preserve the evidence, stop scope expansion, record
+the reusable-capability gap, and decide whether a separate bounded coding round
+is earned. Apply the existing `one_round_one_decision`,
+`minimum_sufficient_scope`, and `no_silent_scope_expansion` rules; do not create
+a second scope-control framework.
+
 ---
 
 ## 2. Workspace and repository boundaries
@@ -1369,36 +1402,6 @@ orchestrated_stage_pattern:
 checklist:
   presentation or review aid without execution authority
 ```
-
-Before creating a script, helper, validator, runner, launcher, converter, or
-execution utility, establish whether an applicable maintained capability or
-owner already exists. Decide in this order: reuse the existing maintained
-capability; use configuration or composition; make the minimum compatible
-extension; create a new capability only when the maintained architecture cannot
-own the requirement cleanly. `reuse_before_create` does not require reuse at any
-cost: historical, retired, unsupported, or semantically incompatible tooling
-need not be reused.
-
-Classify newly needed tooling as `EPHEMERAL_DIAGNOSTIC` or
-`REUSABLE_CAPABILITY`, using expected reuse and ownership as the discriminator.
-One-off evidence extraction, temporary comparisons or tables, bounded
-hypothesis checks, and temporary provenance extraction may remain
-diagnostics-local. Capabilities with plausible reuse beyond the current round,
-such as production launchers, resumable runners, retry or recovery machinery,
-manifest generators, package builders, durable validators, format converters,
-and reusable analysis helpers, require an appropriate maintained home. Define
-the applicable canonical owner and repository surface, supported interface,
-usage contract, tests, failure semantics, provenance/output contract where
-relevant, and documentation where needed. Do not leave de facto maintained
-infrastructure in a diagnostics directory. `canonicalize_reusable_capabilities`
-does not promote every diagnostic into repository source.
-
-If a round expected an ephemeral helper and evidence shows that the needed
-functionality is reusable, preserve the evidence, stop scope expansion, record
-the reusable-capability gap, and decide whether a separate bounded coding round
-is earned. Apply the existing `one_round_one_decision`,
-`minimum_sufficient_scope`, and `no_silent_scope_expansion` rules; do not create
-a second scope-control framework.
 
 The controlling workflow or human retains decision authority. A mechanism must
 not invent authorization, broaden scope, or become the sole owner of a
