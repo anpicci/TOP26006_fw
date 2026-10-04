@@ -1163,6 +1163,12 @@ publication_contract_when_applicable
 
 Reference stable governance instead of copying it.
 
+When a prompt proposes creating a script, helper, validator, runner, launcher,
+converter, or execution utility, require it to establish the applicable
+maintained capability or owner and classify the need as
+`EPHEMERAL_DIAGNOSTIC` or `REUSABLE_CAPABILITY`. Follow the lifecycle and
+ownership rule in AGENTS.md; do not restate its substantive policy here.
+
 Default task-specific artifact limit:
 
 ```text
