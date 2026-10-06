@@ -2,7 +2,8 @@
 
 # PR, review, and merge-message style contract
 
-This repository uses a structured, diff-driven PR and review style to make reviews faster and to preserve context for future maintainers.
+TOP26006_fw uses this common, diff-driven PR and review style across its
+project coordination work. The local checkout remains `correction-lib`.
 
 This document governs:
 
@@ -34,6 +35,15 @@ Policy precedence for this workspace:
 3. `CONTRIBUTING.md` controls PR titles, PR descriptions, squash-and-merge messages, branch hygiene notes, test-expectation language, and reviewer-facing text.
 4. A user prompt may override these rules only when the override is explicit.
 5. If two policies conflict, stop and ask for clarification or report the conflict.
+
+An applicable TOP26006_fw repository module named by
+`governance/repositories.md` may add repository- or document-specific reviewer
+constraints under this common policy. It may not weaken evidence honesty,
+scope, safety, or approval language here. Repository-native scientific and
+technical documentation remains with its semantic owner; this reviewer policy
+does not transfer its content to project governance. External ANDOCS at its
+current path retains its local reviewer policy until the Phase-3 applicability
+gate is proved.
 
 ---
 

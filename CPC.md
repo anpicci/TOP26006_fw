@@ -1,7 +1,11 @@
-# CPC.md — Codex Prompt Contract v2.1 for `correction-lib`
+# CPC.md — Codex Prompt Contract v2.1 for TOP26006_fw
 
 This contract governs how ChatGPT prepares Codex prompts for the
-`correction-lib` workspace.
+TOP26006_fw coordination workspace at `/users/apiccine/work/correction-lib`.
+Select every task repository through `governance/repositories.md` and apply its
+named module for repository-specific project deltas. An external ANDOCS prompt
+at the old path still follows its path-applicable local governance until the
+Phase-3 applicability gate is proved.
 
 ---
 
@@ -12,8 +16,12 @@ This contract governs how ChatGPT prepares Codex prompts for the
    authorization.
 2. `CPC.md` controls prompt construction.
 3. `CONTRIBUTING.md` controls reviewer-facing text.
-4. Explicit user instructions may override these rules.
-5. A generated prompt must tell Codex to stop on conflict rather than guess.
+4. A registry-named TOP26006_fw module adds repository-specific prompt and
+   project constraints under these common files. Applicable repository-native
+   policy also binds execution; modules cannot grant authorization or weaken
+   root `AGENTS.md`/`CPC.md`.
+5. Explicit user instructions may override these rules.
+6. A generated prompt must tell Codex to stop on conflict rather than guess.
 
 ---
 
@@ -159,6 +167,14 @@ decision_question
 patch_kind_expected
 final_chat_deliverable
 ```
+
+Build `repo_locations` from the selected typed registry entries, not a fixed
+two-repository workspace. Include only the task's relevant repositories and
+their path status. Keep `allowed_to_modify` and `read_only` explicit for each
+relevant repository and surface. Read the registry-named module when present;
+use it for repository-specific project deltas and retain generic lifecycle,
+permissions and prompt construction here. A module cannot make a missing write,
+network or publication grant implicit.
 
 Derive expected report and patch paths from the canonical diagnostics root and
 `prompt_id` in `AGENTS.md` section 20. Declare `report_path` or `patch_path`
@@ -873,36 +889,12 @@ exception. Use the compact exception contract in `AGENTS.md`; do not create a
 second branch-state registry or cache. `AGENTS.md` remains normative for runtime
 branch behavior.
 
-For TOPEFT, encode these permanent branch roles in every applicable prompt:
-
-```text
-permanent integration branch: run3_test_mmerged
-permanent personal reference: run3_test_mmerged_anpicci
-feature/development namespace: te/*
-```
-
-Every `te/*` branch remains feature/development, even when cumulative,
-accepted, or the current source-writing authority. Count each applicable
-cumulative `te/*` branch in the reuse-first gate: one applicable active
-feature requires `continue_existing_branch`; multiple require stopping for
-reconciliation unless the exact owner exception authorizes otherwise. Never
-classify a `te/*` branch as a permanent reference or integration branch, or
-exclude it from the active-feature count, based on its cumulative authority.
-
-With zero applicable active TOPEFT features, ordinary new-feature creation may
-use `create_feature_branch_from_reference` only when creation is authorized;
-create `te/<repository_facing_name>` from `run3_test_mmerged_anpicci` by default.
-Keep `run3_test_mmerged` as the permanent integration target. Generic baseline
-fields and `integrated_baseline_mode` cannot override these roles or the
-reuse-first gate. Explicit feature-to-feature consolidation leaves the
-permanent roles unchanged. This TOPEFT rule preserves the generic three-policy
-model and the existing `te/` and `tc/` namespace rules.
-
-When creation is permitted, use `te/<repository_facing_name>` for a new
-`topeft` feature branch and `tc/<repository_facing_name>` for a new `topcoffea`
-feature branch. This namespace rule does not govern the `correction-lib`
-meta-repository or unrelated repositories. Name new branches for the
-repository-facing change, following established conventions rather than
+For TOPEFT and topcoffea, the registry-named modules define their project
+branch namespaces and any permanent branch roles. An applicable prompt must
+encode those module constraints, including TOPEFT's treatment of cumulative
+features and its reference/integration roles. A generic baseline field cannot
+override them. Name new branches for the repository-facing change, following
+established conventions rather than
 internal lane, prompt, Codex, control-plane, round, or campaign identifiers
 unless such identifiers already are an established repository-facing
 convention. A prompt that proposes a parallel or new branch while an
@@ -913,7 +905,7 @@ Reject direct development on a declared reference or integration branch.
 Read-only work normally uses `read_only_current_branch`. Commit preparation
 on an existing feature branch uses `continue_existing_branch`.
 For read-only investigation, report any future branch disposition as a bounded
-conclusion without reclassifying a cumulative `te/*` feature as a reference.
+conclusion without overriding a module-defined feature or reference role.
 
 PR/MR publication normally uses `read_only_current_branch` because it must
 publish the exact already validated local branch without local mutation.
@@ -1377,7 +1369,8 @@ remote state check and follow the normative AGENTS.md merge policy.
 
 ### Prompt `<prompt_id>` — `<short_title>`
 
-You are Codex working inside the user’s `correction-lib` workspace.
+You are Codex working in the TOP26006_fw coordination workspace at its local
+`correction-lib` checkout.
 
 #### Optional distinct `goal`
 
@@ -1404,8 +1397,7 @@ model_selection_rationale: <brief rationale>
 
 workspace_root: /users/apiccine/work/correction-lib
 repo_locations:
-  topeft: /users/apiccine/work/correction-lib/topeft
-  topcoffea: /users/apiccine/work/correction-lib/topcoffea
+  <selected_repository_id>: <typed_registry_path_and_status>
 
 allowed_to_modify: <exact surfaces>
 read_only: <exact surfaces>

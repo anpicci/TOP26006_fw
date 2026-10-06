@@ -1,14 +1,11 @@
-# AGENTS.md — `correction-lib` Codex operating policy
+# AGENTS.md — TOP26006_fw Codex operating policy
 
-This workspace coordinates two independent Git repositories:
-
-```text
-topeft/     analysis code, processors, selections, workflow helpers, CLIs
-topcoffea/  shared libraries, object selection, corrections, weights, utilities
-```
-
-The workspace root also contains governance, reports, diagnostics, and patch
-artifacts. Never treat the two inner repositories as one Git repository.
+`TOP26006_fw` is the TOP-26-006 project and coordination meta-repository. Its
+local checkout remains `/users/apiccine/work/correction-lib`. It coordinates
+independent implementation, document, dependency, and evidence repositories;
+the accepted typed inventory is in `governance/repositories.md`. The checkout
+directory name does not change the project identity. Never treat nested Git
+repositories as one repository or combine their histories.
 
 ---
 
@@ -20,8 +17,12 @@ artifacts. Never treat the two inner repositories as one Git repository.
 2. `CPC.md` controls how ChatGPT constructs Codex prompts.
 3. `CONTRIBUTING.md` controls PR/MR titles, descriptions, squash messages,
    reviewer notes, validation language, and other reviewer-facing prose.
-4. A user instruction overrides these files only when explicit.
-5. On conflict, stop and report the conflict. Do not guess.
+4. The selected `governance/modules/<repository>.md`, when named by the typed
+   registry, adds TOP26006_fw repository-specific project rules under these
+   common files. Applicable repository/upstream-native policy also binds the
+   action; a module cannot weaken common safety or create authorization.
+5. A user instruction overrides these files only when explicit.
+6. On conflict, stop and report the conflict. Do not guess.
 
 Read every applicable nested `AGENTS.md` before acting and list the files read
 in the report.
@@ -115,16 +116,14 @@ a second scope-control framework.
 
 ## 2. Workspace and repository boundaries
 
-Expected paths:
-
-```text
-workspace_root: /users/apiccine/work/correction-lib
-topeft:        /users/apiccine/work/correction-lib/topeft
-topcoffea:     /users/apiccine/work/correction-lib/topcoffea
-```
-
-`workspace_root` is also a distinct local Git meta-repository. It is the
-authoritative source-control owner of this workspace's governance files:
+The local coordination checkout is `/users/apiccine/work/correction-lib` and
+is a distinct Git meta-repository named `TOP26006_fw`. Select a task repository
+by `repository_id` from `governance/repositories.md`, then read its applicable
+module and path-applicable nested `AGENTS.md` before acting. The registry
+defines stable roles, ownership, path status and consumers; fresh Git and
+remote readback establish volatile operational state. Do not infer a repository
+from a directory name or use registry text as a current HEAD, branch or remote
+ref. The coordination repository is the authoritative source-control owner of:
 
 ```text
 AGENTS.md
@@ -132,12 +131,22 @@ CPC.md
 CONTRIBUTING.md
 ```
 
-`topeft/` and `topcoffea/` remain independent nested Git repositories; root
-ownership of governance does not combine them into one source-control unit.
-Root-level Git operations must not stage nested repositories, unrelated root
-artifacts, reports, backups, payloads, or local tools without explicit
-authorization. Initial and later governance commits stage the intended
-governance files by exact path only.
+The registry and its four dedicated modules are also root-owned governance
+files. Nested Git histories remain independent. Root Git operations must not
+stage nested repositories, unrelated root artifacts, reports, backups,
+payloads, or local tools without explicit authorization. Governance commits
+stage intended exact paths only.
+
+TOP26006_fw is the single TOP-26-006 project operational and prompt/agentic
+governance owner. Repository-native or upstream policy remains owned by that
+repository/upstream project; effective actions satisfy both. Scientific and
+technical content remains with the native semantic owner and authorized lane.
+Project governance does not claim upstream branch or publication policy.
+
+The ANDOCS checkout currently at `/users/apiccine/work/ANDOCS` remains under
+its local transitional governance. `governance/modules/andocs.md` is the
+central successor, not yet a claim of path applicability at that external
+location. Its physical rehome and legacy-rule retirement require a later gate.
 
 Treat each repository independently for:
 
@@ -161,12 +170,10 @@ allowed_to_modify
 read_only
 ```
 
-Default when not explicitly overridden:
-
-```text
-topeft: writable
-topcoffea: read_only
-```
+Default when not explicitly overridden: selected non-coordination repositories
+are `read_only`; `topcoffea` and `EFTFit` have additional module-specific
+read-only posture. A prompt must explicitly name the writable repository and
+paths. The registry and module never grant a write by themselves.
 
 A read-only repository must not be modified. If a cross-repository change is
 necessary but not authorized, stop before editing and include:
@@ -920,47 +927,13 @@ deletion, publication, remote mutation, merge, force update, or cleanup; those
 actions retain their separate permissions. Do not automatically rewrite
 historical commits that predate this rule.
 
-When creation is permitted, new `topeft` feature branches use
-`te/<repository_facing_name>` and new `topcoffea` feature branches use
-`tc/<repository_facing_name>`. This namespace rule does not govern the
-`correction-lib` meta-repository or unrelated repositories. New branch names
-must describe the repository change and follow its established naming
-conventions; do not encode internal lane, prompt, Codex, control-plane, or
-round or campaign identifiers unless already established as a repository-facing
-convention.
-
-#### Permanent TOPEFT branch roles
-
-For TOPEFT, these branch roles are permanent:
-
-```text
-permanent integration branch: run3_test_mmerged
-permanent personal reference: run3_test_mmerged_anpicci
-feature/development namespace: te/*
-```
-
-Every `te/*` branch is a feature/development branch, including a cumulative,
-accepted, or current source-writing branch. Cumulative authority does not make
-a `te/*` branch a permanent reference or integration branch. An applicable
-cumulative `te/*` branch remains eligible for the reuse-first gate and counts
-as an applicable active feature when selecting the branch policy. Do not
-reclassify it as inactive or as a baseline because of its cumulative contents.
-
-For TOPEFT, `current_baseline_branch`, `comparison_baseline`,
-`integrated_baseline_mode`, and equivalent fields or prose cannot redefine these
-permanent roles or remove applicable `te/*` branches from reuse-first. When no
-applicable active TOPEFT feature exists and ordinary new-feature creation is
-authorized, use `run3_test_mmerged_anpicci` as `reference_branch`. The permanent
-integration target remains `run3_test_mmerged`. Explicit feature-to-feature
-consolidation does not alter either permanent role. This contract adds no
-branch registry or persistent state mechanism.
-
-Read-only investigation may report a future branch disposition from bounded
-evidence, but does not itself perform the development branch-selection action.
-It must preserve the permanent role of any `te/*` feature when describing that
-disposition. With positively proven zero applicable TOPEFT features, ordinary
-new-feature creation still starts from `run3_test_mmerged_anpicci`; with one
-applicable cumulative `te/*` feature, continue that feature.
+When creation is permitted, new branch names must describe the repository
+change and follow its established naming conventions; do not encode internal
+lane, prompt, Codex, control-plane, round or campaign identifiers unless
+already established as a repository-facing convention. TOPEFT and topcoffea
+namespace constraints, and TOPEFT's permanent branch roles, are in their
+registry-named modules. The generic reuse-first lifecycle above remains
+binding. A generic baseline field cannot override a module's permanent role.
 
 Require `reference_branch` and `feature_branch` for
 `create_feature_branch_from_reference`, and `target_branch` for
@@ -983,9 +956,9 @@ When `integrated_baseline_mode: yes`, treat the declared integration branch as
 current source of truth and do not reopen historical feature branches unless
 explicitly requested.
 
-For TOPEFT, this instruction concerns integration/source context only and does
-not change the permanent branch roles or the reuse-first eligibility of an
-applicable cumulative `te/*` feature.
+For a repository with module-defined permanent roles, this instruction
+concerns integration/source context only and does not change those roles or
+reuse-first eligibility of an applicable active feature.
 
 Remote branch commits are live state. Query them when current values matter;
 do not reuse an old remote SHA as current-state evidence.
@@ -1235,9 +1208,11 @@ Historical benchmark/report model and reasoning labels remain historical truth;
 do not rewrite them prospectively. Historical evidence does not establish GPT-6
 availability, comparative ranking, cost, latency, or production qualification.
 
-Before workspace unification, correction-lib and ANDOCS AGENTS.md must carry
-semantically identical project-common routing policy. Each CPC.md applies its
-AGENTS.md and must not maintain a competing complete routing matrix.
+While ANDOCS remains at its external transitional path, this file and the
+external ANDOCS `AGENTS.md` must carry semantically identical project-common
+model-routing policy. Each CPC.md applies its path-applicable AGENTS.md and
+must not maintain a competing complete routing matrix. The central ANDOCS
+module does not itself switch routing authority at the old path.
 CONTRIBUTING.md is not a model-routing authority.
 
 Do not use Sol merely because a task is important. Do not compensate for an
