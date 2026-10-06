@@ -170,19 +170,26 @@ allowed_to_modify
 read_only
 ```
 
-Default when not explicitly overridden: selected non-coordination repositories
-are `read_only`; `topcoffea` and `EFTFit` have additional module-specific
-read-only posture. A prompt must explicitly name the writable repository and
-paths. The registry and module never grant a write by themselves.
+Default in the absence of exact mutation authorization: selected
+non-coordination repositories are `read_only`; `topcoffea` and `EFTFit` have
+additional module-specific read-only posture. A prompt must explicitly name
+the writable repository, paths, and effects. Registry membership neither
+grants a write nor permanently prohibits an otherwise validly authorized one.
 
 This read-only default is an intentional centralized multi-repository
 governance tightening; the earlier `topeft` writable default was not
-semantically identical. The TOP26006_fw coordination meta-repository is
-writable only in an exact authorized root governance round. A non-coordination
-repository may be changed only when the exact round authorizes its repository,
-paths, and effects and applicable repository/upstream-native policy permits the
-action. This default does not make nested repositories immutable, supersede
-native policy, or transfer implementation ownership to TOP26006_fw governance.
+semantically identical. TOP26006_fw grants no implicit write to its tracked
+content. Tracked root content may be changed when an exact round authorizes
+the relevant root paths and effects under the applicable branch and commit
+rules; the round need not be classified as root governance. Diagnostics,
+report, and evidence outputs under the root workspace follow separately
+declared output and storage permissions, not the tracked-content write grant.
+A non-coordination repository may be changed when the exact round authorizes
+its repository, paths, and effects and applicable repository/upstream-native
+policy permits the action. This default does not make nested repositories
+immutable, supersede native policy, or transfer implementation ownership to
+TOP26006_fw governance. Centralized project governance does not make the
+coordination repository a monorepo or centralize implementation ownership.
 
 A read-only repository must not be modified. If a cross-repository change is
 necessary but not authorized, stop before editing and include:
