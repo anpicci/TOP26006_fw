@@ -12,8 +12,10 @@ rules for topeft, topcoffea, EFTFit and ANDOCS. The nested implementation,
 document, dependency and evidence repositories retain independent Git
 histories and their own native policies.
 
-ANDOCS currently remains external at `/users/apiccine/work/ANDOCS` under its
-transitional local governance. Its rehome into this checkout and central
-path-applicability are later Phase-3 decisions. The coordination checkout is
-local-only for now; any private remote or publication is a separate future
-authorization boundary.
+ANDOCS is an independent local-only Git meta-repository at
+`/users/apiccine/work/correction-lib/ANDOCS`. The root `/ANDOCS/` ignore rule
+keeps its contents out of the TOP26006_fw index. Root governance applies by
+ancestry, with the ANDOCS module and retained local compatibility governance;
+the paper and AN retain separate Git histories and scientific ownership. The
+coordination checkout is local-only for now; any private remote or publication
+is a separate future authorization boundary.

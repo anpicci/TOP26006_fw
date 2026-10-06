@@ -3,9 +3,9 @@
 This contract governs how ChatGPT prepares Codex prompts for the
 TOP26006_fw coordination workspace at `/users/apiccine/work/correction-lib`.
 Select every task repository through `governance/repositories.md` and apply its
-named module for repository-specific project deltas. An external ANDOCS prompt
-at the old path still follows its path-applicable local governance until the
-Phase-3 applicability gate is proved.
+named module for repository-specific project deltas. For work under the current
+ANDOCS path, apply the root policy, the ANDOCS module, and the retained local
+ANDOCS governance as a transitional compatibility layer.
 
 ---
 

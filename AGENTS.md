@@ -143,10 +143,12 @@ repository/upstream project; effective actions satisfy both. Scientific and
 technical content remains with the native semantic owner and authorized lane.
 Project governance does not claim upstream branch or publication policy.
 
-The ANDOCS checkout currently at `/users/apiccine/work/ANDOCS` remains under
-its local transitional governance. `governance/modules/andocs.md` is the
-central successor, not yet a claim of path applicability at that external
-location. Its physical rehome and legacy-rule retirement require a later gate.
+ANDOCS is an independent local-only meta-repository at
+`/users/apiccine/work/correction-lib/ANDOCS`. This root policy applies by
+ancestry; `governance/modules/andocs.md` adds its project-specific rules. The
+local ANDOCS governance files remain a transitional compatibility layer until
+a separate retirement decision. The former `/users/apiccine/work/ANDOCS` path
+is historical, not a current execution path.
 
 Treat each repository independently for:
 
@@ -1224,11 +1226,11 @@ Historical benchmark/report model and reasoning labels remain historical truth;
 do not rewrite them prospectively. Historical evidence does not establish GPT-6
 availability, comparative ranking, cost, latency, or production qualification.
 
-While ANDOCS remains at its external transitional path, this file and the
-external ANDOCS `AGENTS.md` must carry semantically identical project-common
-model-routing policy. Each CPC.md applies its path-applicable AGENTS.md and
-must not maintain a competing complete routing matrix. The central ANDOCS
-module does not itself switch routing authority at the old path.
+This file owns project-common model-routing policy for work below the current
+ANDOCS path. The retained local ANDOCS `AGENTS.md` is a transitional
+compatibility layer and must not introduce a competing routing decision. Each
+CPC.md applies its path-applicable AGENTS.md and must not maintain a competing
+complete routing matrix.
 CONTRIBUTING.md is not a model-routing authority.
 
 Do not use Sol merely because a task is important. Do not compensate for an

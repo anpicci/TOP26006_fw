@@ -41,9 +41,9 @@ An applicable TOP26006_fw repository module named by
 constraints under this common policy. It may not weaken evidence honesty,
 scope, safety, or approval language here. Repository-native scientific and
 technical documentation remains with its semantic owner; this reviewer policy
-does not transfer its content to project governance. External ANDOCS at its
-current path retains its local reviewer policy until the Phase-3 applicability
-gate is proved.
+does not transfer its content to project governance. At the current nested
+ANDOCS path, its retained local reviewer policy remains a transitional
+compatibility layer pending a separate retirement decision.
 
 ---
 
