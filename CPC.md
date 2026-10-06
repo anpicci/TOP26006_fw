@@ -176,6 +176,12 @@ use it for repository-specific project deltas and retain generic lifecycle,
 permissions and prompt construction here. A module cannot make a missing write,
 network or publication grant implicit.
 
+Root `validation_ceiling` remains mandatory and uses only the vocabulary in
+root `AGENTS.md`. An applicable repository module may require a separate
+conditional semantic field, such as `document_validation_level`, to describe
+its evidence level. Module-specific fields constrain the prompt; they do not
+replace, silently extend, or weaken the root ceiling or permission contracts.
+
 Derive expected report and patch paths from the canonical diagnostics root and
 `prompt_id` in `AGENTS.md` section 20. Declare `report_path` or `patch_path`
 only when the round needs a noncanonical exact path or filename. The actual

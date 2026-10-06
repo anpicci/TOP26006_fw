@@ -175,6 +175,15 @@ are `read_only`; `topcoffea` and `EFTFit` have additional module-specific
 read-only posture. A prompt must explicitly name the writable repository and
 paths. The registry and module never grant a write by themselves.
 
+This read-only default is an intentional centralized multi-repository
+governance tightening; the earlier `topeft` writable default was not
+semantically identical. The TOP26006_fw coordination meta-repository is
+writable only in an exact authorized root governance round. A non-coordination
+repository may be changed only when the exact round authorizes its repository,
+paths, and effects and applicable repository/upstream-native policy permits the
+action. This default does not make nested repositories immutable, supersede
+native policy, or transfer implementation ownership to TOP26006_fw governance.
+
 A read-only repository must not be modified. If a cross-repository change is
 necessary but not authorized, stop before editing and include:
 
@@ -1898,8 +1907,12 @@ Also permits explicitly named focused tests and required local fixtures.
 
 ### `workflow_dry_run_or_config_validation`
 
-Also permits bounded no-submit workflow/configuration probes. It forbids
-production submission and large output generation.
+Also permits bounded no-submit workflow/configuration probes and, when an
+applicable repository module requests it, a bounded repository-supported
+document build/render validation. The prompt must separately authorize the
+commands, outputs, and side effects under applicable root and native policy.
+This ceiling forbids production submission and large campaign or output
+generation; it does not imply analysis-output regeneration.
 
 ### `production_execution`
 
