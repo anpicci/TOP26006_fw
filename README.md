@@ -19,3 +19,10 @@ ancestry, with the ANDOCS module and retained local compatibility governance;
 the paper and AN retain separate Git histories and scientific ownership. The
 coordination checkout is local-only for now; any private remote or publication
 is a separate future authorization boundary.
+
+## Working with project agents
+
+Start with the [agentic architecture and user guide](docs/agentic/README.md)
+for onboarding, repository and authority boundaries, governed agent workflows,
+and scientific-documentation review. The guide explains the live policies
+linked above; it does not replace them.
