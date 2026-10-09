@@ -206,21 +206,30 @@ Do not add a shim merely to avoid the repository boundary.
 
 ## 3. Codex runtime capability and approvals
 
-The expected user-level Codex runtime is:
+Codex filesystem and approval capabilities vary by session. A read-only or
+static round may work with narrower access. On glados, local Git operations
+that write `.git` metadata can require the user's externally selected Full
+filesystem access. The effective `sandbox_mode` and approval policy must be
+observed at runtime and reported as observed, or `not_observable`; do not infer
+them from the requested setting or a prior round. Some Full sessions report
+`sandbox_mode: danger-full-access` and `approval_policy: never`;
+`on-request` is also possible in a narrower runtime. Neither approval state
+is a mandatory default. If the runtime cannot offer interactive approval, do
+not request it or treat the absence of an approval prompt as authorization.
 
-```text
-sandbox_mode: workspace-write
-network_access_technically_available: yes
-approval_policy: on-request
-approvals_reviewer: user
-```
+Before a local Git metadata write, check the effective capability and relevant
+local prerequisites. If insufficient, stop and report the blocker; do not
+silently elevate, change the runtime in-band, edit user configuration, or use
+ad hoc ref surgery. A publication-specific profile is not required when the
+observed session already has the needed capability.
 
-A publication-specific profile is not required. The ordinary Codex session
-supports investigation, coding, validation, and bounded publication under the
-same workspace-write sandbox.
-
-This configuration provides capability only. It does not override this policy
-or the current prompt.
+Technical capability is not task authorization. Even under Full access, the
+prompt must separately authorize the selected repository, tracked paths,
+index and ref effects, network reads, remote writes, PR/MR actions, merge,
+deletion, production, environment changes, and cleanup. Full access may remove
+technical sandbox limits beyond the filesystem, including network controls.
+When `network_access: no`, governed task authorization and command audit
+enforce non-use; Full does not guarantee network isolation.
 
 Rules:
 
@@ -238,10 +247,10 @@ Rules:
 * Merge does not imply remote branch deletion.
 * A CLI approval does not replace prompt-level authorization.
 
-When a task depends on network access or remote mutation, record the effective
-sandbox and approval mode during preflight. If the required capability is
-unavailable, stop and classify the blocker; do not weaken the sandbox or edit
-user configuration.
+When a task depends on local Git metadata writes, network access, or remote
+mutation, record the effective sandbox and approval mode when observable during
+preflight. If the required capability is unavailable, stop and classify the
+blocker; do not weaken the sandbox or edit user configuration.
 
 Do not edit `~/.codex/config.toml`, `~/.codex/rules`, or shell startup files
 unless the prompt explicitly requests configuration work.
@@ -1495,19 +1504,23 @@ publication round.
 
 ## 12. Remote Git and publication policy on glados
 
-The Codex workspace-write sandbox on glados exposes the system SSH
-configuration with remapped ownership. OpenSSH therefore rejects:
+In an observed workspace-write configuration on glados, remapped ownership of
+the system SSH configuration caused OpenSSH to reject:
 
 ```text
 /etc/ssh/ssh_config.d/50-redhat.conf
 ```
 
-even though the host file has correct ownership and permissions.
+even though the host file has correct ownership and permissions. This failure
+is environment-dependent; an externally selected Full session may not need the
+workaround. Do not run an SSH probe without independently authorized network
+access.
 
-For Git-over-SSH commands executed by Codex on glados, select the exact
+For separately authorized Git-over-SSH commands on glados, select the exact
 prompt-authorized repository with either its native process working directory
-or `git -C <exact_prompt_authorized_repository_path>`, and use the
-command-scoped override:
+or `git -C <exact_prompt_authorized_repository_path>`. If the observed
+environment needs the system-config workaround, use this command-scoped
+override:
 
 ```bash
 git \
@@ -1526,7 +1539,7 @@ repository core.sshCommand
 system file permissions or ownership
 ```
 
-Canonical read-only query:
+Conditional read-only query example, requiring `network_access: yes`:
 
 ```bash
 git \
@@ -1536,7 +1549,7 @@ git \
   refs/heads/<branch>
 ```
 
-Canonical exact-branch fetch when explicitly authorized:
+Conditional exact-branch fetch example when explicitly authorized:
 
 ```bash
 git \
@@ -1547,7 +1560,7 @@ git \
   refs/heads/<remote_branch>:refs/remotes/<remote>/<remote_branch>
 ```
 
-Canonical publication push:
+Conditional publication push example when explicitly authorized:
 
 ```bash
 git \
@@ -1569,7 +1582,9 @@ Rules:
 * The prompt or stage must independently authorize the exact repository and
   action. Repository selection must not widen writable scope, and
   decision-material repository identity requires readback.
-* Use the override for `ls-remote`, fetch, and push.
+* Use the override for `ls-remote`, fetch, and push only when the observed
+  environment requires it; these examples do not authorize network or remote
+  effects.
 * Never use `--force`. Use `--force-with-lease` only for the explicitly
   authorized `normalize_declared_post_squash_staging_ref` action and only in
   its exact `--force-with-lease=<ref>:<exact_old_sha>` form. Wildcard refspecs,

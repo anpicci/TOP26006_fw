@@ -58,8 +58,8 @@ the conditional `orchestrated_workflow` contract.
 Do not bury the task under accumulated project history. Cite prior artifacts
 instead.
 
-Technical capability must remain separate from prompt authorization. The
-default Codex session may have outbound network access available, but a prompt
+Technical capability must remain separate from prompt authorization. A Codex
+session may have outbound network access available, but a prompt
 must still authorize network reads, remote Git writes, PR/MR writes, merges,
 and remote deletions separately.
 
@@ -175,6 +175,18 @@ relevant repository and surface. Read the registry-named module when present;
 use it for repository-specific project deltas and retain generic lifecycle,
 permissions and prompt construction here. A module cannot make a missing write,
 network or publication grant implicit.
+
+When capability matters, state the required user-provided filesystem access as
+a prerequisite in prose, and require preflight readback of the effective
+`sandbox_mode` and approval policy when observable. Read-only/static work may
+need less access; local Git metadata writes on glados may require the user's
+externally selected Full access. Full can technically expose network access as
+well as filesystem writes. Keep task-authorized local Git, network, remote,
+production, environment, and cleanup effects in their existing prompt fields
+and scopes. Never silently select Full, change Codex configuration in-band,
+make `approval_policy: never` a default, or promise network isolation under
+Full. If required capability is unavailable, require a stop and honest
+blocker report; do not invent a permission field or prompt mode.
 
 Root `validation_ceiling` remains mandatory and uses only the vocabulary in
 root `AGENTS.md`. An applicable repository module may require a separate
@@ -1195,9 +1207,11 @@ direct-command constraints, live-state evidence, compact examples, and failure
 classes needed to construct a valid prompt; it does not duplicate the full
 operational procedure.
 
-The default Codex workspace-write session may have outbound network access
-enabled. Do not require a special publication profile and do not instruct
-Codex to alter its sandbox, approval policy, user configuration, or rules.
+Codex sessions have conditional, observed filesystem, approval, and technical
+network capabilities. A separate publication profile is unnecessary when the
+observed session has the required capability. Do not instruct Codex to alter
+its sandbox, approval policy, user configuration, or rules. Full access does
+not itself authorize or physically block network use.
 
 Prompt authorization remains mandatory.
 
@@ -1211,9 +1225,11 @@ and lease in the prompt and use only its separate action contract.
 
 ### 12.1 glados Git-over-SSH rule
 
-For Git-over-SSH from Codex on glados, require direct Git commands that select
-the exact prompt-authorized repository with either its native process working
-directory or `git -C <exact_prompt_authorized_repository_path>`, using:
+For separately authorized Git-over-SSH from Codex on glados, require direct
+Git commands that select the exact prompt-authorized repository with either
+its native process working directory or
+`git -C <exact_prompt_authorized_repository_path>`. If the observed environment
+needs the system-SSH-config ownership workaround, use:
 
 ```bash
 git \
@@ -1221,8 +1237,10 @@ git \
   <subcommand> ...
 ```
 
-This bypasses only the sandbox-rejected system SSH configuration for the
-current command.
+This bypasses the observed workspace-write system SSH configuration failure
+for the current command. It is conditional, not required in every session;
+externally selected Full access may make it unnecessary. The workaround never
+grants network access or a remote Git action.
 
 For `gh` or `glab`, permit the native repository working directory, an explicit
 repository selector such as `--repo <owner/repository>`, or an explicit
@@ -1251,7 +1269,8 @@ system SSH permission or ownership changes
 Require the action-specific `AGENTS.md` publication sequence and one separate
 direct command per network operation. Bind every conditional action to its
 declared live-state gate and readback. Retain only the following concise
-direct-command examples in the prompt when Git-over-SSH is used:
+direct-command examples in the prompt when the observed Git-over-SSH
+environment requires the workaround and the network action is authorized:
 
 Canonical live-base query:
 
@@ -1659,7 +1678,7 @@ exact_commands:
 ```
 
 For publication, require one direct command per remote operation and the
-glados SSH override for Git-over-SSH.
+glados SSH override only when the observed Git-over-SSH environment needs it.
 
 #### Acceptance logic
 
