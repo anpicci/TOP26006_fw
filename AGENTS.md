@@ -344,6 +344,49 @@ Use it only through the wrapper.
 Do not persistently modify authentication files, credential helpers, SSH
 configuration, or shell startup files unless explicitly requested.
 
+### Temporary filesystem hygiene
+
+For temporary payloads that a round is authorized to create:
+
+* Do not stage large, long-lived, or high-volume intermediates in generic
+  `/tmp`. Choose a task-appropriate scratch or storage base already authorized
+  by the round and applicable filesystem policy; no base is universal. Small
+  runtime-managed or unavoidable temp use does not grant bulk task staging.
+* Before writing payloads, identify a unique, nonreused, round-owned private
+  namespace with restrictive permissions, its owner, and intended lifespan.
+  Verify its path has no collision, confusion, or other-user/round ownership.
+  A round that needs no temporary payload needs no new scratch directory.
+* Dispose only of exact paths created by the current round as part of an
+  explicitly authorized namespace lifecycle, or under a separately exact-
+  authorized recovery action, after verifying scope and ownership. Where
+  feasible, establish bounded exit and catchable-interruption handlers. Do not
+  claim they cover `SIGKILL`, host loss, inaccessible leftovers, or forced
+  termination. In `investigation_only`, such declared disposition of newly
+  created, ownership-verified private paths is part of their authorized
+  lifecycle; the mode's prohibition on general cleanup remains in force.
+* Scope `TMPDIR`, `TMP`, and `TEMP` to authorized invocations when the tool
+  honors them. For known bypasses, document a bounded authorized alternative
+  or stop. Do not persist changes to Codex, runtime, or user environment or
+  configuration. Invocation-scoped steering is not software-environment
+  mutation and grants no new storage or network effect.
+* Before temp-intensive writes, estimate the footprint and check available
+  bytes, free inodes, and relevant quotas or capacity limits on the chosen
+  authorized filesystem. If a material constraint is unavailable, select
+  another authorized safe destination or stop; unknown capacity is not a pass.
+* On completion, inspect exact round-owned temporary paths and report each
+  cleaned or remaining path with identity, location, and disposition. After an
+  interruption, do so only in a separately authorized recovery or readback.
+  Label unreadable paths unresolved; preserve canonical reports and audit
+  evidence.
+* Never wipe generic `/tmp`, clean other-user, other-round, or pre-existing
+  paths, delete Codex internal workspace or runtime files, use broad wildcards,
+  or follow symlinks out of scope. Artifact or storage grants alone do not
+  authorize cleanup, and an exact task-level cleanup denial still controls.
+* Stop the affected operation when required isolated ownership, relevant
+  capacity, safe disposition, or residual accounting cannot be established.
+  Report the obstruction without permission escalation, guessed deletion, or
+  broader cleanup.
+
 ---
 
 ## 6. Prompt modes
