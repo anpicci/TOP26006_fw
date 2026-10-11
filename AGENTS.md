@@ -378,10 +378,15 @@ For temporary payloads that a round is authorized to create:
   interruption, do so only in a separately authorized recovery or readback.
   Label unreadable paths unresolved; preserve canonical reports and audit
   evidence.
-* Never wipe generic `/tmp`, clean other-user, other-round, or pre-existing
-  paths, delete Codex internal workspace or runtime files, use broad wildcards,
-  or follow symlinks out of scope. Artifact or storage grants alone do not
-  authorize cleanup, and an exact task-level cleanup denial still controls.
+* Never wipe generic `/tmp`, clean another user's paths or paths belonging to
+  an active other round, delete Codex internal workspace or runtime files, use
+  broad wildcards, or follow symlinks out of scope. Pre-existing or prior-round
+  remnants remain protected by default and may be removed only through the
+  separately exact-authorized recovery action above, after verifying original
+  ownership, exact target and path scope, and absence of active consumers.
+  Unknown ownership or consumer state fails closed. Artifact or storage grants
+  alone do not authorize cleanup, and an exact task-level cleanup denial still
+  controls.
 * Stop the affected operation when required isolated ownership, relevant
   capacity, safe disposition, or residual accounting cannot be established.
   Report the obstruction without permission escalation, guessed deletion, or
