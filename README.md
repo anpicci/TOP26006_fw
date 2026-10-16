@@ -1,28 +1,42 @@
-# TOP26006_fw coordination meta-repository
+# TOP26006_fw
 
-`TOP26006_fw` is the TOP-26-006 project-governance and coordination repository.
-Its local checkout remains `/users/apiccine/work/correction-lib`; no physical
-rename is part of this governance change.
+`TOP26006_fw` is the TOP-26-006 coordination and project-governance
+meta-repository, privately published as `anpicci/TOP26006_fw`. It connects the
+project's implementation, scientific-document, dependency, and evidence work
+without combining those repositories into one Git history.
 
-The [typed repository registry](governance/repositories.md) identifies project
-roles, stable paths and ownership. Root `AGENTS.md`, `CPC.md`, and
-`CONTRIBUTING.md` hold common policy; the four files under
-[`governance/modules/`](governance/modules/) add repository-specific project
-rules for topeft, topcoffea, EFTFit and ANDOCS. The nested implementation,
-document, dependency and evidence repositories retain independent Git
-histories and their own native policies.
+The managed Glados checkout is `/users/apiccine/work/correction-lib`. The
+directory name `correction-lib` is a local path, not the repository identity.
+Independent repositories in that workspace keep their own branches, policies,
+histories, and technical or scientific owners. This repository owns project
+governance and coordination; it does not own their implementation or scientific
+content.
 
-ANDOCS is an independent local-only Git meta-repository at
-`/users/apiccine/work/correction-lib/ANDOCS`. The root `/ANDOCS/` ignore rule
-keeps its contents out of the TOP26006_fw index. Root governance applies by
-ancestry, with the ANDOCS module and retained local compatibility governance;
-the paper and AN retain separate Git histories and scientific ownership. The
-coordination checkout is local-only for now; any private remote or publication
-is a separate future authorization boundary.
+## Start here
 
-## Working with project agents
+Read [Getting started](docs/getting_started.md) for a safe first inspection and
+a task-to-repository guide. A fresh clone of `TOP26006_fw` contains its tracked
+files; it does not automatically include the independent repositories present
+in the managed workspace. Check that a needed repository is available before
+following its native documentation.
 
-Start with the [agentic architecture and user guide](docs/agentic/README.md)
-for onboarding, repository and authority boundaries, governed agent workflows,
-and scientific-documentation review. The guide explains the live policies
-linked above; it does not replace them.
+For common work, start in `topeft` for analysis, plotting, datacard workflow,
+or production; `EFTFit` for statistical fitting; and the separately maintained
+document repositories coordinated locally under `ANDOCS` for the paper or
+analysis note. `topcoffea` supplies shared framework mechanisms. The
+[getting-started routes](docs/getting_started.md#where-to-go-for-common-tasks)
+identify the native entry pages and ownership boundaries.
+
+## Governance and contributions
+
+The [repository registry](governance/repositories.md) records stable roles and
+ownership. [AGENTS.md](AGENTS.md) governs agent execution,
+[CPC.md](CPC.md) governs prompt construction, and
+[CONTRIBUTING.md](CONTRIBUTING.md) governs reviewer-facing prose. The
+[agentic guide](docs/agentic/README.md) explains how to use those contracts;
+these links, rather than this README, provide the detailed rules.
+
+Reports and historical reading material preserve evidence from earlier work.
+Use the current governance and native repository documentation as the normal
+entry path; consult historical evidence when a specific question needs its
+provenance.
