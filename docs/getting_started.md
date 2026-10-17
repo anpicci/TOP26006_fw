@@ -1,100 +1,76 @@
 # Getting started
 
-This guide helps a newcomer locate the right repository and its maintained
-instructions before making a change. Start with the [root README](../README.md)
-for the project overview.
+Use this guide to find the repository and documentation for your TOP-26-006
+task. The [root README](../README.md) gives a short project overview.
 
-## What you have
+## Project repositories
 
-`TOP26006_fw` is the TOP-26-006 coordination and project-governance
-meta-repository. It owns the project-level [repository registry](../governance/repositories.md)
-and governance files. Analysis software, shared libraries, fit software, and
-scientific documents have independent repository and semantic owners. The
-coordination checkout is not a monorepo.
+`TOP26006_fw` coordinates project structure and repository roles. Analysis
+software, shared libraries, fit software, and scientific documents are kept in
+independent repositories, each with its own Git history and technical
+responsibilities. The local checkout path is
+`/users/apiccine/work/correction-lib`; `correction-lib` is a directory name,
+not the repository identity.
 
-The managed Glados checkout is `/users/apiccine/work/correction-lib`. Its
-directory name is a local path, not the `TOP26006_fw` repository identity.
+### Fresh clone and managed workspace
 
-## Fresh clone vs managed workspace
+A fresh clone of `TOP26006_fw` contains its tracked coordination files. It
+does not install the independent repositories that may be checked out in the
+managed workspace, such as `topeft`, `topcoffea`, `EFTFit`, or `ANDOCS`. Check
+that the repository you need is present and identify its Git root before
+using its documentation.
 
-A fresh `TOP26006_fw` clone gives you its tracked coordination files. The
-managed workspace may also have separately checked-out repositories beneath
-it, including `topeft`, `topcoffea`, `EFTFit`, and `ANDOCS`. Those independent
-Git histories and their data are not installed by cloning this repository.
-Treat a workspace path as a location to verify, not proof that a repository is
-available or that you may change it.
+### First read-only checks
 
-## First safe read-only checks
+From the directory you received:
 
-1. From the directory you received, run `git rev-parse --show-toplevel` to
-   identify its Git root. Confirm that you are in the `TOP26006_fw` checkout,
-   rather than an independent repository inside the managed workspace.
-2. Run `git branch --show-current` and `git status --short` to inspect the
-   current branch and working state without changing them.
-3. Read the [README](../README.md) and this guide, then choose a native
-   repository from the table below.
-4. Before entering that repository, check that its directory exists and that
-   `git rev-parse --show-toplevel` from inside it identifies the intended
-   independent Git root. Read its native README, applicable instructions, and
-   policy before acting.
+1. Run `git rev-parse --show-toplevel` and confirm that it identifies the
+   intended repository.
+2. Run `git branch --show-current` and `git status --short` to see the current
+   branch and working-tree state without changing them.
+3. Read the root [README](../README.md), then use the task table below to find
+   the native repository and starting page.
+4. In that repository, confirm its Git root and read its README and applicable
+   local instructions before making changes.
 
-These checks establish where you are; they do not validate an analysis or
-authorize a write.
+These checks identify the repository and its current state. They do not
+validate an analysis or grant permission to change project files.
 
 ## Where to go for common tasks
 
-The paths in this table are **inside the named independent repository**, not
-files tracked by `TOP26006_fw`. In the managed workspace, locate the repository
-using the [registry](../governance/repositories.md), then verify its Git root.
+The paths below are inside the named independent repository; they are not
+tracked by `TOP26006_fw`. In the managed workspace, use the
+[repository registry](../governance/repositories.md) to locate a checkout,
+then confirm its Git root.
 
 | Task | Repository and native starting point |
 | --- | --- |
 | Analysis | `topeft`: `docs/README.md`, then `docs/tutorials/analysis_workflow.md`. |
-| Plotting | `topeft`: `docs/how_to/plotting.md`; `docs/reference/plotting.md` has interface details. |
-| Datacard workflow | `topeft`: `docs/how_to/datacards_and_scalings.md` and `docs/how_to/datacard_packages.md` for analysis-side creation, scalings, and package handoff. Resolve the owner of a particular card, model, or schema for that task before changing it. |
-| Statistical fitting | `EFTFit`: `README.md` for the native fit package and its local documentation route. |
+| Plotting | `topeft`: `docs/how_to/plotting.md`; `docs/reference/plotting.md` describes interfaces. |
+| Datacard workflow | `topeft`: `docs/how_to/datacards_and_scalings.md` and `docs/how_to/datacard_packages.md` for analysis-side card creation, scalings, and package handoff. Resolve responsibility for a particular card, model, or schema for that task. |
+| Statistical fitting | `EFTFit`: `README.md` for the fit package and its local documentation route. |
 | Production | `topeft`: `docs/how_to/production.md`. |
-| Scientific documents | `ANDOCS` coordinates local document work. `ANDOCS/TOP-26-006` is the independent paper repository and `ANDOCS/AN-24-174` the independent analysis-note repository; start at each available repository's `README.md`. |
-| Shared framework mechanisms | `topcoffea`: `docs/README.md` and `docs/topeft_integration.md` for shared interfaces and the handoff with `topeft`. Task-specific analysis workflows remain in `topeft`. |
+| Paper and Analysis Note | `ANDOCS` coordinates local document work. `ANDOCS/TOP-26-006` is the independent paper repository; `ANDOCS/AN-24-174` is the independent Analysis Note repository. Start with the available repository's `README.md`. |
+| Shared framework mechanisms | `topcoffea`: `docs/README.md` and `docs/topeft_integration.md` for shared interfaces and their use with `topeft`. Task-specific analysis workflows are documented in `topeft`. |
 
-The `EFTFit` route names its repository and README because deeper local docs
-are not established as available through its public default branch. The
-document repositories are likewise separate checkouts, not contents promised
-by a fresh `TOP26006_fw` clone.
+The `EFTFit` route points to its README because deeper local documentation is
+not established as available through its public default branch. The paper and
+Analysis Note repositories are separate checkouts; a fresh `TOP26006_fw` clone
+does not include them.
 
-## Working with independent repositories
+## Contributing across repositories
 
-Choose the repository whose native owner can answer the task, then inspect its
-own Git root, state, README, and applicable policy. A root-level Git command
-acts on `TOP26006_fw`; it does not report the state of the repositories nested
-in the managed workspace. Keep changes, commits, and review evidence tied to
-the selected repository. If a task spans repositories, establish each owner's
-scope and handle its Git history separately.
+Work in the repository that maintains the software, configuration, or
+document relevant to your task. Check its branch and working-tree state, read
+its local guidance, and keep its changes and commits in that repository. For a
+particular card, model, or schema, confirm responsibility for that artifact
+before editing it. The [registry](../governance/repositories.md) records
+stable repository roles, not current branches or task assignments.
 
-## Governance, changes, and evidence
+For project instructions, see [AGENTS.md](../AGENTS.md); for contribution and
+review writing, see [CONTRIBUTING.md](../CONTRIBUTING.md). Follow the native
+repository's applicable instructions as well.
 
-For exact execution and permission rules, use [AGENTS.md](../AGENTS.md).
-[CPC.md](../CPC.md) controls Codex prompt construction, and
-[CONTRIBUTING.md](../CONTRIBUTING.md) controls reviewer-facing writing. The
-[agentic guide](agentic/README.md) explains repository selection and evidence
-handoffs. The [registry](../governance/repositories.md) records stable roles;
-it is not a record of current branches or task assignments.
-
-Reports and reading-room material are useful provenance for specific earlier
-decisions. They are not substitutes for current policy, native documentation,
-or a fresh check of the repository involved in a new task.
-
-## When something is missing or ambiguous
-
-If an independent checkout is absent, find its owner and approved access or
-setup route before proceeding. Do not infer a clone URL or directory layout.
-If a repository is present but the owner of a particular artifact or decision
-is unclear, resolve that owner for the concrete task before editing. If local
-instructions conflict, use the applicable policy files and raise the specific
-conflict to the responsible owner.
-
-## Next references
-
-- [Repository roles and paths](../governance/repositories.md)
-- [Agentic architecture and workflow guide](agentic/README.md)
-- [Contribution and review writing](../CONTRIBUTING.md)
+If a needed checkout is missing, contact its maintainer for the approved
+access or setup route. If responsibility for a particular artifact or
+decision is unclear, resolve it for that task before making a change.
