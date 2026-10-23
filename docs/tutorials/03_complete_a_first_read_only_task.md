@@ -1,6 +1,6 @@
 # Tutorial 3: complete a first read-only task
 
-**Learning goal:** ask a bounded question, reproduce evidence, then keep the acceptance decision with a reviewer. The dataset is deliberately synthetic, not TOP-26-006 science.
+**Learning goal:** ask a bounded question, reproduce evidence, have a separately tasked reviewer assess it, and leave the acceptance decision with the human researcher or scientific owner. The dataset is deliberately synthetic and does not represent real project science.
 
 1. Read the [example's question, method, and limits](../../examples/repeated_measurements/README.md), then inspect the local CSV:
 
