@@ -1,5 +1,7 @@
 # Working with agents
 
+> **TOP-26-006 reference-deployment / legacy technical notes.** Branch and workstream examples below are deployment-specific. First-time readers should use the [research-first manual](../index.md).
+
 Use this page after choosing a repository in the [architecture guide](architecture.md). The exact mode vocabulary, fields, branch gates, and permissions live in [`AGENTS.md`](../../AGENTS.md) and [`CPC.md`](../../CPC.md); the examples below explain how to apply them and are not a prompt or authorization.
 
 ## Frame and dispatch one decision

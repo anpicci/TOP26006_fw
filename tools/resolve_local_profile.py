@@ -38,7 +38,27 @@ class UniqueKeyLoader(yaml.SafeLoader):
 def read_yaml(path):
     try:
         with Path(path).open(encoding="utf-8") as stream:
-            return yaml.load(stream, Loader=UniqueKeyLoader)
+            value = yaml.load(stream, Loader=UniqueKeyLoader)
+        # SafeLoader permits self-referential aliases. Reject those before any
+        # recursive validation or traversal of untrusted profile input.
+        active = set()
+        visited = set()
+        pending = [(value, False)]
+        while pending:
+            node, leaving = pending.pop()
+            if not isinstance(node, (dict, list)):
+                continue
+            identity = id(node)
+            if leaving:
+                active.remove(identity)
+            elif identity in active:
+                raise ProfileError("recursive YAML alias is forbidden")
+            elif identity not in visited:
+                active.add(identity)
+                visited.add(identity)
+                pending.append((node, True))
+                pending.extend((child, False) for child in (node.values() if isinstance(node, dict) else node))
+        return value
     except (OSError, yaml.YAMLError) as exc:
         raise ProfileError("cannot read valid YAML from " + str(path) + ": " + str(exc)) from exc
 
@@ -154,13 +174,15 @@ def human_lines(value, prefix=""):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", required=True, help="YAML local profile path")
+    parser.add_argument("--profile", help="YAML local profile path (default: checkout .top26006/local_profile.yml)")
     parser.add_argument("--execution-ready", action="store_true")
     parser.add_argument("--format", choices=("human", "yaml"), default="human")
     args = parser.parse_args(argv)
-    schema_path = Path(__file__).resolve().parents[1] / "config" / "local_profile.schema.yml"
+    checkout_root = Path(__file__).resolve().parents[1]
+    schema_path = checkout_root / "config" / "local_profile.schema.yml"
+    profile_path = args.profile or checkout_root / ".top26006" / "local_profile.yml"
     try:
-        result = resolve(read_yaml(args.profile), read_yaml(schema_path), args.execution_ready)
+        result = resolve(read_yaml(profile_path), read_yaml(schema_path), args.execution_ready)
     except ProfileError as exc:
         parser.exit(2, "local profile error: " + str(exc) + "\n")
     if args.format == "yaml":

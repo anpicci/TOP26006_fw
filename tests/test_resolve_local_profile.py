@@ -115,3 +115,47 @@ def test_cli_human_and_yaml_agree(tmp_path, capsys):
     machine = capsys.readouterr().out
     assert "workspace_root: " + str(tmp_path) in human
     assert yaml.safe_load(machine)["tooling"]["command_wrapper"] == str(tmp_path / "codex-run.sh")
+
+
+def test_default_profile_uses_checkout_not_caller_cwd(tmp_path, monkeypatch, capsys):
+    checkout = tmp_path / "checkout"
+    (checkout / "tools").mkdir(parents=True)
+    (checkout / "config").mkdir()
+    (checkout / ".top26006").mkdir()
+    (checkout / "config" / "local_profile.schema.yml").write_text(
+        (ROOT / "config" / "local_profile.schema.yml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    default = checkout / ".top26006" / "local_profile.yml"
+    default.write_text(yaml.safe_dump(valid_profile(checkout)), encoding="utf-8")
+    caller = tmp_path / "caller"
+    caller.mkdir()
+    monkeypatch.chdir(caller)
+    monkeypatch.setattr(MODULE, "__file__", str(checkout / "tools" / "resolve_local_profile.py"))
+    assert MODULE.main(["--execution-ready", "--format", "yaml"]) == 0
+    assert yaml.safe_load(capsys.readouterr().out)["workspace_root"] == str(checkout)
+
+    override = tmp_path / "override.yml"
+    override.write_text(yaml.safe_dump(valid_profile(tmp_path)), encoding="utf-8")
+    assert MODULE.main(["--profile", str(override), "--execution-ready", "--format", "yaml"]) == 0
+    assert yaml.safe_load(capsys.readouterr().out)["workspace_root"] == str(tmp_path)
+
+    default.unlink()
+    with pytest.raises(SystemExit) as caught:
+        MODULE.main(["--execution-ready"])
+    assert caught.value.code == 2
+    error = capsys.readouterr().err
+    assert "local profile error" in error and str(default) in error
+    assert "Traceback" not in error
+
+
+def test_recursive_yaml_alias_fails_cleanly(tmp_path, capsys):
+    path = tmp_path / "cyclic.yml"
+    path.write_text("self: &loop\n  child: *loop\n", encoding="utf-8")
+    with pytest.raises(MODULE.ProfileError, match="recursive YAML alias"):
+        MODULE.read_yaml(path)
+    with pytest.raises(SystemExit) as caught:
+        MODULE.main(["--profile", str(path)])
+    assert caught.value.code == 2
+    error = capsys.readouterr().err
+    assert "recursive YAML alias" in error
+    assert "Traceback" not in error and "RecursionError" not in error

@@ -1,6 +1,8 @@
 # Agentic work in TOP26006_fw
 
-Start here when asking an agent to inspect, change, validate, or hand off TOP-26-006 work. This guide explains how to find the right owner and frame a bounded task. It is explanatory: [root `AGENTS.md`](../../AGENTS.md) governs execution, [root `CPC.md`](../../CPC.md) governs prompt construction, and [root `CONTRIBUTING.md`](../../CONTRIBUTING.md) governs reviewer-facing text. Read the live files for exact requirements.
+> **TOP-26-006 reference-deployment / legacy technical notes.** These pages preserve advanced deployment detail for later migration. First-time readers should use the [research-first manual](../index.md).
+
+Use these notes for advanced TOP-26-006 reference-deployment details after the [research-first manual](../index.md). They explain how to find the right owner and frame a bounded task. They are explanatory: [root `AGENTS.md`](../../AGENTS.md) governs execution, [root `CPC.md`](../../CPC.md) governs prompt construction, and [root `CONTRIBUTING.md`](../../CONTRIBUTING.md) governs reviewer-facing text. Read the live files for exact requirements.
 
 | Read | When you need |
 | --- | --- |
@@ -12,7 +14,7 @@ Start here when asking an agent to inspect, change, validate, or hand off TOP-26
 
 1. Obtain or open the **TOP26006_fw coordination repository** through your project-approved access route. Its existing local checkout is named `correction-lib`; that directory name does not change the repository's identity. This guide asserts no private or public clone URL.
 2. Read this index and the [architecture](architecture.md) page. A fresh coordination clone contains its tracked governance and guide files; it does **not** thereby install independent native Git histories, datasets, or an ANDOCS workspace.
-3. Pick a `repository_id` from the live [typed registry](../../governance/repositories.md) by the work's owner and role. Check whether its listed local path actually exists **and** is the intended Git repository. If absent, obtain and set it up through that native owner's official instructions or project contact; do not guess a URL, submodule layout, or installer.
+3. Pick a `repository_id` from the live [typed registry](../../governance/repositories.md) by the work's owner and role. Resolve its concrete path from the local YAML profile, then check whether that path exists **and** is the intended Git repository. If absent, obtain and set it up through that native owner's official instructions or project contact; do not guess a URL, submodule layout, or installer.
 4. Read [root `AGENTS.md`](../../AGENTS.md), the selected registry module when named, every path-applicable nested `AGENTS.md`, and applicable native policy. For a new Codex prompt, read [root `CPC.md`](../../CPC.md); for reviewer text, read [root `CONTRIBUTING.md`](../../CONTRIBUTING.md).
 5. State **one decision question** and its exact repository, paths, expected evidence, and stop boundary. Decide whether inspection alone answers it or a tracked mutation is needed.
 6. Select a prompt mode and validation ceiling from the live contracts. Declare `allowed_to_modify` and `read_only`; separately grant each needed capability and effect. A tool, credential, checkout, or skill does not grant permission.

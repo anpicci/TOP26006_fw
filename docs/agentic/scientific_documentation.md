@@ -1,5 +1,7 @@
 # AI assistance with scientific documentation
 
+> **TOP-26-006 reference-deployment / legacy technical notes.** The document examples below belong to this deployment. First-time readers should use the [research-first manual](../index.md).
+
 This page explains the project agent's role around `ANDOCS`, the independent document coordination repository. Its paper `TOP-26-006` and Analysis Note `AN-24-174` are separate native Git histories with their own document owners, scientific review, and applicable CMS/collaboration policy. The live [`ANDOCS` module](../../governance/modules/andocs.md) and [`AGENTS.md`](../../AGENTS.md) govern actions. This page gives no authority to edit a paper, note, or result.
 
 ## Prefer a consistency audit
