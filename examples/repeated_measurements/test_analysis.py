@@ -26,6 +26,26 @@ class AnalysisTests(unittest.TestCase):
         self.assertTrue(math.isclose(chi_square, expected_chi_square, abs_tol=1e-12))
         self.assertTrue(math.isclose(chi_square / dof, 1.075, abs_tol=1e-12))
 
+    def test_unequal_uncertainties_use_inverse_variance_weights(self):
+        rows = [(10.0, 1.0), (20.0, 2.0), (30.0, 4.0)]
+        weights = [1.0 / uncertainty ** 2 for _, uncertainty in rows]
+        total_weight = sum(weights)
+        expected_mean = sum(weight * value for (value, _), weight in zip(rows, weights)) / total_weight
+        expected_standard_error = math.sqrt(1.0 / total_weight)
+        expected_chi_square = sum(
+            ((value - expected_mean) / uncertainty) ** 2 for value, uncertainty in rows
+        )
+        expected_dof = len(rows) - 1
+        arithmetic_mean = sum(value for value, _ in rows) / len(rows)
+
+        self.assertFalse(math.isclose(expected_mean, arithmetic_mean, rel_tol=0, abs_tol=1e-12))
+        count, mean, standard_error, chi_square, dof = ANALYSIS.summarize(rows)
+        self.assertEqual(count, len(rows))
+        self.assertTrue(math.isclose(mean, expected_mean, rel_tol=0, abs_tol=1e-12))
+        self.assertTrue(math.isclose(standard_error, expected_standard_error, rel_tol=0, abs_tol=1e-12))
+        self.assertTrue(math.isclose(chi_square, expected_chi_square, rel_tol=0, abs_tol=1e-12))
+        self.assertEqual(dof, expected_dof)
+
     def test_invalid_headers_and_uncertainties(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.csv"
