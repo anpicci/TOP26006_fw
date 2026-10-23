@@ -17,3 +17,11 @@
 | Branch role | Governance meaning of a branch, separate from its spelling. |
 | Current ref | Freshly observed branch or detached HEAD and commit, not registry text. |
 | Local profile | Ignored YAML carrying installation facts only. |
+| Bounded change | An owner-authorized effect limited by purpose, repository, paths, and validation claim. |
+| Closure | Prior result accepted for an exact claim with a retrievable evidence locator. |
+| Delta | The new work a continuation asks for after closure. |
+| Invalidation boundary | Changes to inputs, assumptions, identity, or state that require revisiting prior evidence. |
+| Checks not to repeat | Accepted checks reused while the invalidation boundary still holds. |
+| Blocking finding | Review issue that prevents a proposed acceptance until resolved. |
+| Nonblocking finding | Review issue that does not defeat the bounded accepted claim. |
+| Handoff | Evidence-rich transfer record; it does not prove recipient comprehension or grant authority. |

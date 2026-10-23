@@ -1,6 +1,6 @@
-# Tutorial 2: map an analysis repository
+# Tutorial 2: understand repository mapping before an analysis checkout exists
 
-**Learning goal:** distinguish the stable research role of a repository from a path chosen in one installation. No child repository is needed for this exercise.
+**Learning goal:** use the coordination checkout to distinguish a governed repository identity, a local path mapping, and fresh Git state before a separate analysis checkout exists. This exercise does not add or register a repository.
 
 1. Find the `repository_id` for the analysis work in the [typed registry](../../governance/repositories.md). The registry records identity, role, and profile keys. For example, a profile key already named there can point to a separate analysis checkout. It does not assert that the checkout exists on your machine.
 

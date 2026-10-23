@@ -10,5 +10,8 @@
 - Scientific or governance authority consulted:
 - Reviewer recommendation:
 - Human owner's acceptance decision (or pending decision):
+- Acceptance scope and qualifications (including what remains unaccepted):
+- Valid evidence preserved for continuation:
+- Invalidation boundary and checks not to repeat:
 
 A review finding is evidence for the responsible owner. This template does not replace live [AGENTS.md](../AGENTS.md), [CPC.md](../CPC.md), or native scientific review.

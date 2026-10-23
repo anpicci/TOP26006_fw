@@ -1,0 +1,5 @@
+# Governance precedence
+
+This is a lookup aid; live sources control. [AGENTS.md](../../AGENTS.md) governs execution, repository permissions, branch behavior, evidence, and commits. [CPC.md](../../CPC.md) governs prompt construction. [CONTRIBUTING.md](../../CONTRIBUTING.md) governs reviewer-facing prose. The selected module in [governance/modules](../../governance/repositories.md), when named by the registry, adds repository-specific constraints. Applicable repository-native policy also binds the action. A module cannot weaken common safety or create authorization. An explicit user instruction can override these files; on a conflict without such an override, stop and report it.
+
+The [typed registry](../../governance/repositories.md) owns stable IDs, classes, roles, and module selection. The ignored [local profile](local_profile.md) owns installation facts. Fresh Git readback owns volatile branch, HEAD, and dirty state. Scientific interpretation belongs to the relevant scientific owner. On a conflict, stop and report the exact sources rather than guessing.
