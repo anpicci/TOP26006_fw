@@ -16,10 +16,17 @@ Review only the local carrier and external manifest explicitly supplied by the u
 
 ## Run
 
-Use the workspace wrapper, non-login shell, and pinned Python interpreter:
+For the OpenAI/Codex reference procedure, use the command wrapper and Python
+interpreter explicitly resolved from the local YAML profile and materialized
+in the controlling prompt. These paths are configuration, not review authority:
 
-```text
-/users/apiccine/work/correction-lib/codex-run.sh /bin/bash --noprofile --norc -c '<pinned-python> scripts/review_evidence_package.py [options] REVIEW_MANIFEST'
+```bash
+wrap="<prompt-resolved-command-wrapper>"
+python_env="<prompt-resolved-python-interpreter>"
+workspace_root="<prompt-resolved-TOP26006_fw-path>"
+"$wrap" /bin/bash --noprofile --norc -c \
+  'cd "$1" && "$2" .agents/skills/correction-lib-codex-evidence-package-review/scripts/review_evidence_package.py [options] "$3"' review \
+  "$workspace_root" "$python_env" "<review-manifest>"
 ```
 
 Select `--validate-only` for read-only validation. Supply `--output-root` only for an explicitly authorized absent output target. Treat the six generated review artifacts as review evidence, not authorization for implementation, testing, fixes, or publication.

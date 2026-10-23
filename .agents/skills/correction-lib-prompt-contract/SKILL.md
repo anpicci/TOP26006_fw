@@ -52,16 +52,20 @@ helper does not know it. Repeated local keys in distinct mapping blocks are
 kept separately, and non-mapping fences such as shell examples are not treated
 as prompt-field namespaces.
 
-Run it through the workspace wrapper and pinned interpreter:
+For the OpenAI/Codex reference procedure, run it through the wrapper and
+interpreter resolved from the local YAML profile and explicitly stated in the
+controlling prompt. These paths are configuration, not prompt authorization:
 
 ```bash
-/users/apiccine/work/correction-lib/codex-run.sh \
+wrap="<prompt-resolved-command-wrapper>"
+python_env="<prompt-resolved-python-interpreter>"
+workspace_root="<prompt-resolved-TOP26006_fw-path>"
+"$wrap" \
   /bin/bash --noprofile --norc -c \
-  'cd /users/apiccine/work/correction-lib &&
-   /users/apiccine/work/miniconda3/envs/clib-env/bin/python \
+  'cd "$1" && "$2" \
    .agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py \
-   --format human "$1"' prompt_lint \
-  <prompt_path>
+   --format human "$3"' prompt_lint \
+  "$workspace_root" "$python_env" "<prompt_path>"
 ```
 
 Use `--format json` for machine-readable output. Add `--json-out PATH` only

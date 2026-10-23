@@ -1,0 +1,15 @@
+# Copy to .top26006/local_profile.yml and replace placeholders with local facts.
+# This file describes installation locations only; it grants no permissions.
+profile_version: 1
+profile_name: local-installation
+workspace_root: "<absolute-local-workspace>"
+evidence_root: reports/diagnostics
+provider_procedure: openai_codex
+tooling:
+  command_wrapper: "<absolute-or-workspace-relative-wrapper>"
+  python_interpreter: "<absolute-or-workspace-relative-python>"
+repositories:
+  TOP26006_fw:
+    path: .
+    remote_aliases:
+      publication: origin

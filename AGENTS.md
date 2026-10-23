@@ -1,7 +1,7 @@
 # AGENTS.md — TOP26006_fw Codex operating policy
 
 `TOP26006_fw` is the TOP-26-006 project and coordination meta-repository. Its
-local checkout remains `/users/apiccine/work/correction-lib`. It coordinates
+local checkout is resolved for each installation. It coordinates
 independent implementation, document, dependency, and evidence repositories;
 the accepted typed inventory is in `governance/repositories.md`. The checkout
 directory name does not change the project identity. Never treat nested Git
@@ -116,8 +116,8 @@ a second scope-control framework.
 
 ## 2. Workspace and repository boundaries
 
-The local coordination checkout is `/users/apiccine/work/correction-lib` and
-is a distinct Git meta-repository named `TOP26006_fw`. Select a task repository
+The local coordination checkout is the resolved `repositories.TOP26006_fw.path`
+and is a distinct Git meta-repository named `TOP26006_fw`. Select a task repository
 by `repository_id` from `governance/repositories.md`, then read its applicable
 module and path-applicable nested `AGENTS.md` before acting. The registry
 defines stable roles, ownership, path status and consumers; fresh Git and
@@ -137,18 +137,44 @@ stage nested repositories, unrelated root artifacts, reports, backups,
 payloads, or local tools without explicit authorization. Governance commits
 stage intended exact paths only.
 
+### Local installation configuration
+
+`config/local_profile.example.yml` and `config/local_profile.schema.yml` define
+the TOP26006_fw-owned YAML installation profile. An installation may place its
+concrete, ignored profile at `.top26006/local_profile.yml` in the coordination
+checkout. Run `tools/resolve_local_profile.py` with `--profile <path>`,
+`--execution-ready`, and `--format yaml` to validate and resolve it using the
+selected local Python environment. During bootstrap, read the YAML as inert data to
+obtain the wrapper and interpreter paths, then run the resolver through that
+wrapper and interpreter; verify the resolved values against local evidence.
+If no usable profile exists, a prompt must state the needed local paths
+explicitly and preflight them. No JSON profile or fallback is defined.
+
+Profile values are local installation facts only. They cannot grant repository
+writes, branch or publication authority, validation permission, scientific
+authority, or acceptance. The typed registry owns repository identity, class,
+role, semantics and dependencies. Fresh readback owns volatile branch, HEAD,
+dirty, runtime and remote state. Prompt authors materialize resolved local
+values into explicit `workspace_root`, `repo_locations`, tooling and evidence
+fields when needed; executors check those stated values against local evidence.
+There is no invisible substitution from the profile into an existing prompt.
+`provider_procedure: openai_codex` identifies the current OpenAI/Codex
+reference procedure; provider-specific mechanisms are not universal AI-agent
+requirements. Profile paths never expand task scope or override child policy.
+
 TOP26006_fw is the single TOP-26-006 project operational and prompt/agentic
 governance owner. Repository-native or upstream policy remains owned by that
 repository/upstream project; effective actions satisfy both. Scientific and
 technical content remains with the native semantic owner and authorized lane.
 Project governance does not claim upstream branch or publication policy.
 
-ANDOCS is an independent local-only meta-repository at
-`/users/apiccine/work/correction-lib/ANDOCS`. This root policy applies by
-ancestry; `governance/modules/andocs.md` adds its project-specific rules. The
+ANDOCS is an independent local-only meta-repository at its resolved
+`repositories.ANDOCS.path`. This root project policy applies to its project
+work and also by ancestry when nested; `governance/modules/andocs.md` adds its
+project-specific rules. The
 local ANDOCS governance files remain a transitional compatibility layer until
-a separate retirement decision. The former `/users/apiccine/work/ANDOCS` path
-is historical, not a current execution path.
+a separate retirement decision. The former separate ANDOCS checkout path is
+historical, not a current execution path.
 
 Treat each repository independently for:
 
@@ -260,20 +286,23 @@ unless the prompt explicitly requests configuration work.
 ## 4. Wrapper and shell policy
 
 Every Python, pytest, compileall, correctionlib, NanoEvents, pkl-inspection, or
-diagnostic Python command must use:
+diagnostic Python command must use the resolved local command wrapper. For the
+current `openai_codex` reference procedure, obtain its path from
+`tooling.command_wrapper` and state the resolved path in the prompt:
 
 ```bash
-/users/apiccine/work/correction-lib/codex-run.sh
+<resolved-command-wrapper>
 ```
 
 Canonical pattern:
 
 ```bash
-wrap=/users/apiccine/work/correction-lib/codex-run.sh
-python_env=/users/apiccine/work/miniconda3/envs/clib-env/bin/python
+wrap="<resolved-command-wrapper>"
+python_env="<resolved-python-interpreter>"
+repo="<prompt-authorized-resolved-repository-path>"
 
 "$wrap" /bin/bash --noprofile --norc -c \
-  'cd /users/apiccine/work/correction-lib/topeft && "$python_env" -m pytest -q'
+  'cd "$1" && "$2" -m pytest -q' check "$repo" "$python_env"
 ```
 
 Never use a login shell:
@@ -284,7 +313,8 @@ Never use a login shell:
 
 Never invoke the pinned Python directly outside the wrapper.
 
-`codex-run.sh` is infrastructure. Do not edit it unless explicitly requested.
+The configured command wrapper is infrastructure. Do not edit it unless
+explicitly requested.
 A wrapper-change report must include `sys.executable`, `sys.path`, and NumPy
 import/version checks.
 
@@ -333,10 +363,10 @@ apt-get
 When an environment change is needed, report the reason and exact user-run
 command. Do not execute it.
 
-Pinned interpreter:
+Pinned interpreter for the selected local OpenAI/Codex procedure:
 
 ```text
-/users/apiccine/work/miniconda3/envs/clib-env/bin/python
+<resolved tooling.python_interpreter>
 ```
 
 Use it only through the wrapper.
@@ -2324,7 +2354,7 @@ one_patch_artifact
 Canonical directory:
 
 ```text
-/users/apiccine/work/correction-lib/reports/diagnostics/<prompt_id>/
+<resolved evidence_root>/<prompt_id>/
 ```
 
 Canonical files:

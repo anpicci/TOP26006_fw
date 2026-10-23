@@ -105,16 +105,20 @@ explicitly requests strict enforcement and supplies the corresponding value.
 
 ## Validate and render
 
-Use the workspace wrapper, non-login shell, and pinned interpreter:
+For the OpenAI/Codex reference procedure, use the wrapper, interpreter and
+workspace path resolved from the local YAML profile and stated explicitly in
+the controlling prompt. These paths do not authorize production or output:
 
 ```bash
-/users/apiccine/work/correction-lib/codex-run.sh \
+wrap="<prompt-resolved-command-wrapper>"
+python_env="<prompt-resolved-python-interpreter>"
+workspace_root="<prompt-resolved-TOP26006_fw-path>"
+"$wrap" \
   /bin/bash --noprofile --norc -c \
-  'cd /users/apiccine/work/correction-lib &&
-   /users/apiccine/work/miniconda3/envs/clib-env/bin/python \
+  'cd "$1" && "$2" \
    .agents/skills/correction-lib-manual-production-handoff/scripts/render_handoff.py \
-   --output-dir "$1" --format human "$2"' handoff \
-  <output_dir> <manifest.json>
+   --output-dir "$3" --format human "$4"' handoff \
+  "$workspace_root" "$python_env" "<output_dir>" "<manifest.json>"
 ```
 
 Add `--runbook-only` whenever a runnable wrapper was not requested or the plan

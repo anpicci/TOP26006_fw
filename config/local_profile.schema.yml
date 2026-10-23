@@ -1,0 +1,28 @@
+# Declarative shape used by tools/resolve_local_profile.py. Repository IDs and
+# remote-alias purposes are extensible; all other mapping keys are closed.
+schema_version: 1
+profile:
+  required:
+    profile_version: integer_1
+    profile_name: string
+    workspace_root: path
+    evidence_root: path
+    provider_procedure: string
+    tooling:
+      required:
+        command_wrapper: path
+        python_interpreter: path
+    repositories:
+      required:
+        TOP26006_fw:
+          required:
+            path: path
+          optional:
+            remote_aliases:
+              values: git_alias
+      values:
+        required:
+          path: path
+        optional:
+          remote_aliases:
+            values: git_alias

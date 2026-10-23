@@ -1,7 +1,7 @@
 # CPC.md — Codex Prompt Contract v2.1 for TOP26006_fw
 
 This contract governs how ChatGPT prepares Codex prompts for the
-TOP26006_fw coordination workspace at `/users/apiccine/work/correction-lib`.
+TOP26006_fw coordination workspace at the locally resolved checkout path.
 Select every task repository through `governance/repositories.md` and apply its
 named module for repository-specific project deltas. For work under the current
 ANDOCS path, apply the root policy, the ANDOCS module, and the retained local
@@ -168,9 +168,14 @@ patch_kind_expected
 final_chat_deliverable
 ```
 
-Build `repo_locations` from the selected typed registry entries, not a fixed
-two-repository workspace. Include only the task's relevant repositories and
-their path status. Keep `allowed_to_modify` and `read_only` explicit for each
+Build `repo_locations` from selected typed registry identities and the
+installation's resolved YAML local-profile paths, not a fixed
+two-repository workspace. A profile is configuration input, never authority;
+materialize concrete `workspace_root`, `repo_locations`, evidence and tooling
+paths into the prompt and require executor preflight of those values. A missing
+or unusable profile requires explicit path facts in the prompt and preflight,
+not an implicit default or JSON fallback. Include only the task's relevant
+repositories and their path status. Keep `allowed_to_modify` and `read_only` explicit for each
 relevant repository and surface. Read the registry-named module when present;
 use it for repository-specific project deltas and retain generic lifecycle,
 permissions and prompt construction here. A module cannot make a missing write,
@@ -1420,7 +1425,7 @@ reasoning_level: <level>
 delegation_policy: <policy>
 model_selection_rationale: <brief rationale>
 
-workspace_root: /users/apiccine/work/correction-lib
+workspace_root: <resolved_TOP26006_fw_workspace_root>
 repo_locations:
   <selected_repository_id>: <typed_registry_path_and_status>
 
