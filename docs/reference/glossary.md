@@ -17,6 +17,12 @@
 | Branch role | Governance meaning of a branch, separate from its spelling. |
 | Current ref | Freshly observed branch or detached HEAD and commit, not registry text. |
 | Local profile | Ignored YAML carrying installation facts only. |
+| Provider | The product or service chosen for AI assistance; its name does not assign project authority. |
+| Research responsibility | A role in framing a question, producing evidence, reviewing it, or accepting a result, independent of provider branding. |
+| Provider mechanism | A product-specific way to load instructions, control actions, access tools, or preserve context. |
+| Documented compatibility | An official description of a comparable mechanism; it does not show that this project tested that mechanism locally. |
+| Local runtime qualification | Bounded observation of the selected provider version, surface, settings, access paths, and evidence behavior in the intended installation. |
+| Reference deployment | A dated worked example mapping generic method and governance concepts to one project's actual arrangement. |
 | Bounded change | An owner-authorized effect limited by purpose, repository, paths, and validation claim. |
 | Closure | Prior result accepted for an exact claim with a retrievable evidence locator. |
 | Delta | The new work a continuation asks for after closure. |
