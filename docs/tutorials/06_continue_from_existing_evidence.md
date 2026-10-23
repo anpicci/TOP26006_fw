@@ -1,12 +1,24 @@
 # Tutorial 6: continue from existing evidence
 
-**Learning goal:** write a continuation that reuses a valid result and asks only for new evidence needed to close a bounded finding.
+**Learning goal:** prepare a continuation from your repaired analysis state while reusing valid arithmetic.
 
-The [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) records arithmetic output from the first analysis commit and a provenance repair in a second commit. The calculation was not rerun for that repair. Its acceptance is an illustrative teaching decision, not external scientific review.
+Continue with `analysis`, `first_result_head`, `accepted_analysis_head`, and `csv_sha256` from [Tutorial 5](05_review_and_accept_returned_evidence.md). If a new shell lost variables, recover your own scratch path and inspect `git -C "$analysis" log --oneline -3`; identify the first-result and repair commits from their contents before resetting the variables.
 
-1. Fill the [continuation template](../../templates/continuation_prompt.md). **Closure:** five-row arithmetic under independent Gaussian uncertainty was reproduced. **Delta:** add source commit and CSV hash to `interpretation.md`. **New evidence:** inspect the repaired note and its exact diff.
-2. State the **invalidation boundary**: if the CSV, script, assumed model, or relevant Git identity changed unexpectedly, the old calculation may no longer support the note; stop and reassess. Fresh Git readback is required even when prior evidence is accepted.
-3. List **checks not to repeat** while the boundary holds: the accepted numerical run and its already-reviewed arithmetic. Rerunning everything, assuming old live state is current, or discarding valid arithmetic because the note lacked provenance would obscure the actual delta.
-4. Compare the final note with its source identities. In the observed scenario, the simulated owner role accepted the bounded arithmetic record after this repair. That teaching decision did not cover real-data interpretation.
+1. Read live state and the repaired note:
 
-**Checkpoint:** a successor can state what is closed, what changed, what could invalidate closure, and which new evidence is required. Continue to [sequential repository coordination](07_coordinate_a_multi_repository_change.md).
+   ```sh
+   git -C "$analysis" rev-parse HEAD
+   git -C "$analysis" status --porcelain=v1 -- interpretation.md data/measurements.csv analyze.py
+   git -C "$analysis" show --format=fuller --stat "$accepted_analysis_head"
+   cat "$analysis/interpretation.md"
+   sha256sum "$analysis/data/measurements.csv"
+   ```
+
+2. Fill the [continuation template](../../templates/continuation_prompt.md) with four explicit entries:
+   - **Closure:** the five-row synthetic arithmetic and its assumptions, source `first_result_head`, repaired provenance `accepted_analysis_head`, and **simulated teaching acceptance** scope.
+   - **Delta:** the next bounded evidence transfer to a separate methods record; only qualified quantities and provenance may cross.
+   - **Invalidation boundary:** CSV, script, independent Gaussian model, source identity, governance, or task-path state changes that defeat reuse.
+   - **Checks not to repeat:** the accepted numerical run and already checked arithmetic while that boundary holds.
+3. State new evidence needed: fresh Git status/HEAD, the repaired note's source IDs, and later the exact methods-note diff. Do not rerun arithmetic merely because a continuation is being written.
+
+**Checkpoint:** your continuation points to your own source commits and tells a successor what is closed, what is new, and when to stop. The recorded [reference scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) illustrates one run; its IDs are not inputs here. Continue to [sequential coordination](07_coordinate_a_multi_repository_change.md).

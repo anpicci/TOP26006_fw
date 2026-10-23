@@ -1,19 +1,28 @@
 # Tutorial 8: recover from a stopped task
 
-**Learning goal:** detect an unexpected local change, preserve its evidence, and define the next decision without silently altering the checkout.
+**Learning goal:** create and diagnose an intentional dirty-state stop in your own scratch analysis repository.
 
-The [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) records a deliberate stop in the *scratch analysis repository*. Expected and observed HEAD were both `c9f7c6b9e090fdc3ae3c29b34171cf3a7cb88ff4`, but `git status --porcelain=v1` showed ` M interpretation.md`.
+Continue after [Tutorial 7](07_coordinate_a_multi_repository_change.md). Keep `analysis`, `accepted_analysis_head`, and `methods_evidence_head` from your run. Do not edit the coordination checkout or the methods repository.
 
-1. At task preflight, read HEAD and task-scope status:
+1. Establish the expected state before the next hypothetical task:
 
    ```sh
-   git -C "$analysis" rev-parse HEAD
-   git -C "$analysis" status --porcelain=v1
+   expected_analysis_head="$accepted_analysis_head"
+   observed_analysis_head="$(git -C "$analysis" rev-parse HEAD)"
+   git -C "$analysis" status --porcelain=v1 -- interpretation.md
+   test "$observed_analysis_head" = "$expected_analysis_head"
+   ```
+
+2. Deliberately introduce one **uncommitted** edit in your own scratch note, then read it back:
+
+   ```sh
+   printf '%s\n' 'unexpected local edit after accepted commit' >> "$analysis/interpretation.md"
+   observed_analysis_head="$(git -C "$analysis" rev-parse HEAD)"
+   git -C "$analysis" status --porcelain=v1 -- interpretation.md
    git -C "$analysis" diff -- interpretation.md
    ```
 
-2. Classify the exact mismatch: a tracked edit to the same note the task would use. Preserve the diff. The observed extra line was “unexpected local edit after accepted commit.”
-3. **STOP.** The original continuation did not authorize adopting that edit. Do not reset, clean, stash, overwrite, or automatically retry. Ask the responsible owner to classify the edit's provenance and decide whether a new continuation may adopt it or must use a separate safe copy.
-4. Keep the accepted arithmetic and methods evidence intact. The dirty state blocks this *new action*; it does not retroactively erase previously accepted evidence. The next task must state fresh HEAD/status, ownership of the edit, and its invalidation boundary.
+3. Classify the evidence: expected and observed HEAD agree, while the task path has ` M interpretation.md`. The next task did not authorize adopting that line. Record the exact diff and **STOP**. Do not reset, clean, stash, overwrite, commit, or retry merely to make Tutorial 9 pass.
+4. Preserve the accepted synthetic arithmetic and methods record. The dirty state blocks the proposed next action; it does not retroactively erase prior evidence. The responsible owner must classify this edit's provenance and decide a new continuation.
 
-**Checkpoint:** you can report detect → classify → preserve evidence → stop → new decision boundary. See [common stops](../how_to/diagnose_common_stops.md), then [handoff](09_transfer_work_to_a_collaborator.md).
+**Checkpoint:** you can report expected HEAD, observed HEAD, status, diff, preserved evidence, and next decision. See [common stops](../how_to/diagnose_common_stops.md), then [handoff](09_transfer_work_to_a_collaborator.md).
