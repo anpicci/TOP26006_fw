@@ -31,3 +31,9 @@
 | Blocking finding | Review issue that prevents a proposed acceptance until resolved. |
 | Nonblocking finding | Review issue that does not defeat the bounded accepted claim. |
 | Handoff | Evidence-rich transfer record; it does not prove recipient comprehension or grant authority. |
+| Workstream | Bounded research responsibility with a question, inputs, outputs, review, and acceptance route; not a branch, repository, agent, or session. |
+| Dependency edge | Declared consumption of a specific input or evidence revision by an output. |
+| Selective invalidation | Marking only evidence reachable from a changed dependency stale for its affected claim, while preserving unaffected evidence for its stated scope. |
+| Coordination record | Human-readable history of decisions, dependency changes, handoffs, and continuation checkpoints; not an authority engine. |
+| Harness | Software that retains or coordinates execution context across tasks or sessions; its logs and state do not replace project evidence or authority. |
+| Lane | TOP-26-006 historical case-study terminology for a workstream, after the generic workstream concept; not a branch, repository, agent, or session. |

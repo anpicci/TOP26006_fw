@@ -4,6 +4,9 @@
 | --- | --- |
 | [README](../../README.md), [manual index](../index.md), [getting started](../getting_started.md) | Routes for new readers. |
 | [Tutorials](../tutorials/01_prepare_a_research_project.md) | Sequential learning with a synthetic example. |
+| [Advanced route](../advanced/index.md), [advanced tutorials](../tutorials/advanced/01_coordinate_parallel_research_workstreams.md) | Optional coordination learning after the core route. |
+| [Advanced how-tos](../how_to/advanced/define_workstream_responsibilities.md), [advanced reference](advanced/workstream_record.md), [advanced explanations](../explanation/advanced/coordinating_a_research_programme.md) | Workstream procedures, record shapes, and rationale. |
+| [Synthetic parallel workstreams](../examples/advanced_parallel_workstreams/README.md) | Four-file teaching case; no live registry or execution. |
 | [How-to pages](../how_to/check_prerequisites.md) | Specific setup and task recipes. |
 | [Reference pages](local_profile.md) | Stable lookup facts and contracts. |
 | [Explanation pages](../explanation/research_workflow.md) | Research workflow concepts and rationale. |

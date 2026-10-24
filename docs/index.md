@@ -14,6 +14,10 @@ Follow the route in [Getting started](getting_started.md). Begin with a research
 8. [Recover from a stopped task](tutorials/08_recover_from_a_stopped_task.md): preserve an unexpected local edit and stop.
 9. [Transfer work to a collaborator](tutorials/09_transfer_work_to_a_collaborator.md): provide an evidence-rich handoff.
 
+## Continue later: advanced coordination
+
+The core route above is complete on its own. After it, the optional [advanced workstream coordination route](advanced/index.md) uses a synthetic methods, checking, and explanation case to teach dependencies, selective invalidation, and responsibility transfer. It ends with a documentary automation outlook; no agent or harness execution is required.
+
 ## Solve a particular setup task
 
 [Check prerequisites](how_to/check_prerequisites.md) · [Choose names](how_to/choose_workspace_and_checkout_names.md) · [Configure a profile](how_to/configure_your_local_profile.md) · [Inspect resolution](how_to/inspect_the_resolved_configuration.md) · [Choose an AI tool](how_to/choose_an_ai_tool_for_a_research_task.md) · [Ask for a task](how_to/ask_an_assistant_to_prepare_a_task.md)

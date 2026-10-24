@@ -1,0 +1,16 @@
+# Evidence dependencies — synthetic teaching map
+
+`accepted` means a hypothetical scientific-owner decision for the exact revision and scope below, not TOP26006_fw acceptance. `stale_for_current_use` retains history but bars current downstream use. Execution, review, acceptance, and downstream readiness are separate fields. A dependency edge exists only through `consumed_input_ids`.
+
+| record_id | type | locator_or_revision | producer_workstream | consumed_input_ids | execution_or_evidence_status | review_ref | review_disposition | acceptance_actor_or_role | acceptance_scope | validity_state | invalidation_reason | affected_claims | superseding_ref |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| D_RAW_R1 | fixed input | synthetic observation listing, rev 1 | source curator | none | declared input | SRC_RAW_1 | source identity checked | scientific owner | raw listing identity only | valid | none | listing identity | none |
+| D_SHARED_R1 | shared assumption | warm-up exclusion rule, rev 1 | W_METHODS | D_RAW_R1 | declared assumption | REV_RULE_R1 | reviewed for teaching scope | scientific owner | rule rev 1 only | superseded | corrected by D_SHARED_R2 | estimate under rule rev 1 | D_SHARED_R2 |
+| E_METHODS_R1 | result | estimate, rev 1 | W_METHODS | D_RAW_R1, D_SHARED_R1 | produced | REV_METHODS_R1 | reviewed with limitations | scientific owner; ACC_METHODS_R1 | estimate under D_SHARED_R1 only | stale_for_current_use | dependency path to superseded D_SHARED_R1 | current estimate | E_METHODS_R2 |
+| E_CHECK_R1 | checking evidence | raw-listing completeness, rev 1 | W_CHECK | D_RAW_R1 | produced | REV_CHECK_R1 | reviewed; narrow check only | scientific owner; ACC_CHECK_R1 | completeness of D_RAW_R1 listing only | valid | no path to D_SHARED_R1; does not check estimate | raw-listing completeness only | none |
+| E_NOTE_R1 | explanation | methods note, rev 1 | W_NOTE | E_METHODS_R1 | produced | REV_NOTE_R1 | reviewed with result revision identified | scientific owner; ACC_NOTE_R1 | explanation of E_METHODS_R1 only | stale_for_current_use | transitive path via E_METHODS_R1 to D_SHARED_R1 | current explanation | E_NOTE_R2 |
+| D_SHARED_R2 | shared assumption | corrected warm-up exclusion rule, rev 2 | W_METHODS | D_RAW_R1 | declared correction | REV_RULE_R2 | reviewed correction | scientific owner | rule rev 2 only | valid | none | estimate under rule rev 2 | none |
+| E_METHODS_R2 | reconciled result | estimate, rev 2 | W_METHODS | D_RAW_R1, D_SHARED_R2 | produced; delivered C07 | REV_METHODS_R2 | separately reviewed after delivery C07 | scientific owner; ACC_METHODS_R2 at C08 | estimate under D_SHARED_R2 only | valid | none | current estimate under rule rev 2 | none |
+| E_NOTE_R2 | updated explanation | methods note, rev 2 | W_NOTE | E_METHODS_R2 | produced after ACC_METHODS_R2 | REV_NOTE_R2 | separately reviewed | scientific owner; ACC_NOTE_R2 at C09 | explanation of E_METHODS_R2 only | valid | none | current explanation | none |
+
+The map does not calculate an estimate, infer a scientific verdict, or automatically invalidate evidence. The human decision at C04 follows declared edges. `E_CHECK_R1` remains accepted only for listing completeness; it cannot be used as independent confirmation of either estimate.
