@@ -4,12 +4,17 @@
 
 Continue from [Tutorial 3](03_complete_a_first_read_only_task.md). The question is whether the five synthetic measurements support the reported weighted mean under the stated independent Gaussian model. The proposed change is an `interpretation.md` note, not a change to data, method, script, or tests.
 
-1. In a new private practice directory under the coordination checkout's diagnostics area, copy [repeated measurements](../../examples/repeated_measurements/README.md) into an `analysis_repository` and initialize it as a *separate local scratch Git repository*. Set `checkout` to your coordination root, choose an absent `practice_root`, and use a local teaching identity:
+1. In a new private practice directory under the coordination checkout's diagnostics area, copy the four teaching files from [repeated measurements](../../examples/repeated_measurements/README.md) into an `analysis_repository` and initialize it as a *separate local scratch Git repository*. Set `checkout` to your coordination root, choose an absent `practice_root` under `$checkout/reports/diagnostics`, and use a local teaching identity. Copying named files leaves behind any Python cache generated in Tutorial 3:
 
    ```sh
+   mkdir -p -m 700 "$checkout/reports/diagnostics"
    mkdir -m 700 "$practice_root"
-   cp -R "$checkout/examples/repeated_measurements" "$practice_root/analysis_repository"
    analysis="$practice_root/analysis_repository"
+   mkdir -m 700 "$analysis" "$analysis/data"
+   cp "$checkout/examples/repeated_measurements/README.md" \
+      "$checkout/examples/repeated_measurements/analyze.py" \
+      "$checkout/examples/repeated_measurements/test_analysis.py" "$analysis/"
+   cp "$checkout/examples/repeated_measurements/data/measurements.csv" "$analysis/data/"
    git -C "$analysis" init -q -b main
    git -C "$analysis" config user.name 'Synthetic Researcher'
    git -C "$analysis" config user.email 'synthetic@example.invalid'
