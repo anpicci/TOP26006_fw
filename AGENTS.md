@@ -1036,8 +1036,8 @@ When creation is permitted, new branch names must describe the repository
 change and follow its established naming conventions; do not encode internal
 lane, prompt, Codex, control-plane, round or campaign identifiers unless
 already established as a repository-facing convention. TOPEFT and topcoffea
-namespace constraints, and TOPEFT's permanent branch roles, are in their
-registry-named modules. The generic reuse-first lifecycle above remains
+namespace constraints and repository-specific permanent branch roles are in
+their registry-named modules. The generic reuse-first lifecycle above remains
 binding. A generic baseline field cannot override a module's permanent role.
 
 Require `reference_branch` and `feature_branch` for
@@ -1047,7 +1047,7 @@ Require `reference_branch` and `feature_branch` for
 when exact branch identity is a declared safety invariant. Require
 `current_baseline_branch`, `comparison_baseline`, and
 `integrated_baseline_mode` only when decision-material; omission does not
-remove or reinterpret their contracts, change permanent TOPEFT roles, or
+remove or reinterpret their contracts, change module-defined permanent branch roles, or
 bypass the live applicable-feature lifecycle gate. If a decision-material
 branch fact cannot be established, stop rather than infer authority.
 
@@ -1067,6 +1067,50 @@ reuse-first eligibility of an applicable active feature.
 
 Remote branch commits are live state. Query them when current values matter;
 do not reuse an old remote SHA as current-state evidence.
+
+### Permanent live development and promotion cuts
+
+A repository module may declare one
+`permanent_live_development_branch`. That branch is the long-lived
+TOP-26-006 development surface for that repository. It is distinct from
+module-defined personal/reference and integration/upstream branches, which
+remain non-development surfaces.
+
+When a permanent live development branch is declared and is applicable to the
+workstream, ordinary tracked TOP-26-006 development continues on that branch.
+Do not create a new task/development branch merely to isolate ordinary work.
+An additional development branch is exceptional and requires an explicit
+owner-authorized exception identifying the concrete isolation need, branch
+name, relationship to the permanent live line, intended successor or merge
+target, and retirement condition. The exception does not itself authorize
+publication, merge, deletion, force movement, cleanup, or another lifecycle
+effect.
+
+The permanent live branch remains subject to fresh branch, HEAD, dirty-state,
+worktree and semantic-applicability readback. A permanent branch name is not a
+durable commit identity and does not bypass repository-native policy or exact
+round authorization.
+
+When a promotion wave is defined from a moving permanent live line, select an
+exact committed `source_cut` for that wave. The `source_cut` is the immutable
+content identity for the promotion; later commits on the permanent live branch
+do not enter that wave automatically. Publish or reconcile through an
+explicitly temporary promotion carrier when the applicable repository module
+or promotion contract requires one; the carrier does not become a continuing
+development authority.
+
+After a reviewer-visible promotion result is accepted, use that exact accepted
+result as the downstream promotion authority for the same wave rather than a
+later-moving permanent-live HEAD. If the applicable repository module requires
+history convergence, reconcile that accepted result back into the permanent
+live development genealogy under an explicit integration/reconciliation round
+before selecting the next promotion cut. A module may impose stronger
+repository-specific parentage, ancestry, or convergence requirements.
+
+Promotion-carrier and worktree retirement conditions should be declared when
+the carrier is created. Expected retirement is not advance deletion
+authorization: local branch deletion, remote branch deletion and worktree
+removal remain separately governed actions with fresh safety evidence.
 
 ### Conditional integration and publication lifecycle
 
