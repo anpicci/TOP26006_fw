@@ -11,7 +11,8 @@ A [handoff](../../examples/advanced_parallel_workstreams/coordination.md) preser
 | Last verified state | What was directly checked, when, and with what evidence. |
 | Next permitted action | Bounded continuation after the receiver checks current state. |
 | Sender preparation/acknowledgment | Evidence that the sender assembled the handoff. |
-| Receiver acknowledgment | Evidence that the receiver understood and accepted the stated scope. |
+| Receiver acknowledgment (`receiver_ack`) | Acknowledgment of receipt and stated scope; this alone does not prove comprehension. |
+| Recipient readback (`receiver_readback_or_comprehension_ref`) | Evidence of which cited artifacts the receiver reopened and how they restated accepted and superseded evidence, unresolved effects, the last verified state, and the next permitted action. A generic assertion of understanding is insufficient. |
 | Effective transfer authority ref | Explicit owner decision or governance reference making responsibility transfer effective. |
 
-A message receipt is not a receiver acknowledgment or an effective transfer. If any effect is uncertain, verify its external state before retrying. The synthetic C10 event illustrates a transfer with no running effect; real handoffs need their own observation.
+A message receipt, receiver acknowledgment, recipient readback, and effective authority transfer are distinct records. Follow the core [transfer guide](../../how_to/transfer_project_responsibility.md) and [handoff template](../../../templates/handoff.md) for the full procedure. If any effect is uncertain, verify its external state before retrying. The synthetic C10 event illustrates a transfer with no running effect; real handoffs need their own observation.

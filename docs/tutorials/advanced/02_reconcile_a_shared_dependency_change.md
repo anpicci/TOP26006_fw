@@ -16,7 +16,7 @@ C06 produces `E_METHODS_R2` using `D_SHARED_R2`; C07 delivers it. At that point 
 
 ## 4. Transfer responsibility and continue
 
-At C10, sender A prepares accepted references, stale history, the last verified state, and unresolved effects. Receiver B acknowledges the scope and checkpoint; the hypothetical scientific owner makes `AUTH_TRANSFER_1` effective for future `W_METHODS` work. A message receipt alone would not transfer responsibility. Before any next task, B checks the current dependency identity and the authority for that bounded action. No interrupted external effect exists in this simulation.
+At C10, sender A prepares accepted references, stale history, the last verified state, and unresolved effects. Receiver B acknowledges receipt and scope, then reopens the accepted R2 references and reads back which R1 revisions are stale, the last verified checkpoint, and the next dependency check. The hypothetical scientific owner separately makes `AUTH_TRANSFER_1` effective for future `W_METHODS` work. Receipt or acknowledgment alone does not prove comprehension or transfer responsibility. Before any next task, B checks the current dependency identity and the authority for that bounded action. No interrupted external effect exists in this simulation.
 
 ## Check your result
 
