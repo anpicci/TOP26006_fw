@@ -449,13 +449,18 @@ whether focused and cumulative diffs were distinguished
 whether unrelated dirty work remains
 ```
 
-Translate internal branch-policy fields into repository-focused prose. For example:
+Translate internal branch-policy fields into repository-focused prose. Name the
+development branch designated by the applicable repository's current owner
+decision and module. For example, under the current TOPEFT branch roles:
 
 ```text
-This feature branch was created from `run3_test_mmerged_anpicci`.
-This work continues on the existing integration branch.
-The repository was inspected without changing its checked-out branch.
+Development continues on `te/datacard_sr_reco`.
+Integration will target `run3_test_mmerged`.
 ```
+
+These branch names are TOPEFT-specific. A personal/reference branch identifies
+a starting point, and an integration branch identifies an integration target;
+neither is the development branch.
 
 Keep keys such as `branch_policy` and `integrated_baseline_mode` in internal reports; do not copy them into reviewer-facing branch notes.
 

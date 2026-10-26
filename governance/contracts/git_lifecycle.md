@@ -12,6 +12,16 @@ For branch maintenance declare branch_maintenance_action, affected_local_branche
 
 For publication declare publication_action, publication_platform, publication_repository, publication_remote and expected_local_head. For create_or_reuse_open_pr_or_mr additionally declare publication_base_branch, publication_feature_branch, duplicate_pr_or_mr_policy: reuse_exact_open_match_else_create_one and draft_allowed: no unless explicitly authorized otherwise. An exact open match agrees on repository, base and feature branch; multiple or ambiguous matches stop. Each action below supplies its further required fields and permissions.
 
+An exact authorized native Git branch, ref, or integration command may create
+inseparable intrinsic local bookkeeping metadata, such as `ORIG_HEAD` or
+reflogs. Treat that metadata as evidence of the command, not as a grant to move
+an unrelated branch, tag, or remote-tracking ref. Every intended branch, ref,
+or `HEAD` movement still requires the existing exact action and ref authority.
+When material, record and read back observable intrinsic bookkeeping alongside
+the authoritative refs. Unexpected authoritative ref movement is a discrepancy,
+not bookkeeping; stop the dependent action. This observation does not authorize
+reset, ref surgery, history rewrite, cleanup, force movement, or remote mutation.
+
 ### `integration_only`
 
 Allowed only for one explicitly declared local branch-integration decision:
