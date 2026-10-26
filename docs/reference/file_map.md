@@ -3,7 +3,7 @@
 | Location | Primary role |
 | --- | --- |
 | [README](../../README.md), [manual index](../index.md), [getting started](../getting_started.md) | Routes for new readers. |
-| [Tutorials](../tutorials/01_prepare_a_research_project.md) | Sequential learning with a synthetic example. |
+| [Tutorials](../tutorials/01_prepare_a_research_project.md), [TOPEFT repository lesson](../tutorials/02_add_an_analysis_repository.md) | Sequential setup, a maintained real-repository entry point, and a synthetic read-only calculation. |
 | [Advanced route](../advanced/index.md), [advanced tutorials](../tutorials/advanced/01_coordinate_parallel_research_workstreams.md) | Optional coordination learning after the core route. |
 | [Advanced how-tos](../how_to/advanced/define_workstream_responsibilities.md), [advanced reference](advanced/workstream_record.md), [advanced explanations](../explanation/advanced/coordinating_a_research_programme.md) | Workstream procedures, record shapes, and rationale. |
 | [Synthetic parallel workstreams](../examples/advanced_parallel_workstreams/README.md) | Four-file teaching case; no live registry or execution. |
@@ -17,7 +17,7 @@
 | [Registry](../../governance/repositories.md) | Stable repository identity, roles, and profile keys. |
 | [Example profile](../../config/local_profile.example.yml), [schema](../../config/local_profile.schema.yml), [resolver](../../tools/resolve_local_profile.py) | YAML installation shape and resolution. |
 | `.top26006/local_profile.yml` | Ignored local installation facts, created by each user. |
-| [Synthetic measurements](../../examples/repeated_measurements/README.md) | Teaching data and standard-library calculation. |
+| [Synthetic measurements](../../examples/repeated_measurements/README.md), [companion notebook](../../examples/repeated_measurements/repeated_measurements.ipynb) | Teaching data and maintained standard-library calculation; the notebook calls its functions and stores no executed output. |
 | [Lifecycle fixture](../../examples/research_workflow_lifecycle/README.md) | Minimal methods seed and scenario boundary; scratch Git copies are diagnostic only. |
 | [Task templates](../../templates/research_task_request.md) | Teaching aids; they grant no action. |
 | [Bounded change](../../templates/bounded_change_prompt.md), [continuation](../../templates/continuation_prompt.md), [review](../../templates/review_report.md), [handoff](../../templates/handoff.md) | Human-fillable lifecycle aids. |

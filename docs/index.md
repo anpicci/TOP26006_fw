@@ -4,9 +4,9 @@ Follow the route in [Getting started](getting_started.md). Begin with a research
 
 ## Learn in sequence
 
-1. [Prepare a research project](tutorials/01_prepare_a_research_project.md): local installation and roles.
-2. [Understand repository mapping](tutorials/02_add_an_analysis_repository.md): distinguish a governed ID, local path, and fresh Git state before an analysis checkout exists.
-3. [Complete a first read-only task](tutorials/03_complete_a_first_read_only_task.md): use synthetic measurements and review evidence.
+1. [Prepare a research project](tutorials/01_prepare_a_research_project.md): identify the coordination checkout, configure a local profile, and check its resolved paths.
+2. [Add an analysis repository](tutorials/02_add_an_analysis_repository.md): follow the project repository map to a separate TOPEFT checkout and inspect one maintained dry-run entry point.
+3. [Complete a first read-only task](tutorials/03_complete_a_first_read_only_task.md): use synthetic measurements, the companion notebook, and review evidence.
 4. [Make a bounded analysis change](tutorials/04_make_a_bounded_analysis_change.md): state purpose, fixed inputs, permitted path, and evidence.
 5. [Review and accept returned evidence](tutorials/05_review_and_accept_returned_evidence.md): separate output, findings, and owner decision.
 6. [Continue from existing evidence](tutorials/06_continue_from_existing_evidence.md): preserve valid work while repairing provenance.

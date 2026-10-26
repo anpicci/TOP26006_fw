@@ -17,4 +17,6 @@ From the coordination checkout, use the Python interpreter selected for your loc
 
 The output gives a weighted mean, its model-based standard error, chi-square, degrees of freedom, and chi-square per degree of freedom. These are descriptive calculations. They establish no goodness-of-fit probability or scientific acceptance.
 
+The companion [repeated-measurements notebook](repeated_measurements.ipynb) imports `read_measurements` and `summarize` from the maintained `analyze.py`; it does not implement another estimator. Open it from this directory with an already-prepared notebook tool so `analyze` and `data/measurements.csv` resolve. The notebook stores no executed outputs and has not been execution- or render-qualified by this documentation example. The script and its focused test remain the checkable calculation authority.
+
 **Limitations:** correlated systematics, model choice, outlier treatment, and real experimental provenance are outside this teaching example. A real analysis needs its own data authority, uncertainty model, validation, and independent scientific review.
