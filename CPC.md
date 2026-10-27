@@ -64,11 +64,12 @@ the entire prompt template.
 
 | Condition | Authoritative fields and rules |
 |---|---|
-| Tracked change/adoption/commit, refs, integration, publication or merge | governance/contracts/git_lifecycle.md, including authorized_commit_scope and exact adopted changes when committing |
+| Tracked change/adoption/commit, refs, linked worktrees, integration, publication or merge | governance/contracts/git_lifecycle.md, including authorized_commit_scope and exact adopted changes when committing |
 | Ordered cross-mode dependencies or long-horizon work | governance/contracts/orchestration.md |
 | Delegation or independent review | governance/contracts/orchestration.md; explicit delegation_policy forbidden, allowed or required |
 | Production, handoff, scheduler, output/recovery/storage | governance/contracts/production.md |
 | Audit, scientific comparison, substantial review, continuation | governance/contracts/review_and_evidence.md |
+| Autonomous adaptation, blocker classification, preauthorized fallback/repair, or continuation after mechanism failure | governance/contracts/autonomy_and_blocker_classification.md; use existing continuation, scope and effect fields |
 | Concrete model/reasoning selection, CLI dispatch or fallback | governance/model_policy.md |
 
 Routine editing, validation and commit within one coding contract do not require
@@ -84,6 +85,13 @@ delta_scope, unresolved_checks_only and checks_not_to_repeat only when they
 carry real state. Relationship is derived, not a second field or mode.
 Omission asserts no acceptance and does not authorize repeated accepted checks.
 Use the evidence contract's materiality, claim ceilings and invalidation rules.
+When applicable, retain these continuation fields instead of inventing a
+second field vocabulary. A hard stop in a prompt must name the concrete wrong,
+unsafe, unauthorized or irrecoverable consequence it prevents and the
+authoritative rule or owner boundary behind it. Mechanism inconvenience alone
+is not a hard gate when an already-authorized invariant-preserving alternative
+exists. The autonomy contract classifies findings; its labels are not required
+outer YAML fields or effect grants.
 
 For evidence/audit work include evidence_requirements, classification_rules,
 anti_self_certification_rules and evidence_validation_method. Conditional

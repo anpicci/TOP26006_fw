@@ -47,10 +47,11 @@ is unresolved, stop that dependent action; omission never waives a rule.
 
 | Trigger | Additional required source |
 |---|---|
-| Tracked mutation/adoption/commit, branch or ref lifecycle, integration, promotion, remote Git, publication or merge | governance/contracts/git_lifecycle.md |
+| Tracked mutation/adoption/commit, branch, ref or linked-worktree lifecycle, integration, promotion, remote Git, publication or merge | governance/contracts/git_lifecycle.md |
 | Orchestration, long-horizon work, delegation, independent reviewer or proposed parallel writes | governance/contracts/orchestration.md |
 | Production/heavy execution, scheduler action, user-run production handoff, workflow configuration, production output/resume/recovery, or temporary payload/storage lifecycle | governance/contracts/production.md |
 | Substantial work, audit/evidence classification, scientific/numerical/consumer comparison, sign-off, continuation closure, vendored dependency, or risk uncertainty | governance/contracts/review_and_evidence.md |
+| Autonomous/adaptive execution, blocker classification, preauthorized fallback/repair, continuation after mechanism failure, or anti-artificial-blocker decision | governance/contracts/autonomy_and_blocker_classification.md |
 | Selecting or changing model/reasoning, CLI dispatch, profile qualification or model-provenance dispute | governance/model_policy.md |
 | Commit message, PR/MR, squash message or reviewer-facing prose | CONTRIBUTING.md |
 
@@ -163,7 +164,7 @@ Declare one prompt_mode. Modes bound activity and never grant effects.
 | commit_preparation | Verify and commit declared existing changes; no runtime edits or unrelated staging |
 | pr_preparation | Reviewer text only; no source changes, commit or remote effect |
 | integration_only | Git contract's exact local integration |
-| branch_maintenance_only | Git contract's exact local ref lifecycle |
+| branch_maintenance_only | Git contract's exact local branch, ref or linked-worktree lifecycle |
 | pr_publication | Git contract's exact publication action, including a separately authorized merge round |
 | production_execution | Production contract's exact bounded effects |
 | orchestrated_workflow | Orchestration contract's preauthorized ordered stages |

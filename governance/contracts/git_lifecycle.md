@@ -62,7 +62,10 @@ rebase or other history rewrite is never an implicit alternative.
 
 ### `branch_maintenance_only`
 
-Allowed only for one explicitly authorized local branch/ref lifecycle decision.
+Allowed only for one explicitly authorized local branch/ref or linked-worktree
+lifecycle decision. A preauthorized orchestrated stage may carry the exact
+worktree or temporary carrier-ref retirement action within its one substantive
+workflow decision; the mode creates no general cleanup authority.
 Individually declared actions may create one preservation feature branch at an
 observed local HEAD, switch among declared local branches, rename one declared
 local branch, move or restore one declared local branch ref to a named
@@ -89,7 +92,11 @@ remote mutation
 Before any action moves a local branch ref away from a historical development
 HEAD, record that observed HEAD; create or prove one named preservation ref;
 verify that ref resolves to the exact historical HEAD and that every intended
-commit is reachable from it; and reopen serialized evidence. After the move,
+commit is reachable from it; and reopen serialized evidence. This historical
+development-HEAD preservation rule applies to a ref move away from that HEAD,
+not to exact deletion of a temporary carrier ref whose portable result is
+already preserved and whose commit-object retention is not decision-material.
+After a ref move,
 fresh readback must prove the historical HEAD remains reachable, the moved ref
 equals its named authoritative source, no unintended local ref moved, and the
 tracked/index/worktree state is safe. A branch name alone is not preservation
@@ -102,11 +109,62 @@ restore source, and whether non-fast-forward movement is authorized. Any
 non-fast-forward ref move requires explicit user authorization for that exact
 decision; absent it, stop before the move. This is not authorization for
 rebase, reset, deletion, or history rewriting of commits. Local and remote
-branch deletion both default to `no` and require separate authorization.
+branch deletion both default to `no` and require their own exact authorization;
+an exact stage grant within the same preauthorized workflow can supply it.
 
-This mode owns local branch/ref normalization only. It does not replace
+This mode owns exact local branch/ref and linked-worktree lifecycle actions
+only. It does not replace
 development modes, `integration_only`, `commit_preparation`, or
 `pr_publication`.
+
+### Exact linked-worktree lifecycle
+
+Creation binds the exact repository, absent or attributable worktree path and
+registration, expected base/HEAD and attached branch if any, path ownership,
+and allowed command/effect. Removal binds the exact repository, path,
+registration, HEAD, attached branch if any, tracked/index/conflict/untracked/
+ignored state, worktree lock state when relevant, portable preservation
+evidence, and allowed command/effect. Observe current ownership and state
+before acting and read back the path, registration, ref and preserved result
+afterward. An unresolved creation or removal outcome is read back before any
+retry. A detached worktree may serialize genuinely
+inapplicable branch-action fields as `none` with a reason; an unresolved
+required identity cannot be called inapplicable.
+
+An exact removal of a detached worktree that selects or switches no branch and
+moves or deletes no branch ref does not require a synthetic
+stage_branch_policy. Bind the worktree identity and lifecycle action instead.
+Attached controller/ref actions remain branch-relevant when their safety or
+effect depends on the branch/ref. Ordinary branch-aware actions retain their
+branch policy.
+
+For a clean worktree, use ordinary `git worktree remove <exact-path>`. For a
+dirty worktree, `git worktree remove --force <exact-path>` may be authorized
+only when all dirtiness is proven exact task-owned or explicitly adopted
+content, already portably preserved, with no foreign, untracked or conflicted
+content. That command-specific `--force` grants no generic force authority.
+Never use `git worktree prune` to remove an exact known active worktree,
+`rm -rf` as a substitute for Git lifecycle, or recursive removal of a shared
+worktree parent. An exact workflow-owned mission directory may be removed by
+`rmdir` only after fresh proof that it is empty and separately owned.
+
+After portable preservation, proof that a temporary local carrier ref is
+workflow-owned, and proof that no worktree is attached to it, deletion need
+not depend on mergedness when
+retaining that commit object is not decision-material. With
+`local_branch_deletion: yes`, exact ref identity and exact old OID, the smallest
+compare-and-delete command is `git update-ref -d <exact-ref> <exact-old-oid>`.
+There is no fallback to a different OID/ref, `git branch -D`, merge solely for
+cleanup, or force ref movement. A patch plus exact base, full postimages and
+review/validation evidence can be sufficient portable preservation for a
+later claim; a SHA or path alone is not preservation.
+
+When an orchestrated workflow creates temporary worktrees or refs and exact
+deletion is authorized, retirement/deletion should normally be its terminal
+stage. Later external lane/owner acceptance alone does not require a separate
+cleanup round. If a real boundary appears, preserve the completed result and
+residual temporary state and stop; do not blind-delete or roll back. Lifecycle
+closure does not prove semantic success or owner acceptance.
 
 ### `pr_publication`
 

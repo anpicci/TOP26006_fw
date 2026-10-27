@@ -26,6 +26,22 @@ Tiers do not create new approval rounds where the existing owner authorization
 already covers the exact mechanically gated action. Chat acceptance evaluates
 the relevant tier's evidence; executor status cannot confer it.
 
+### Parallel result composition and review reuse
+
+For a parallel writer result, freeze each task-owned postimage with its exact
+base, inputs, assumptions, interface and review identity. The worker result
+and a controller candidate are evidence carriers, not permanent development
+authority. Exact byte union proves only composition identity. Path and diff
+isolation do not prove combined semantic or interface coverage.
+
+Accepted writer review is reusable while its frozen base, inputs, assumptions
+and interfaces remain valid. A new cross-file interaction requires bounded
+integrated semantic review of the combined candidate. Any controller rewrite
+of a worker result leaves the strict exact-union path and is new authorship;
+review and validation must cover that changed content and its coupled
+interfaces. No universal additional reviewer, model, pilot or approval follows
+from composition alone; actual risk and the declared gate determine depth.
+
 ## Evidence materiality
 
 Classify individual facts and claims using exactly:
@@ -53,6 +69,15 @@ identity by relabeling it. Disputed materiality is at least DECISION_MATERIAL
 until resolved. Observed mismatch remains material even where unavailable
 runtime identity would otherwise be nonblocking. Exact model qualification
 uses model_policy.md; ordinary work does not require unobservable identity.
+
+For material findings, use autonomy_and_blocker_classification.md and
+disposition each finding against the **current** decision boundary.
+`AUTHORING_DEFECT` blocks the defective prompt or effect, not unrelated
+accepted technical or scientific work. `EVIDENCE_OR_PROVENANCE_LIMIT` lowers
+the dependent claim ceiling. Record `NONBLOCKING_FINDING` without blocking;
+keep `FUTURE_PHASE_LIMIT` in the future and do not revive `SUPERSEDED_GATE`.
+When a prompt defect is found after execution, evaluate actual impact on the
+result and effects rather than automatically annulling or replaying valid work.
 
 ### Publication-grade review
 

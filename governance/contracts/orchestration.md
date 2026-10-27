@@ -64,6 +64,13 @@ stage. Exact mode/action fields also remain stage-local, once each as
 named fields rather than duplicated inside stage_effect_permissions.
 They may bind by reference to one frozen outer immutable input, which
 constrains the stage but creates no outer branch or effect authority.
+An exact lifecycle action on a detached linked worktree is not branch-relevant
+merely because it is a Git worktree action. If it selects or switches no branch
+and moves or deletes no branch ref, bind its exact path, registration, HEAD and
+action under git_lifecycle.md instead of inventing read_only_current_branch.
+An attached controller or ref action remains branch-relevant when its safety
+or effect depends on that branch or ref. Ordinary branch-aware inspection and
+action still require stage_branch_policy.
 Inherit unchanged non-effect context by explicit reference.
 Every stage includes all necessary mode-specific fields, including
 production bounds and publication identities. Do not copy the whole outer
@@ -79,6 +86,13 @@ introduced no new substantive choice. Bind later inputs to the observed value,
 never to a requested success constant. A stage consuming prior semantic work
 must prove semantic completeness as well as isolated intended diff before
 mutating its consumer. Diff isolation alone does not prove semantic completeness.
+Passing a preauthorized objective gate permits its already-authorized next
+stage without a new approval solely for that transition. The gate creates no
+new authority or owner acceptance. An interrupted effect with unresolved
+outcome requires bounded observation of its actual state before retry or
+recovery; an absent success message is not proof that the effect did not occur.
+Use autonomy_and_blocker_classification.md for failure classification,
+adaptation, expected fallback, authoring defects and real stop boundaries.
 
 A failed or indeterminate gate stops effects and remaining stages, except an
 explicitly declared repair/revalidation edge within the same authorized
@@ -160,12 +174,45 @@ overlap stops the affected lanes. Record roles, inputs, outputs, effects,
 conflicts, joins and dispositions without a persistent agent registry.
 
 Parallel-write worktrees are not adopted by default. A future explicitly
-authorized ephemeral_agent_worktree study must bind repository/base/branch,
+authorized ephemeral_agent_worktree use must bind repository/base/branch,
 unique path/index ownership, disjoint surfaces, integration/validation gates,
-resource/lifespan and separate retirement/deletion authorization. The study
+resource/lifespan and exact retirement/deletion authorization. The workflow
 must prove isolation and foreign-work preservation before writes. Merely
 having separate directories does not authorize parallel feature branches,
-integration or cleanup; permanent-live exceptions still apply.
+integration or deletion; permanent-live exceptions still apply.
+
+### Temporary worker results and controller candidates
+
+A worker's result is its task-owned frozen postimage and evidence at an exact
+base, not permanent development authority. The controller candidate is an
+exactly bound composition carrier, not permanent development-authority
+advancement. Preserve each worker result and its base, inputs, assumptions,
+interfaces and review identity before applying it elsewhere. Separate indexes
+and disjoint paths establish write isolation; they do not establish combined
+semantic correctness.
+
+An exact byte union establishes the identity of the composed candidate only.
+It does not establish semantic or interface correctness. Reuse accepted worker
+review only while its frozen identity, base, inputs, assumptions and interfaces
+remain valid. Review new interactions in the combined candidate at their
+actual boundary before promotion or consumer mutation. A controller rewrite of
+a worker result leaves the strict exact-union path and is new authorship,
+requiring review and validation for the rewritten surface. The evidence
+contract owns review depth and claim limits.
+
+### Terminal temporary-surface retirement
+
+When a workflow creates temporary worktrees or refs and preauthorizes their
+exact retirement/deletion inside the same substantive decision, terminal
+retirement including deletion is the normal final lifecycle stage after
+portable preservation and applicable semantic and validation gates. External
+lane or owner acceptance after execution is not, by itself, a reason to keep
+those temporary surfaces when exact deletion is already authorized. A separate
+cleanup round is required only when a real boundary prevents safe deletion.
+If one appears, preserve the completed result and residual state and stop;
+do not blind-delete or roll back. Removal proves lifecycle closure, not
+semantic success or owner acceptance. The Git contract owns exact path, state,
+ref and command gates; the autonomy contract owns boundary classification.
 
 ## Long-horizon contract
 
