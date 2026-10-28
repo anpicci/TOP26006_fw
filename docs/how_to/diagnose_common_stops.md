@@ -1,41 +1,34 @@
 # Diagnose common stops
 
-Use this guide after a research task fails a declared gate. Preserve direct evidence first; a failed gate does not erase earlier valid results.
+Use this guide when a task reports a failed gate or uncertain result. Preserve the direct evidence and any valid completed result.
 
 ## Before you start
 
-Read the exact prompt, failed command, [AGENTS.md](../../AGENTS.md), [CPC.md](../../CPC.md), and completed-stage evidence. Do not reset, clean, stash, overwrite, or retry automatically.
+Read the authorized task, the relevant [execution policy](../../AGENTS.md), the last completed result, and the observed command or artifact state. Do not reset, clean, overwrite, or retry an uncertain effect automatically.
 
 ## Procedure
 
-1. Capture the exact observed failure, branch/HEAD, task-path status, relevant artifact hashes, and last completed stage.
-2. Use the table to separate observation from inference and select a safe next decision.
-3. Report the blocker, surviving evidence, unfinished stages, and responsible owner or external condition. Example: ` M interpretation.md` on the next task's input note means stop and request ownership classification; it does not invalidate a previously accepted calculation.
+1. Record the observed result, relevant branch and revision, task-path status, input identity, and completed steps. Separate observations from inferences.
+2. Ask what continuing could make incorrect, unauthorized, identity-ambiguous, unsafe, or irreversible, and which current rule or dependency establishes that consequence.
+3. Decide whether the missing item is mandatory for this action, optional with an authorized maintained fallback, or relevant only to a later phase. Bound any stop to the affected action; identify independent authorized work that can continue.
+4. If an operation may have taken effect but its result is uncertain, inspect the actual process, repository, output, or service state before considering recovery. State inspection does not grant permission to retry or compensate.
+5. Report the consequence, observed evidence, surviving valid results, unfinished work, and the decision or external condition needed next.
 
-| Stop | What was observed | Do not infer | Safe evidence to collect | Resolution and reusable work |
-| --- | --- | --- | --- | --- |
-| Governance drift | Live file/hash differs from declared basis | Old contract still applies | Exact path and hash/diff | Prompt author/owner reauthorizes; earlier evidence survives unless invalidated |
-| Branch/applicability mismatch | Current ref or candidates disagree | Name similarity proves applicability | Local heads, ancestry, relevant diff | Owner/prompt author reconciles; unrelated accepted results survive |
-| Dirty/colliding state | Staged, unstaged, conflict, or untracked task path | Edit is task-owned | Exact status and diff/path contents | Owner classifies; preserve prior valid evidence |
-| Missing evidence | Required report/input cannot be reopened | PASS label proves claim | Missing locator and available provenance | Reviewer/owner decides bounded reacquisition |
-| Permission/authorization absence | Exact effect lacks grant | Tool access is permission | Prompt and owner decision locator | Owner grants or declines; completed read-only evidence remains |
-| Unavailable capability | Required local tool/storage is absent | Claim has failed scientifically | Version/path/error and affected check | Environment owner resolves or task is replanned |
-| Network/authentication failure | Authorized remote operation failed | Remote ref changed or local work failed | Command/error and local commit identity | Credential/network owner resolves; no automatic retry |
-| Validator failure | Maintained lint returns error/warning | Prompt is governable from a filename | Exact input, exit code, output | Prompt author corrects and rereads |
-| New scientific/architectural boundary | Evidence requires a new method/design choice | Executor may choose silently | Competing options and source evidence | Scientific/technical owner decides; valid completed stages survive |
+| Observation | Check now | Disposition |
+| --- | --- | --- |
+| A file hash or HEAD differs from an earlier observation | Compare the exact changed dependency with the current task basis. | Drift is information until it changes a required identity, rule, or result; rebind only the affected decision. |
+| A branch, task path, or input identity conflicts with the authorization | Read the exact ref, status, path, and governing scope. | Stop the dependent write or comparison; preserve unrelated valid work. |
+| An optional artifact or convenience mechanism is unavailable | Check whether an authorized maintained fallback preserves the same target, effects, and validation. | Use and validate that fallback within its limit; do not block unrelated work. |
+| An exact input needed for comparison is missing | Identify the comparison and its required source. | Stop that comparison; independently authorized acquisition can continue. |
+| Scientific validation leaves a residual | Preserve the result, method, thresholds, and evidence. | Report the residual for the responsible scientific decision; do not hide it by changing the method or threshold. |
+| A command ended without a reliable effect receipt | Inspect the actual state at the affected boundary. | Leave retry or compensation pending until its separate authority and consequences are clear. |
+| A later repository step cannot proceed | Read back the valid earlier repository results and their interfaces. | Preserve and report the partial state; do not assume global rollback. |
+| A requirement belongs to a later phase | Identify the phase and its dependency on the current result. | Report it at that boundary; do not invent a current blocker. |
 
 ## Verify the result
 
-The report names an observed fact, a bounded stop reason, preserved evidence, and the next decision. See [Tutorial 8](../tutorials/08_recover_from_a_stopped_task.md).
+The report ties each stop to a concrete current consequence, preserves valid evidence, and names the next authorized decision. The [recovery tutorial](../tutorials/08_recover_from_a_stopped_task.md) shows a bounded example.
 
 ## Stop instead of proceeding if...
 
-The failure cannot be classified from available evidence. Do not convert an unknown into success or broaden the task to repair it.
-
-## Generic example
-
-A provenance note is dirty at preflight while the accepted arithmetic commit remains unchanged: preserve its status/diff and stop the new edit.
-
-## What this does not establish
-
-A stop does not automatically invalidate earlier accepted evidence or authorize cleanup.
+The consequence or applicable authority cannot be established. Do not turn uncertainty into a success claim or expand the task to repair it.
