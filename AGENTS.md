@@ -21,6 +21,17 @@ One round answers one substantive decision_question. Multiple activity types
 may share that decision through the orchestration contract. A genuinely new
 choice stops unless its action and objective selection gate were preauthorized.
 
+D6/D7 dependent multi-repository mechanics are generally adopted for project
+use at their demonstrated infrastructure claim ceiling. Apply the orchestration
+contract when those mechanics are needed; scientific, producer/consumer, test,
+affected-consumer and production/runtime validation remain task-specific.
+Minimum-sufficient serial or single-repository execution remains valid.
+
+The D8 governance-workflow compiler is a future separate boundary: it is not
+active, normative or implemented by implication. A future compiler input,
+`Given`, tag or compile receipt cannot create authority, decide science, prove
+execution or confer owner/lane acceptance.
+
 Use the minimum sufficient scope. Preserve foreign work. Do not expand scope,
 clean up, add compatibility shims or rewrite history without exact authority.
 Use snake_case for new local names unless an existing interface requires

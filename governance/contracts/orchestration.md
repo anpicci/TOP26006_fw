@@ -200,6 +200,22 @@ a worker result leaves the strict exact-union path and is new authorship,
 requiring review and validation for the rewritten surface. The evidence
 contract owns review depth and claim limits.
 
+### Adopted dependent multi-repository use
+
+For a real task that needs dependent repository changes, apply the adopted
+D6/D7 mechanics within each repository's local authority and exact grants.
+Bind each base and candidate exactly. Validate the exact candidate tuple where
+cross-repository compatibility is decision-material, with task-specific
+scientific, producer/consumer, test and runtime checks as applicable. Advance
+repositories in the order required by their compatibility dependencies.
+Preserve valid partial state; there is no global transaction or automatic
+global rollback. An `OUTCOME_UNKNOWN` effect requires exact readback before
+any retry. Review material boundaries independently, preserve portable result
+and evidence before destructive retirement, retire only exact authorized
+task-owned temporary surfaces, and read back final noninterference. A later
+scientific or application failure reopens infrastructure qualification only
+when it identifies a defect in these mechanics.
+
 ### Terminal temporary-surface retirement
 
 When a workflow creates temporary worktrees or refs and preauthorizes their
