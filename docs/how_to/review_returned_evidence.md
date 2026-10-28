@@ -1,33 +1,26 @@
 # Review returned evidence
 
-Use this guide when an executor reports completion and a separate review is needed before the human owner decides acceptance.
+Use this guide to assess a reported result before the responsible decision-maker considers acceptance. Executor completion, review, and acceptance are separate.
 
 ## Before you start
 
-Read the owner mandate, exact dispatched prompt, executor report, direct receipt, diff, original inputs, and [review template](../../templates/review_report.md). The reviewer may be a separately tasked coordinating Chat; review identity and limits must be stated.
+Read the authorized task, reported result, direct receipts, complete relevant diff, original inputs, and [review template](../../templates/review_report.md). Identify the exact claim and validation limit.
 
 ## Procedure
 
-1. List each executor claim beside its actual evidence locator. Treat the report as a claim until reopened.
-2. Check exact input/source identity, branch and task-path status, commands/results, full relevant diff, and omitted artifacts. Reproduce decision-material calculations where feasible under the authorized validation ceiling.
-3. Test assumptions, uncertainty, scope, and possible counterexamples. For example, a correct synthetic mean can coexist with a missing CSV hash in the interpretation note.
-4. Classify findings as blocking or nonblocking for the *stated* acceptance claim; preserve valid arithmetic while requesting a bounded provenance repair.
-5. Record what was not checked and recommend acceptance, repair, or stop to the owner. The [acceptance guide](record_a_result_acceptance.md) owns the next decision.
-
-   A useful finding entry is `claim: <exact statement>; observation: <source/command/locator>; classification: blocking|nonblocking; scope_effect: <why>; recommendation: <accept|repair|stop>`.
+1. Bind the result under review to its exact repository, base and candidate revisions, inputs, and claim. List each reported claim beside its evidence locator.
+2. Reopen serialized receipts, diffs, and observations before relying on a reported verdict. Check identity, scope, commands, omitted artifacts, and any uncertain effects against direct state.
+3. Reuse earlier review only while the result identity, base, inputs, assumptions, and relevant interfaces remain valid. If one dependency changed, inspect that dependency and directly coupled interactions; preserve unrelated valid findings.
+4. For a candidate assembled from frozen worker results, compare the composed bytes with their identified sources to establish provenance. Byte-for-byte agreement does not prove semantic or interface correctness. Review new coordinating edits, rewrites, and interactions in the assembled candidate.
+5. When dependent repositories will be used together and compatibility matters, validate the exact set of their candidate revisions at the affected consumer or interface. Do not infer combined correctness from separate repository reviews.
+6. Classify findings against the stated claim. Preserve and report valid partial results when another repository or step remains blocked; an incomplete combined result does not erase them.
+7. If authorized destructive removal occurred, verify that the portable result and evidence were preserved first. Then read back the final state to confirm that only the exact temporary files, worktrees, or refs created for this task were removed and that permanent or unrelated state remains intact.
+8. State which scientific, application, affected-consumer, test, and runtime checks were actually performed. Repository and workflow evidence alone does not certify those claims. Record unchecked boundaries and recommend acceptance, bounded repair, or stop to the decision-maker.
 
 ## Verify the result
 
-Every finding cites an observed source and explains how it affects the bounded claim. A review recommendation is distinguishable from the human owner's decision.
+Each finding cites direct evidence and explains its effect on the bounded claim. A recommendation is distinct from acceptance; the [acceptance guide](record_a_result_acceptance.md) owns the next step.
 
 ## Stop instead of proceeding if...
 
-Required evidence is missing, the prompt/mandate cannot be identified, or a new scientific choice appears. Same-executor self-review is not independent review; AI adversarial review is not human peer review or independent scientific replication merely because it challenges a claim.
-
-## Generic example
-
-A reviewer confirms the synthetic calculation but blocks acceptance of its first note until source commit and CSV hash are recorded.
-
-## What this does not establish
-
-A reviewer recommendation is not human owner acceptance or independent scientific replication.
+Required identity or evidence cannot be reopened, an effect remains uncertain, or a new scientific or technical choice appears. Preserve supported findings and report the precise boundary.

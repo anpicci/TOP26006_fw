@@ -4,11 +4,11 @@ Use this guide when an already governed research repository lives at a different
 
 ## Before you start
 
-Know the stable `repository_id` from the [typed registry](../../governance/repositories.md), the actual checkout path, and the ignored `.top26006/local_profile.yml`. Have the locally configured wrapper and interpreter available. The [profile reference](../reference/local_profile.md) defines the accepted fields.
+Know the stable repository ID from the [project repository map](../../governance/repositories.md), the actual checkout path, and the ignored `.top26006/local_profile.yml`. Have the locally configured wrapper and interpreter available. The [profile reference](../reference/local_profile.md) defines the accepted fields.
 
 ## Procedure
 
-1. Read the local profile as data. Distinguish `repositories.<repository_id>.path` (installation location), `remote_aliases` (local names), a Git remote URL (configured destination), and credentials (outside the profile). For example, `repositories.sample_analysis.path: /home/researcher/work/analysis` is a local path, not a new registry identity.
+1. Read the local profile as data. Distinguish `repositories.<repository_id>.path` (installation location), `remote_aliases` (local names), a Git remote URL (configured destination), and credentials (outside the profile). For example, `repositories.topeft.path: /home/alice/work/topeft` maps an existing identity to an example local path; it does not register another repository.
 2. Edit only the local path or alias for an **existing** registry ID. Keep branch role, permissions, scientific meaning, remote URL, and credentials out of the profile. Use the [schema](../../config/local_profile.schema.yml) to check field names.
 3. Resolve the edited profile with the existing wrapper/interpreter; replace the placeholders with paths already verified on this installation:
 
@@ -30,9 +30,9 @@ The resolved path identifies the intended checkout, the Git top level agrees, an
 
 The path resolves to another Git root, the ID is absent from the registry, the profile contains a permission/branch/science claim, or the remote identity is decision-material but unverified. Do not infer access or publication authority from a path or URL. See [AGENTS.md](../../AGENTS.md) for live execution permissions.
 
-## Generic example
+## Worked path example
 
-A researcher moves `sample_analysis` to `/home/researcher/work/analysis` and changes the ignored profile path. The resolved path and Git top level agree before the next task is drafted.
+A researcher moves the separate TOPEFT checkout to `/home/alice/work/topeft` and changes only the ignored `repositories.topeft.path` value. The resolver and `git -C /home/alice/work/topeft rev-parse --show-toplevel` should agree before the next task is drafted. These are illustrative paths. A remote alias change is a separate local configuration observation; inspect `git -C "$repo" remote -v` without contacting the remote.
 
 ## What this does not establish
 

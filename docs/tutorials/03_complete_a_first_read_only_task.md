@@ -2,7 +2,7 @@
 
 **Learning goal:** ask a bounded question, reproduce evidence, have a separately tasked reviewer assess it, and leave the acceptance decision with the human researcher or scientific owner. The dataset is deliberately synthetic and does not represent real project science.
 
-1. Read the [example's question, method, and limits](../../examples/repeated_measurements/README.md), then inspect the local CSV:
+1. Read the [example's question, method, and limits](../../examples/repeated_measurements/README.md), then inspect the local CSV from the coordination checkout. The paths here refer to deliberately synthetic files, not TOPEFT data:
 
    ```sh
    cat examples/repeated_measurements/data/measurements.csv
@@ -10,7 +10,9 @@
    "$wrap" "$python_env" -m unittest discover -s examples/repeated_measurements -p test_analysis.py
    ```
 
-   The validated reference run reports five measurements, weighted mean `10.060000`, standard error `0.089443`, chi-square `4.300000`, four degrees of freedom, and chi-square/dof `1.075000`. These are computed descriptive quantities under the stated independent Gaussian model, not a goodness-of-fit probability or accepted scientific conclusion.
+   **Reference checkpoint:** the maintained script and fixture produce five measurements, weighted mean `10.060000`, standard error `0.089443`, chi-square `4.300000`, four degrees of freedom, and chi-square/dof `1.075000`. These are computed descriptive quantities under the stated independent Gaussian model, not a goodness-of-fit probability or accepted scientific conclusion. A failure or different value calls for investigation before reuse.
+
+   The [companion notebook](../../examples/repeated_measurements/repeated_measurements.ipynb) reads the same CSV through `analyze.read_measurements` and calls `analyze.summarize`. It adds an inspectable notebook view, not another calculation. Open it with a prepared notebook tool from `examples/repeated_measurements` so its relative import and CSV path resolve. Notebook execution and rendering are separate checks; this tutorial makes no claim that they have been qualified.
 
 2. Form a first **read-only** research question: “Do the local CSV, formula, and script support the displayed mean, standard error, and chi-square under the stated assumptions?” Use the [research task request](../../templates/research_task_request.md) to name evidence and stop conditions. The [illustrative read-only skeleton](../../templates/read_only_prompt.md) helps a coordinator prepare a dispatch; live [CPC.md](../../CPC.md) supplies mandatory prompt rules. Filling a template does not authorize execution.
 

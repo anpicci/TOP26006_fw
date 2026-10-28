@@ -1,31 +1,28 @@
 # Authorise a bounded change
 
-Use this guide when a scientific or methodological correction has evidence but its permitted effect is not yet defined. The human owner decides the purpose and effect boundary.
+Use this guide when a concrete result is ready to be assigned a permitted scope. The responsible decision-maker defines the objective and effects; the [execution policy](../../AGENTS.md) and [bounded change template](../../templates/bounded_change_prompt.md) provide the exact contract form.
 
 ## Before you start
 
-Have the research question, evidence locator, repository identity, applicable native policy, and proposed result claim. Read [AGENTS.md](../../AGENTS.md) for execution limits and the [bounded change template](../../templates/bounded_change_prompt.md) as an aid.
+Have the result to produce, supporting evidence, participating repository identities, each repository's own rules, and the claim that later review may assess.
 
 ## Procedure
 
-1. State the purpose and intended scientific/technical effect in one sentence.
-2. Name the exact writable repository and paths, fixed/read-only inputs, branch role, allowed local effects, network/environment/storage limits, and validation ceiling. Example: “add only `interpretation.md` in a synthetic scratch analysis repository; read the fixed CSV/script; local calculation and commit allowed; no network.”
-3. Define what evidence would support the claim and what would stop work: unexpected input hash, branch mismatch, dirty task path, missing authorization, or a new scientific choice.
-4. State who may make the later acceptance decision and which claim it may cover. The authorization permits execution within limits; it does not pre-accept the result.
-5. Have the coordinating Chat or another authorized prompt author translate this mandate into a live [CPC.md](../../CPC.md) contract. Reread the completed prompt against the owner's words before dispatch.
+1. State the exact result and target. Identify the inputs and the evidence needed to support the claim.
+2. Fix the invariants: target identity, scientific or technical objective, authorized paths and actions, validation limits, and protection of unrelated changes or work belonging to another task or contributor.
+3. Choose the smallest sufficient execution model: a serial task in one repository, separable parallel work with an explicit join, or dependent work across repositories. Use added coordination only when the dependencies require it.
+4. Give each execution step explicit permission for its own paths and actions. The overall plan may limit what later steps can do, but it does not authorize any step by itself; permission for one step does not carry to another.
+5. For every participating repository, bind its exact identity, base and candidate revisions, repository-specific rules, responsible decision-maker, and permitted paths and actions. A path or branch name alone does not authorize a change.
+6. If compatibility across repositories matters, name the exact revision combination to validate and the consumer or interface where it will be checked. Set the dependency order without assuming a global Git transaction.
+7. Declare any maintained fallback or local repair in advance. It must preserve the same invariants, have a bounded retry or repair limit, and repeat the affected validation gate. A new scientific or technical choice needs a separate decision.
+8. State which concrete consequence stops a dependent action, what evidence must be read back, and which independent authorized work can continue. An uncertain side effect needs state inspection before any separately authorized retry.
+9. When temporary state is used, preserve the portable result and evidence before removal. Authorize removal only for the exact temporary files, worktrees, or refs created for this task, then read back the final state to check that unrelated state remains intact.
+10. Name the task-specific scientific, application, affected-consumer, test, and runtime checks that matter. Workflow correctness does not perform them automatically. Identify who may later accept which claim.
 
 ## Verify the result
 
-The mandate and prompt agree on repository, effects, exclusions, validation, evidence, and stop conditions. The executor can identify the grant without inferring it from tool availability.
+Check that the authorization and executable instructions agree on every repository, revision, path, action, dependency, validation limit, and stop condition, and on who decides whether to accept which claim. [Contract guidance](../../CPC.md) supplies exact field syntax when needed.
 
 ## Stop instead of proceeding if...
 
-Ownership, method choice, native policy, or branch applicability is unresolved. A local commit, test result, or executor report does not authorize another repository, production, publication, or scientific acceptance. See [Tutorial 4](../tutorials/04_make_a_bounded_analysis_change.md).
-
-## Generic example
-
-The owner allows only a synthetic `interpretation.md` note after a reproduced calculation and requests an exact note diff and source identity.
-
-## What this does not establish
-
-Authorization to make that note does not accept its claim or permit a second repository edit.
+The target, decision-maker, repository-specific rules, candidate combination, or scientific or technical choice is unresolved. Preserve valid results and seek a decision for the affected action. A local commit or executor report does not authorize another repository or acceptance.
