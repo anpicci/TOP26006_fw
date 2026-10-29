@@ -1,7 +1,9 @@
 """Focused D8-E implementation checks; retrospective H1-H6 oracle review is D8-F."""
 
 import yaml
+import pytest
 
+from tools import governance_workflow_compiler as compiler
 from tools.governance_workflow_compiler import HISTORICAL_CASES, compile_contract
 
 
@@ -14,8 +16,7 @@ SIMPLE = """Feature: bounded inspection
     But no remote repository is modified
 """
 PARALLEL = "Feature: parallel writers\nScenario: disjoint\nGiven isolated worktrees\nWhen writers edit, integrate, and retire branches\nThen exact union is reviewed"
-MULTI_REPO = "Feature: provider consumer\nScenario: candidate pair\nGiven exact bases\nWhen provider and consumer write candidates\nThen the pair is validated"
-RETIREMENT = "Feature: retirement\nScenario: terminal\nGiven preservation is complete\nWhen retire temporary branch\nThen result is preserved"
+MULTI_REPO = "Feature: provider consumer\nScenario: candidate pair\nGiven exact bases\nWhen provider and consumer write and integrate candidates\nThen the pair is validated"
 
 
 def base_data():
@@ -97,6 +98,9 @@ def multi_repo_data():
         "topeft": {"base": "b", "candidate": "b1", "authority_binding": "repo_b",
                    "stage_id": "consumer_candidate"},
     }
+    data["prompt"]["repo_locations"] = {"topcoffea": "/workspace/topcoffea",
+                                         "topeft": "/workspace/topeft"}
+    data["prompt"]["read_only"] = {"topcoffea": ["AGENTS.md"], "topeft": ["AGENTS.md"]}
     data["candidate_pair_order"] = ["topcoffea", "topeft"]
     data["candidate_pair_validation_stage"] = "pair_validation"
     data["integration_stages"] = ["integrate_provider", "integrate_consumer"]
@@ -116,10 +120,26 @@ def multi_repo_data():
         data.setdefault("requested_effects", []).append({"effect_id": f"write_{repo_id}",
             "effect": "tracked_write", "target": target, "requested_by_step": 4,
             "positive_authority_binding": f"write_{repo_id}", "stage_id": stage_id})
+        integration_stage = "integrate_provider" if repo_id == "topcoffea" else "integrate_consumer"
+        ref = f"refs/heads/{repo_id}_development"
+        integration = next(s for s in data["stages"] if s["stage_id"] == integration_stage)
+        integration.update(repository_id=repo_id, stage_mode="integration_only",
+                           stage_branch_policy="continue_existing_branch",
+                           target_branch=f"{repo_id}_development",
+                           integration_source_branch=f"feature/{repo_id}",
+                           integration_target_branch=f"{repo_id}_development",
+                           integration_method="ff_only", expected_source_head=data["repositories"][repo_id]["candidate"])
+        integration["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: [ref]}}
+        data["bindings"].append({**data["bindings"][0], "binding_id": f"integrate_{repo_id}_owner",
+                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "effect": "local_git_ref_write", "target": ref})
+        data["requested_effects"].append({"effect_id": f"integrate_{repo_id}",
+            "effect": "local_git_ref_write", "target": ref, "requested_by_step": 4,
+            "positive_authority_binding": f"integrate_{repo_id}_owner", "stage_id": integration_stage})
     data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": {
-        "topcoffea": ["topcoffea/file.py"], "topeft": ["topeft/file.py"]}}
-    data["prompt"]["allowed_to_modify"] = {"topcoffea": ["topcoffea/file.py"],
-                                             "topeft": ["topeft/file.py"]}
+        "topcoffea": ["topcoffea/file.py", "refs/heads/topcoffea_development"],
+        "topeft": ["topeft/file.py", "refs/heads/topeft_development"]}}
+    data["prompt"]["allowed_to_modify"] = data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]
     return data
 
 
@@ -154,7 +174,7 @@ def test_q02_bounded_documentation_mutation():
     assert "preserve_and_exclude" in result.prompt
 
 
-def test_q03_parallel_work_is_explicitly_staged_and_isolated():
+def parallel_data():
     data = base_data()
     orchestrated(data)
     data["stages"] = [stage("writer_a"), stage("writer_b"), stage("independent_review"),
@@ -196,7 +216,7 @@ def test_q03_parallel_work_is_explicitly_staged_and_isolated():
                           "preservation_evidence": "reviewed patch and exact postimages", "retention_satisfied": True,
                           "terminal_stage": "retirement", "cleanup_failure_invalidates_semantic_result": False}
     data["prompt"]["workflow_goal"] = "disjoint writer results with conditional reconciled review"
-    data["prompt"]["workflow_stop_policy"] = "stop on any failed gate"
+    data["prompt"]["workflow_stop_policy"] = "stop_on_failed_gate_or_new_decision_boundary"
     data["prompt"]["workflow_stage_ledger_path"] = "diagnostics/ledger.yml"
     data["worker_contract"] = {
         "writers": [{"stage_id": "writer_a", "write_paths": ["docs/writer_a.md"], "isolated_worktree": True},
@@ -206,6 +226,11 @@ def test_q03_parallel_work_is_explicitly_staged_and_isolated():
         "conditional_reconciled_review_stage": "reconciled_review", "reconciled_review_if_rewritten": True,
         "worker_permanent_authority": False,
     }
+    return data
+
+
+def test_q03_parallel_work_is_explicitly_staged_and_isolated():
+    data = parallel_data()
     result = run(PARALLEL, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert result.receipt["selected_execution_shape"] == "orchestrated_workflow"
@@ -237,7 +262,8 @@ def test_q05_multi_repository_candidate_tuple_and_local_authority():
     result = run(MULTI_REPO, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert result.receipt["selected_execution_shape"] == "multi_repository_coordination"
-    assert result.receipt["authorized_effects"] == ["write_topcoffea", "write_topeft"]
+    assert result.receipt["authorized_effects"] == ["write_topcoffea", "integrate_topcoffea",
+                                                    "write_topeft", "integrate_topeft"]
     assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
     assert "global_git_transaction" not in result.prompt
 
@@ -270,33 +296,16 @@ def test_q07_outcome_unknown_requires_readback():
 
 
 def test_q08_terminal_retirement_needs_all_gates():
-    data = base_data()
-    orchestrated(data)
-    data["stages"][-1].update(stage_mode="branch_maintenance_only", stage_branch_policy="continue_existing_branch",
-                               target_branch="governance/workflow-compiler",
-                               branch_maintenance_action="delete_exact_temporary_ref",
-                               affected_local_branches=["refs/heads/temp"])
-    add_effect(data, "delete_local_branch", "refs/heads/temp", 4, "local_branch_deletion", "join")
-    data["stages"][-1]["stage_effect_permissions"]["allowed_to_modify"] = {"TOP26006_fw": ["refs/heads/temp"]}
-    data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"] = {"TOP26006_fw": ["refs/heads/temp"]}
-    data["prompt"]["allowed_to_modify"] = {"TOP26006_fw": ["refs/heads/temp"]}
-    data["retirement"] = {"exact_owned_surface": "refs/heads/temp", "authority_binding": "owner_effect",
-                          "preservation_evidence": "patch:sha256:abc", "retention_satisfied": True,
-                          "terminal_stage": "join", "cleanup_failure_invalidates_semantic_result": False}
-    assert run(RETIREMENT, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data = parallel_data()
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     data["retirement"]["preservation_evidence"] = ""
-    assert run(RETIREMENT, data).compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert run(PARALLEL, data).compiler_result == "COMPILER_INVARIANT_FAILURE"
 
 
 def test_q09_envelope_is_not_stage_grant():
-    data = base_data()
-    orchestrated(data)
-    data["prompt"]["workflow_effect_envelope"] = {"pr_or_mr_write": True}
-    data["bindings"].append({**data["bindings"][0], "binding_id": "publish_owner", "authorizes_effect": True,
-                             "effect": "publication", "target": "repo"})
-    data["requested_effects"] = [{"effect_id": "effect_1", "effect": "publication", "target": "repo",
-                                  "requested_by_step": 4, "positive_authority_binding": "publish_owner", "stage_id": "writer_a"}]
-    result = run("Feature: publish\nScenario: missing grant\nGiven owner bound\nWhen publish branch\nThen branch appears", data)
+    data = parallel_data()
+    data["stages"][0]["stage_effect_permissions"] = {}
+    result = run(PARALLEL, data)
     assert result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
     assert result.prompt == ""
 
@@ -470,3 +479,141 @@ def test_historical_h1_h6_inputs_are_declared_but_unevaluated():
     assert set(result.receipt["historical_case_readiness"]) == set(HISTORICAL_CASES)
     assert all(item["state"] == "NOT_EVALUATED" for item in result.receipt["historical_case_readiness"].values())
     assert "H6" in result.receipt["historical_case_readiness"]
+
+
+def test_f_b01_inert_caller_stages_cannot_force_orchestration():
+    data = base_data()
+    orchestrated(data)
+    data["stages"] = [stage("unneeded_a"), stage("unneeded_b")]
+    result = run(SIMPLE, data)
+    assert result.receipt["selected_execution_shape"] == "simple_non_orchestrated"
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert "compiler-selected" in result.receipt["diagnostics"][0]["message"]
+    assert result.prompt == ""
+    direct = base_data()
+    direct["prompt"]["workflow_stages"] = [stage("injected")]
+    injected = run(SIMPLE, direct)
+    assert injected.receipt["selected_execution_shape"] == "simple_non_orchestrated"
+    assert injected.prompt == "" and injected.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    forced_mode = base_data()
+    forced_mode["prompt"]["prompt_mode"] = "coding"
+    forced_mode["prompt"]["branch_policy"] = "continue_existing_branch"
+    forced_mode["prompt"]["target_branch"] = "governance/workflow-compiler"
+    forced = run(SIMPLE, forced_mode)
+    assert forced.compiler_result == "COMPILER_INVARIANT_FAILURE" and forced.prompt == ""
+
+
+@pytest.mark.parametrize("field,value", [
+    ("dirty_worktree_policy", "invented_dirty_policy"),
+    ("preflight_profile", "invented_preflight"),
+    ("patch_kind_expected", "invented_patch_kind"),
+    ("foreign_dirty_change_policy", "invented_foreign_policy"),
+    ("staging_policy", "invented_stage_policy"),
+    ("publication_action", "invented_publication_action"),
+    ("duplicate_pr_or_mr_policy", "invented_duplicate_policy"),
+    ("execution_owner", "invented_execution_owner"),
+])
+def test_f_b02_simple_closed_fields_reject_invented_value(field, value):
+    data = base_data()
+    data["prompt"][field] = value
+    result = run(data=data)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == ""
+
+
+def test_f_b02_live_dirty_alternative_and_typed_repository_scope():
+    data = base_data()
+    data["prompt"]["dirty_worktree_policy"] = "work_on_dirty_branch_as_is"
+    assert run(data=data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data["prompt"]["repo_locations"]["invented_repository"] = "/workspace/invented"
+    result = run(data=data)
+    assert result.prompt == ""
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_f_b02_source_extraction_retains_current_valid_values():
+    contents, _ = compiler._canonical_sources()
+    assert "work_on_dirty_branch_as_is" in compiler._closed_values("dirty_worktree_policy", contents)
+    assert "stop_on_failed_gate_or_new_decision_boundary" in compiler._closed_values(
+        "workflow_stop_policy", contents)
+    assert "ff_only" in compiler._closed_values("integration_method", contents)
+    assert "create_or_reuse_open_pr_or_mr" in compiler._closed_values("publication_action", contents)
+
+
+@pytest.mark.parametrize("location,field,value", [
+    ("prompt", "workflow_stop_policy", "invented_stop_policy"),
+    ("stage", "integration_method", "invented_integration_method"),
+])
+def test_f_b02_orchestrated_closed_fields_reject_invented_value(location, field, value):
+    data = parallel_data()
+    if location == "prompt":
+        data["prompt"][field] = value
+    else:
+        next(s for s in data["stages"] if s["stage_id"] == "integration")[field] = value
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == ""
+
+
+def test_f_b03_stage_trace_is_earned_and_missing_edge_fails_closed(monkeypatch):
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert result.receipt["traceability"]["complete"] is True
+    edges = result.receipt["traceability"]["edges"]
+    assert {f"stage:{s['stage_id']}" for s in parallel_data()["stages"]} <= {
+        edge["source"] for edge in edges if edge["relation"] == "serialized_as"}
+    original = compiler._stage_trace
+
+    def missing_one_edge(*args):
+        return [edge for edge in original(*args)
+                if not (edge.source == "stage:integration" and edge.relation == "serialized_as")]
+
+    monkeypatch.setattr(compiler, "_stage_trace", missing_one_edge)
+    broken = run(PARALLEL, parallel_data())
+    assert broken.receipt["traceability"]["complete"] is False
+    assert broken.compiler_result == "COMPILER_INVARIANT_FAILURE" and broken.prompt == ""
+
+
+def test_f_m01_but_inherits_given_role():
+    feature = ("Feature: Example\nScenario: Inspect\nGiven condition A\n"
+               "But condition B is not true\nWhen I inspect the state\nThen result C is reported")
+    intent = compiler.parse_gherkin(feature, "inline")
+    assert intent.steps[1].keyword == "Given"
+    assert intent.negative_assertions == ()
+    result = run(feature)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert "condition B is not true" not in result.prompt.split("## Post-execution evidence assertions", 1)[1]
+
+
+def test_f_m02_feature_and_scenario_tags_are_retained_without_authority():
+    feature = ("@production\nFeature: Example\n@inspection\nScenario: Inspect only\n"
+               "Given state X\nWhen I inspect state X\nThen result Y is reported")
+    result = run(feature)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert result.receipt["selected_execution_shape"] == "simple_non_orchestrated"
+    assert result.receipt["source_contract"]["feature_tags"] == ["@production"]
+    assert result.receipt["source_contract"]["scenario_tags"] == [["@inspection"]]
+    assert "@production\nFeature:" in result.prompt
+    assert result.receipt["authorized_effects"] == []
+    two = ("@feature\nFeature: Example\n@first\nScenario: First\n"
+           "Given state A\nWhen I inspect A\nThen A is reported\n"
+           "@second\nScenario: Second\nGiven state B\nWhen I inspect B\nThen B is reported")
+    scoped = run(two)
+    assert scoped.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    first_block = scoped.prompt.split("@first\nScenario: First", 1)[1].split("@second", 1)[0]
+    second_block = scoped.prompt.split("@second\nScenario: Second", 1)[1].split("## Bound CPC", 1)[0]
+    assert "inspect A" in first_block and "inspect B" not in first_block
+    assert "inspect B" in second_block and "inspect A" not in second_block
+
+
+def test_f_m03_canonical_sources_cover_encoded_evidence_and_recovery_rules(monkeypatch):
+    sources = compiler.GOVERNANCE
+    for owner in ("governance/contracts/review_and_evidence.md",
+                  "governance/contracts/autonomy_and_blocker_classification.md"):
+        assert owner in sources
+        assert owner in run().receipt["canonical_governance"]["applicable_sources"]
+    monkeypatch.setattr(compiler, "GOVERNANCE", {key: value for key, value in sources.items()
+                         if key != "governance/contracts/autonomy_and_blocker_classification.md"})
+    omitted = run()
+    assert omitted.compiler_result == "COMPILER_DEFECT"
+    assert omitted.prompt == ""

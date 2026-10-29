@@ -13,19 +13,30 @@ Use the Python wrapper and interpreter resolved from the local YAML profile:
   --prompt-out generated_prompt.md --receipt-out compilation_receipt.yml
 ```
 
-The feature file supports `Feature`, `Scenario`, `Given`, `When`, `Then`, `And`,
-`But`, comments, blank lines, and ordinary tags. An unsupported or ambiguous
-construct produces a line-referenced diagnostic and no prompt. This is a
-bounded standard Gherkin subset, not a full Gherkin implementation.
+Standard Gherkin is the human semantic contract: the feature and scenarios
+describe premises, requested actions, observable results, and negative
+boundaries. This implementation supports `Feature`, `Scenario`, `Given`,
+`When`, `Then`, `And`, `But`, comments, blank lines, and feature/scenario tags.
+`And` and `But` inherit the preceding step's role. Unsupported standard
+constructs, including `Rule`, `Background`, `Scenario Outline`, and `Examples`,
+fail explicitly with a line-referenced diagnostic. This is a bounded subset,
+not a full Gherkin implementation. Tags remain visible as classification and
+routing hints; they never grant authority or select production by themselves.
 
-The separate binding YAML supplies `bindings`, `repositories`, `prompt`, and,
-when needed, `requested_effects`, `stages`, `continuation`, and safety/readback
-constraints. Each material binding names its source identity, acquisition
-state, validity scope, and exact effect and target if it authorizes an effect.
-Gherkin sentences and tags never grant authority. A positive effect needs an
-acquired owner binding plus the exact current CPC permission and path/ref/action
-scope. The author must inspect the generated Markdown and receipt against live
-governance before any separately authorized dispatch.
+The separate binding YAML supplies acquired authority and evidence facts,
+repository identities, exact scopes, a CPC context, and, where needed,
+requested effects and stage details. Each material binding names its source
+identity, acquisition state, validity scope, and exact effect and target if it
+authorizes an effect. Gherkin premises are not proof. A positive effect needs
+an acquired owner binding plus the exact current CPC permission and
+path/ref/action scope. The compiler selects the minimum supported execution
+shape and mode from the behavior and bound context. Supplied stages must match
+that plan; extra caller stages cannot force orchestration. The current planner
+supports simple tasks and the bounded dependent writer/review and
+provider/consumer patterns exercised by the focused suite. Other dependent
+patterns fail closed as compiler limitations. The author must inspect the
+generated Markdown and receipt against live governance before any separately
+authorized dispatch.
 
 `dispatch_gate` may name three acquired binding IDs: `owner_authorization_binding`,
 `manual_governance_review_binding`, and `live_applicability_binding`. Without
@@ -33,12 +44,22 @@ them, the receipt marks the candidate prepared while leaving conformance,
 owner authorization, and dispatchability unestablished. A failed compile writes
 only a diagnostic receipt; it never writes a valid prompt.
 
-The compiler checks closed-vocabulary values against current governance text
-and calls the maintained prompt validator. Its validator result is mechanical
-lint only; it does not prove authority, scientific correctness, live
-applicability, or governance completeness. The receipt records source hashes,
-bindings, effects, traceability, unresolved boundaries, and `NOT_EVALUATED`
-execution assertions. Historical H1-H6 comparison belongs to D8-F.
+The compiler checks the current serialized closed fields against live sources:
+typed repository IDs and their prompt scopes, prompt/stage mode, branch policy,
+validation ceiling, model, reasoning, delegation, dirty-worktree and preflight
+policy, patch kind, foreign-work and staging policy, workflow stop policy,
+integration method, publication action and duplicate policy, and production
+execution owner. When the applicable source cannot establish an allowed value,
+compilation fails closed.
+The receipt evaluates traceability across semantic steps, authority/effect
+bindings, emitted stages and mechanics, and post-execution evidence paths;
+missing material edges prevent a conforming prompt. It emits the evidence and
+evaluation contract, but does not ingest execution evidence or evaluate
+acceptance. The maintained prompt validator checks mechanical validity and
+internal consistency only; governance completeness remains unassessed. A
+generated prompt, receipt, or validator PASS is neither execution nor
+acceptance nor normative D8 adoption. Historical H1-H6 comparison belongs to
+D8-F.
 
 If the compiler cannot express a manually valid task, use the existing
 [manual prompt guide](write_a_prompt_manually.md) and
