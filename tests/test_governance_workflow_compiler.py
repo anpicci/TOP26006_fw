@@ -90,13 +90,15 @@ def orchestrated(data):
 def multi_repo_data():
     data = base_data()
     orchestrated(data)
+    data["prompt"]["delegation_policy"] = "required"
+    data["prompt"]["patch_kind_expected"] = "prompt_local"
     data["stages"] = [stage("provider_candidate"), stage("consumer_candidate"),
                       stage("pair_validation"), stage("integrate_provider"), stage("integrate_consumer")]
     data["repositories"] = {
-        "topcoffea": {"base": "a", "candidate": "a1", "authority_binding": "repo_a",
-                      "stage_id": "provider_candidate"},
-        "topeft": {"base": "b", "candidate": "b1", "authority_binding": "repo_b",
-                   "stage_id": "consumer_candidate"},
+        "topcoffea": {"base": "a" * 40, "candidate": "stage:provider_candidate:observed_commit_head", "authority_binding": "repo_a",
+                      "stage_id": "provider_candidate", "development_branch": "tc/dev-live"},
+        "topeft": {"base": "b" * 40, "candidate": "stage:consumer_candidate:observed_commit_head", "authority_binding": "repo_b",
+                   "stage_id": "consumer_candidate", "development_branch": "te/datacard_sr_reco"},
     }
     data["prompt"]["repo_locations"] = {"topcoffea": "/workspace/topcoffea",
                                          "topeft": "/workspace/topeft"}
@@ -107,12 +109,12 @@ def multi_repo_data():
     data["multi_repository_state"] = "NOT_STARTED"
     data["bindings"] += [{**data["bindings"][0], "binding_id": "repo_a", "validity_scope": "topcoffea"},
                          {**data["bindings"][0], "binding_id": "repo_b", "validity_scope": "topeft"}]
-    for repo_id, stage_id, target in (("topcoffea", "provider_candidate", "topcoffea/file.py"),
-                                      ("topeft", "consumer_candidate", "topeft/file.py")):
+    for repo_id, stage_id, target, source_branch, integration_branch in (
+            ("topcoffea", "provider_candidate", "file.py", "tc/dev-live", "run3_test_mmerged"),
+            ("topeft", "consumer_candidate", "file.py", "te/datacard_sr_reco", "run3_test_mmerged")):
         item = next(s for s in data["stages"] if s["stage_id"] == stage_id)
         item.update(repository_id=repo_id, stage_mode="coding",
-                    stage_branch_policy="create_feature_branch_from_reference", reference_branch="development",
-                    feature_branch=f"feature/{repo_id}")
+                    stage_branch_policy="continue_existing_branch", target_branch=source_branch)
         item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: [target]}}
         data["bindings"].append({**data["bindings"][0], "binding_id": f"write_{repo_id}",
                                  "validity_scope": repo_id, "authorizes_effect": True,
@@ -120,14 +122,21 @@ def multi_repo_data():
         data.setdefault("requested_effects", []).append({"effect_id": f"write_{repo_id}",
             "effect": "tracked_write", "target": target, "requested_by_step": 4,
             "positive_authority_binding": f"write_{repo_id}", "stage_id": stage_id})
+        source_ref = f"refs/heads/{source_branch}"
+        data["bindings"].append({**data["bindings"][0], "binding_id": f"commit_{repo_id}_owner",
+                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "effect": "local_git_ref_write", "target": source_ref})
+        data["requested_effects"].append({"effect_id": f"commit_{repo_id}",
+            "effect": "local_git_ref_write", "target": source_ref, "requested_by_step": 4,
+            "positive_authority_binding": f"commit_{repo_id}_owner", "stage_id": stage_id})
         integration_stage = "integrate_provider" if repo_id == "topcoffea" else "integrate_consumer"
-        ref = f"refs/heads/{repo_id}_development"
+        ref = f"refs/heads/{integration_branch}"
         integration = next(s for s in data["stages"] if s["stage_id"] == integration_stage)
         integration.update(repository_id=repo_id, stage_mode="integration_only",
                            stage_branch_policy="continue_existing_branch",
-                           target_branch=f"{repo_id}_development",
-                           integration_source_branch=f"feature/{repo_id}",
-                           integration_target_branch=f"{repo_id}_development",
+                           target_branch=integration_branch,
+                           integration_source_branch=source_branch,
+                           integration_target_branch=integration_branch,
                            integration_method="ff_only", expected_source_head=data["repositories"][repo_id]["candidate"])
         integration["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: [ref]}}
         data["bindings"].append({**data["bindings"][0], "binding_id": f"integrate_{repo_id}_owner",
@@ -137,8 +146,8 @@ def multi_repo_data():
             "effect": "local_git_ref_write", "target": ref, "requested_by_step": 4,
             "positive_authority_binding": f"integrate_{repo_id}_owner", "stage_id": integration_stage})
     data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": {
-        "topcoffea": ["topcoffea/file.py", "refs/heads/topcoffea_development"],
-        "topeft": ["topeft/file.py", "refs/heads/topeft_development"]}}
+        "topcoffea": ["file.py", "refs/heads/tc/dev-live", "refs/heads/run3_test_mmerged"],
+        "topeft": ["file.py", "refs/heads/te/datacard_sr_reco", "refs/heads/run3_test_mmerged"]}}
     data["prompt"]["allowed_to_modify"] = data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]
     return data
 
@@ -156,27 +165,46 @@ def test_q01_simple_read_only_and_traceability(tmp_path):
     assert output.read_text() == result.prompt
 
 
-def test_q02_bounded_documentation_mutation():
+def documentation_data():
     data = base_data()
     data["prompt"].update(prompt_mode="documentation_only", branch_policy="create_feature_branch_from_reference",
                           reference_branch="master", feature_branch="docs/example",
                           validation_ceiling="targeted_unit_test", authorized_commit_scope={"TOP26006_fw": ["docs/a.md"]},
+                          patch_kind_expected="prompt_local",
                           foreign_dirty_change_policy="preserve_and_exclude",
                           explicitly_adopted_inherited_changes="none", staging_policy="exact_path_only")
-    data["prompt"]["allowed_to_modify"] = {"TOP26006_fw": {"tracked_paths": ["docs/a.md"]}}
-    data["prompt"]["heavy_command_permissions"]["allowed_to_modify"] = {"TOP26006_fw": ["docs/a.md"]}
+    commit_scope = {"TOP26006_fw": {"tracked_paths": ["docs/a.md"],
+                                      "git_index_entries": ["docs/a.md"],
+                                      "local_refs": ["refs/heads/docs/example"],
+                                      "git_effects": ["create_feature_branch_from_reference",
+                                                      "create_one_prompt_local_commit"]}}
+    data["prompt"]["allowed_to_modify"] = commit_scope
+    data["prompt"]["heavy_command_permissions"]["allowed_to_modify"] = commit_scope
     feature = "Feature: document\nScenario: edit\nGiven semantics are established\nWhen I edit docs/a.md\nThen docs/a.md is validated"
     add_effect(data, "tracked_write", "docs/a.md", 4, "allowed_to_modify")
+    data["bindings"].append({**data["bindings"][0], "binding_id": "commit_owner",
+                             "authorizes_effect": True, "effect": "local_git_ref_write",
+                             "target": "refs/heads/docs/example"})
+    data["requested_effects"].append({"effect_id": "commit_ref", "effect": "local_git_ref_write",
+        "target": "refs/heads/docs/example", "requested_by_step": 4,
+        "positive_authority_binding": "commit_owner"})
+    return feature, data
+
+
+def test_q02_bounded_documentation_mutation():
+    feature, data = documentation_data()
     result = run(feature, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert result.receipt["selected_execution_shape"] == "simple_non_orchestrated"
-    assert result.receipt["authorized_effects"] == ["effect_1"]
+    assert result.receipt["authorized_effects"] == ["effect_1", "commit_ref"]
     assert "preserve_and_exclude" in result.prompt
 
 
 def parallel_data():
     data = base_data()
     orchestrated(data)
+    data["prompt"]["delegation_policy"] = "required"
+    data["prompt"]["patch_kind_expected"] = "prompt_local"
     data["stages"] = [stage("writer_a"), stage("writer_b"), stage("independent_review"),
                       stage("exact_union"), stage("reconciled_review"), stage("integration"), stage("retirement")]
     for name in ("writer_a", "writer_b"):
@@ -189,6 +217,25 @@ def parallel_data():
                                  "authorizes_effect": True, "effect": "tracked_write", "target": target})
         data.setdefault("requested_effects", []).append({"effect_id": name, "effect": "tracked_write",
             "target": target, "requested_by_step": 4, "positive_authority_binding": f"owner_{name}", "stage_id": name})
+        branch_ref = f"refs/heads/temporary/{name}"
+        data["bindings"].append({**data["bindings"][0], "binding_id": f"commit_{name}_owner",
+                                 "authorizes_effect": True, "effect": "local_git_ref_write", "target": branch_ref})
+        data["requested_effects"].append({"effect_id": f"commit_{name}", "effect": "local_git_ref_write",
+            "target": branch_ref, "requested_by_step": 4,
+            "positive_authority_binding": f"commit_{name}_owner", "stage_id": name})
+    for name in ("writer_a", "writer_b"):
+        target = f"docs/{name}.md"
+        data["bindings"].append({**data["bindings"][0], "binding_id": f"owner_compose_{name}",
+                                 "authorizes_effect": True, "effect": "tracked_write", "target": target})
+        data["requested_effects"].append({"effect_id": f"compose_{name}", "effect": "tracked_write",
+            "target": target, "requested_by_step": 4,
+            "positive_authority_binding": f"owner_compose_{name}", "stage_id": "exact_union"})
+    data["bindings"].append({**data["bindings"][0], "binding_id": "commit_controller_owner",
+                             "authorizes_effect": True, "effect": "local_git_ref_write",
+                             "target": "refs/heads/controller_candidate"})
+    data["requested_effects"].append({"effect_id": "commit_controller", "effect": "local_git_ref_write",
+        "target": "refs/heads/controller_candidate", "requested_by_step": 4,
+        "positive_authority_binding": "commit_controller_owner", "stage_id": "exact_union"})
     data["stages"][5].update(stage_mode="integration_only", stage_branch_policy="continue_existing_branch",
                              target_branch="master", integration_source_branch="controller_candidate",
                              integration_target_branch="master", integration_method="ff_only",
@@ -208,23 +255,42 @@ def parallel_data():
             "target": target, "requested_by_step": 4, "positive_authority_binding": f"owner_{effect_id}",
             "stage_id": stage_id})
     data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": {"TOP26006_fw": [
-        "docs/writer_a.md", "docs/writer_b.md", "refs/heads/master", "refs/heads/temp-worker"]},
+        "docs/writer_a.md", "docs/writer_b.md", "refs/heads/master", "refs/heads/temp-worker",
+        "refs/heads/temporary/writer_a", "refs/heads/temporary/writer_b",
+        "refs/heads/controller_candidate"]},
         "local_branch_deletion": True}
     data["prompt"]["allowed_to_modify"] = {"TOP26006_fw": [
-        "docs/writer_a.md", "docs/writer_b.md", "refs/heads/master", "refs/heads/temp-worker"]}
+        "docs/writer_a.md", "docs/writer_b.md", "refs/heads/master", "refs/heads/temp-worker",
+        "refs/heads/temporary/writer_a", "refs/heads/temporary/writer_b",
+        "refs/heads/controller_candidate"]}
     data["retirement"] = {"exact_owned_surface": "refs/heads/temp-worker", "authority_binding": "owner_retire",
                           "preservation_evidence": "reviewed patch and exact postimages", "retention_satisfied": True,
-                          "terminal_stage": "retirement", "cleanup_failure_invalidates_semantic_result": False}
+                          "terminal_stage": "retirement", "cleanup_failure_invalidates_semantic_result": False,
+                          "exact_old_oid": "c" * 40, "expected_preserved_head": "c" * 40,
+                          "preservation_ref": "refs/heads/master", "ownership_readback_binding": "owned_temp_ref",
+                          "preservation_binding": "portable_preservation"}
+    data["bindings"].append({**data["bindings"][0], "binding_id": "owned_temp_ref",
+                             "source_kind": "repository_readback",
+                             "source_identity": "refs/heads/temp-worker@" + "c" * 40})
+    data["bindings"].append({**data["bindings"][0], "binding_id": "portable_preservation",
+                             "source_kind": "accepted_evidence",
+                             "source_identity": "portable:refs/heads/master@" + "c" * 40})
     data["prompt"]["workflow_goal"] = "disjoint writer results with conditional reconciled review"
     data["prompt"]["workflow_stop_policy"] = "stop_on_failed_gate_or_new_decision_boundary"
     data["prompt"]["workflow_stage_ledger_path"] = "diagnostics/ledger.yml"
     data["worker_contract"] = {
-        "writers": [{"stage_id": "writer_a", "write_paths": ["docs/writer_a.md"], "isolated_worktree": True},
-                    {"stage_id": "writer_b", "write_paths": ["docs/writer_b.md"], "isolated_worktree": True}],
+        "writers": [{"stage_id": "writer_a", "write_paths": ["docs/writer_a.md"], "isolated_worktree": True,
+                     "branch": "temporary/writer_a", "base_oid": "a" * 40,
+                     "observed_head": "a" * 40, "worktree_path": "/workspace/worker_a"},
+                    {"stage_id": "writer_b", "write_paths": ["docs/writer_b.md"], "isolated_worktree": True,
+                     "branch": "temporary/writer_b", "base_oid": "a" * 40,
+                     "observed_head": "a" * 40, "worktree_path": "/workspace/worker_b"}],
         "independent_review_stage": "independent_review", "review_independent_of_writers": True,
         "exact_union_stage": "exact_union", "union_paths": ["docs/writer_a.md", "docs/writer_b.md"],
         "conditional_reconciled_review_stage": "reconciled_review", "reconciled_review_if_rewritten": True,
-        "worker_permanent_authority": False,
+        "worker_permanent_authority": False, "composition_branch": "controller_candidate",
+        "composition_base_oid": "a" * 40, "composition_worktree_path": "/workspace/controller_candidate",
+        "integration_target_branch": "master",
     }
     return data
 
@@ -237,9 +303,12 @@ def test_q03_parallel_work_is_explicitly_staged_and_isolated():
     stages = yaml.safe_load(result.prompt.split("```yaml\n", 1)[1].split("\n```", 1)[0])["workflow_stages"]
     assert [s["stage_id"] for s in stages] == ["writer_a", "writer_b", "independent_review",
                                                  "exact_union", "reconciled_review", "integration", "retirement"]
-    assert all(s["stage_effect_permissions"] == {} for s in stages[2:5])
+    assert stages[2]["stage_effect_permissions"] == stages[4]["stage_effect_permissions"] == {}
+    assert stages[3]["stage_effect_permissions"] != {}
     assert stages[0]["stage_effect_permissions"] != stages[1]["stage_effect_permissions"]
-    assert result.receipt["authorized_effects"] == ["writer_a", "writer_b", "integrate", "retire"]
+    assert set(result.receipt["authorized_effects"]) == {
+        "writer_a", "writer_b", "commit_writer_a", "commit_writer_b", "compose_writer_a",
+        "compose_writer_b", "commit_controller", "integrate", "retire"}
     assert result.receipt["safety_constraints"]["worker_contract"]["union_paths"] == [
         "docs/writer_a.md", "docs/writer_b.md"]
 
@@ -262,8 +331,9 @@ def test_q05_multi_repository_candidate_tuple_and_local_authority():
     result = run(MULTI_REPO, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert result.receipt["selected_execution_shape"] == "multi_repository_coordination"
-    assert result.receipt["authorized_effects"] == ["write_topcoffea", "integrate_topcoffea",
-                                                    "write_topeft", "integrate_topeft"]
+    assert set(result.receipt["authorized_effects"]) == {
+        "write_topcoffea", "commit_topcoffea", "integrate_topcoffea",
+        "write_topeft", "commit_topeft", "integrate_topeft"}
     assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
     assert "global_git_transaction" not in result.prompt
 
@@ -278,10 +348,10 @@ def test_q06_partial_integration_preserves_real_effect():
                                "preserved_candidate_identity": "topeft@b1",
                                "unresolved_recovery": "owner decision pending"}
     result = run(MULTI_REPO, data)
-    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
     assert result.receipt["selected_execution_shape"] == "multi_repository_coordination"
-    assert result.receipt["safety_constraints"]["partial_effects"]["integrated_repo_identity"] == "topcoffea@a1"
-    assert "rollback" not in result.prompt.lower()
+    assert result.receipt["partial_state"]["observed_effects"]["integrated_repo_identity"] == "topcoffea@a1"
+    assert "rollback" not in result.receipt["diagnostics"][0]["message"].lower()
 
 
 def test_q07_outcome_unknown_requires_readback():
@@ -304,7 +374,7 @@ def test_q08_terminal_retirement_needs_all_gates():
 
 def test_q09_envelope_is_not_stage_grant():
     data = parallel_data()
-    data["stages"][0]["stage_effect_permissions"] = {}
+    data["bindings"] = [binding for binding in data["bindings"] if binding["binding_id"] != "owner_writer_a"]
     result = run(PARALLEL, data)
     assert result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
     assert result.prompt == ""
@@ -617,3 +687,222 @@ def test_f_m03_canonical_sources_cover_encoded_evidence_and_recovery_rules(monke
     omitted = run()
     assert omitted.compiler_result == "COMPILER_DEFECT"
     assert omitted.prompt == ""
+
+
+def prompt_yaml(result):
+    return yaml.safe_load(result.prompt.split("```yaml\n", 1)[1].split("\n```", 1)[0])
+
+
+def test_e2_poisoned_stage_bodies_and_order_cannot_become_plan():
+    clean = run(PARALLEL, parallel_data())
+    data = parallel_data()
+    data["stages"].reverse()
+    for item in data["stages"]:
+        item.update(stage_goal="delete unrelated database", stage_mode="pr_publication",
+                    stage_inputs=["do nothing unrelated to union"],
+                    stage_acceptance_gate="publish unrelated branch", stage_outputs=["unrelated result"],
+                    stage_failure_behavior="blind retry")
+        item["stage_effect_permissions"] = {"remote_git_write": "yes"}
+    poisoned = run(PARALLEL, data)
+    assert poisoned.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert prompt_yaml(poisoned)["workflow_stages"] == prompt_yaml(clean)["workflow_stages"]
+    assert "delete unrelated database" not in poisoned.prompt
+    assert "blind retry" not in poisoned.prompt
+
+
+def test_e2_unrecognized_semantic_action_is_unsupported():
+    feature = "Feature: policy\nScenario: unknown\nGiven a scope\nWhen I arbitrate database ownership\nThen the answer is recorded"
+    result = run(feature)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
+
+
+def test_e2_missing_stage_generation_provenance_fails(monkeypatch):
+    original = compiler._plan_stages
+
+    def damaged(*args):
+        stages = original(*args)
+        stages[0].pop("generation_provenance")
+        return stages
+
+    monkeypatch.setattr(compiler, "_plan_stages", damaged)
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE" and result.prompt == ""
+
+
+def test_e2_missing_then_evidence_or_evaluation_edge_fails(monkeypatch):
+    original = compiler._verify
+
+    def damaged(*args):
+        edges, authorized, excluded = original(*args)
+        return ([edge for edge in edges if edge.relation != "supports_assertion"], authorized, excluded)
+
+    monkeypatch.setattr(compiler, "_verify", damaged)
+    result = run(PARALLEL, parallel_data())
+    assert result.receipt["traceability"]["complete"] is False
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+
+
+def test_e2_untraced_grant_or_ref_fails(monkeypatch):
+    original = compiler._plan_stages
+
+    def damaged(*args):
+        stages = original(*args)
+        stages[2]["stage_effect_permissions"]["storage_writes"] = "yes"
+        return stages
+
+    monkeypatch.setattr(compiler, "_plan_stages", damaged)
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE" and result.prompt == ""
+
+
+def test_e2_simple_and_orchestrated_traceability_is_bidirectional():
+    for result in (run(), run(PARALLEL, parallel_data()), run(MULTI_REPO, multi_repo_data())):
+        assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+        assert result.receipt["traceability"]["complete"] is True
+        edges = result.receipt["traceability"]["edges"]
+        assert any(edge["relation"] == "supports_assertion" for edge in edges)
+        if "workflow_stages" in prompt_yaml(result):
+            assert any(edge["relation"] == "governed_by" for edge in edges)
+            assert any(edge["relation"] == "generated_from" for edge in edges)
+
+
+def test_e2_registry_selected_modules_and_repo_local_roles():
+    result = run(MULTI_REPO, multi_repo_data())
+    prompt = prompt_yaml(result)
+    assert result.receipt["rule_routing"]["native_policy:topeft"] == "governance/modules/topeft.md"
+    assert result.receipt["rule_routing"]["native_policy:topcoffea"] == "governance/modules/topcoffea.md"
+    assert prompt["repository_branch_roles"]["topeft"] == {
+        "permanent_live_development_branch": "te/datacard_sr_reco",
+        "permanent_personal_reference_branch": "run3_test_mmerged_anpicci",
+        "permanent_integration_branch": "run3_test_mmerged",
+        "feature_development_namespace": "te/*"}
+    assert prompt["repository_branch_roles"]["topcoffea"]["permanent_live_development_branch"] == "tc/dev-live"
+    assert prompt["repository_branch_roles"]["topcoffea"]["feature_development_namespace"] == "tc/*"
+    assert "repository-native" in prompt["repository_modules"]["topeft"]["native_policy"]
+    assert "global_git_transaction" not in result.prompt
+
+
+@pytest.mark.parametrize("repo_id,branch", [
+    ("topeft", "master"), ("topeft", "feature/topeft"), ("topeft", "invented/topeft"),
+    ("topcoffea", "te/datacard_sr_reco")])
+def test_e2_wrong_native_development_branch_fails(repo_id, branch):
+    data = multi_repo_data()
+    data["repositories"][repo_id]["development_branch"] = branch
+    result = run(MULTI_REPO, data)
+    assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_e2_namespace_is_not_branch_creation_authority():
+    data = multi_repo_data()
+    data["repositories"]["topeft"]["feature_branch"] = "te/another_feature"
+    result = run(MULTI_REPO, data)
+    assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
+
+
+def test_e2_missing_registry_module_fails_closed(monkeypatch):
+    original = compiler._canonical_repository
+
+    def missing(repo_id, contents):
+        return "governance/modules/missing.md" if repo_id == "topeft" else original(repo_id, contents)
+
+    monkeypatch.setattr(compiler, "_canonical_repository", missing)
+    result = run(MULTI_REPO, multi_repo_data())
+    assert result.prompt == "" and result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+def test_e2_unparseable_registry_module_fails_closed(monkeypatch, tmp_path):
+    module = tmp_path / "governance/modules/topeft.md"
+    module.parent.mkdir(parents=True)
+    module.write_text("native policy is required\npermanent_live_development_branch: te/dev\n")
+    monkeypatch.setattr(compiler, "ROOT", tmp_path)
+    data = base_data()
+    data["repositories"] = {"topeft": {}}
+    data["prompt"]["repo_locations"] = {"topeft": "/workspace/topeft"}
+    result = run(data=data)
+    assert result.prompt == "" and result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+def test_e2_q03_git_review_and_retirement_contracts():
+    result = run(PARALLEL, parallel_data())
+    prompt = prompt_yaml(result)
+    stages = {item["stage_id"]: item for item in prompt["workflow_stages"]}
+    assert prompt["delegation_policy"] == "required"
+    assert prompt["patch_kind_expected"] == "prompt_local"
+    for stage_id in ("writer_a", "writer_b", "exact_union"):
+        item = stages[stage_id]
+        assert item["authorized_commit_scope"]
+        assert item["explicitly_adopted_inherited_changes"] == "none"
+        assert item["foreign_dirty_change_policy"] == "preserve_and_exclude"
+        assert item["staging_policy"] == "exact_path_only"
+        assert item["stage_effect_permissions"]["allowed_to_modify"]
+        assert "observed_commit_head" in item["stage_outputs"]
+    integration = stages["integration"]
+    assert integration["integration_source_branch"] == stages["exact_union"]["target_branch"]
+    assert integration["expected_source_head"] == "stage:exact_union:observed_commit_head"
+    assert integration["target_branch"] == integration["integration_target_branch"]
+    assert integration["integration_method"] == "ff_only"
+    retirement = stages["retirement"]
+    assert prompt["workflow_stages"][-1]["stage_id"] == "retirement"
+    for field_name in ("affected_local_branches", "expected_preserved_head", "preservation_ref",
+                       "reference_restore_source", "non_fast_forward_ref_move_authorized",
+                       "local_branch_deletion", "remote_branch_deletion", "expected_old_oid",
+                       "safety_critical_ref_command"):
+        assert field_name in retirement
+    assert stages["independent_review"]["stage_effect_permissions"] == {}
+    assert stages["reconciled_review"]["stage_effect_permissions"] == {}
+
+
+def test_e2_independent_review_cannot_be_forbidden():
+    data = parallel_data()
+    data["prompt"]["delegation_policy"] = "forbidden"
+    result = run(PARALLEL, data)
+    assert result.prompt == "" and result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+
+
+def test_e2_commit_requires_owner_bound_local_ref():
+    feature, data = documentation_data()
+    data["bindings"] = [item for item in data["bindings"] if item["binding_id"] != "commit_owner"]
+    result = run(feature, data)
+    assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
+
+
+def test_e2_q05_candidate_pair_binds_prior_observations_without_pooled_authority():
+    result = run(MULTI_REPO, multi_repo_data())
+    prompt = prompt_yaml(result)
+    assert prompt["candidate_pair"] == {
+        "topcoffea": "stage:provider_candidate:observed_commit_head",
+        "topeft": "stage:consumer_candidate:observed_commit_head"}
+    stages = {item["stage_id"]: item for item in prompt["workflow_stages"]}
+    assert set(stages["provider_candidate"]["stage_effect_permissions"]["allowed_to_modify"]) == {"topcoffea"}
+    assert set(stages["consumer_candidate"]["stage_effect_permissions"]["allowed_to_modify"]) == {"topeft"}
+    assert stages["integrate_provider"]["expected_source_head"] == "stage:provider_candidate:observed_commit_head"
+    assert stages["integrate_consumer"]["expected_source_head"] == "stage:consumer_candidate:observed_commit_head"
+
+
+def test_e2_q05_cross_repo_binding_cannot_authorize_other_repo():
+    data = multi_repo_data()
+    next(item for item in data["bindings"] if item["binding_id"] == "integrate_topeft_owner")[
+        "validity_scope"] = "topcoffea"
+    result = run(MULTI_REPO, data)
+    assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
+
+
+def test_e2_stage_grants_cannot_pool_from_envelope():
+    data = parallel_data()
+    data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]["TOP26006_fw"].remove(
+        "refs/heads/controller_candidate")
+    result = run(PARALLEL, data)
+    assert result.prompt == "" and result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+
+
+def test_e2_patch_kind_matches_whole_plan():
+    assert prompt_yaml(run())["patch_kind_expected"] == "empty_no_changes"
+    feature, data = documentation_data()
+    assert prompt_yaml(run(feature, data))["patch_kind_expected"] == "prompt_local"
+    assert prompt_yaml(run(PARALLEL, parallel_data()))["patch_kind_expected"] == "prompt_local"
+    data = parallel_data()
+    data["prompt"]["patch_kind_expected"] = "empty_no_changes"
+    assert run(PARALLEL, data).compiler_result == "COMPILER_INVARIANT_FAILURE"
+    data = base_data()
+    data["prompt"]["patch_kind_expected"] = "cumulative"
+    assert run(data=data).compiler_result == "COMPILER_INVARIANT_FAILURE"
