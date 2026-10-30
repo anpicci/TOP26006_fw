@@ -125,6 +125,7 @@ class Binding:
     source_identity: str
     acquisition: str
     validity_scope: str
+    observed_state: Any = None
     authorizes_effect: bool = False
     effect: str = ""
     target: str = ""
@@ -440,6 +441,42 @@ def _bindings(data: dict[str, Any]) -> tuple[Binding, ...]:
     return tuple(result)
 
 
+def _exact_identity(bindings: tuple[Binding, ...], identity_path: str, value: str,
+                    repo_id: str, oid: bool = False) -> str:
+    """Bind one consumed literal to a typed, acquired, value-bearing readback."""
+    _require(isinstance(value, str) and bool(value) and
+             (not oid or bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value))),
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+             f"{identity_path} is not an exact {'OID' if oid else 'identity'}")
+    matches = [binding for binding in bindings
+               if binding.acquisition == "acquired" and
+               binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
+               binding.source_kind in {"repository_readback", "accepted_evidence"} and
+               _scope_names_repo(binding.validity_scope, repo_id) and
+               isinstance(binding.observed_state, dict) and
+               binding.observed_state == {"identity_path": identity_path, "value": value}]
+    _require(len(matches) == 1, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+             f"{identity_path} lacks one exact acquired value-bearing readback")
+    return matches[0].binding_id
+
+
+def _exact_related_identity(bindings: tuple[Binding, ...], identity_path: str,
+                            values: dict[str, str], repo_id: str,
+                            source_kind: str) -> str:
+    _require(all(isinstance(value, str) and value for value in values.values()),
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+             f"{identity_path} has an incomplete exact relation")
+    matches = [binding for binding in bindings
+               if binding.acquisition == "acquired" and
+               binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
+               binding.source_kind == source_kind and
+               _scope_names_repo(binding.validity_scope, repo_id) and
+               binding.observed_state == {"identity_path": identity_path, "value": values}]
+    _require(len(matches) == 1, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+             f"{identity_path} lacks one exact acquired related readback")
+    return matches[0].binding_id
+
+
 def _effects(data: dict[str, Any], intent: Semantic_intent) -> tuple[Effect_intent, ...]:
     result: list[Effect_intent] = []
     lines = {step.line for step in intent.steps}
@@ -473,6 +510,11 @@ def _continuation(data: dict[str, Any]) -> Optional[Continuation]:
 
 def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_intent, ...],
            bindings: tuple[Binding, ...], continuation: Optional[Continuation]) -> str:
+    if continuation:
+        _require(not data.get("worker_contract") and not data.get("multi_repository_state"),
+                 "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                 "dependent Q03/Q05 continuation needs an exact delta planner; protected work cannot be replayed")
+        return "continuation"
     action_text = " ".join(intent.actions).lower()
     repositories = data.get("repositories", {})
     by_binding_id = {binding.binding_id: binding for binding in bindings}
@@ -494,8 +536,6 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
         _require(bool(data.get("worker_contract")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                  "parallel writers need bound isolation and review constraints")
         return "orchestrated_workflow"
-    if continuation:
-        return "continuation"
     if len(intent.actions) > 1:
         _require(all(re.search(r"\b(inspect|read|compare|review|check|validate|report)\b", action, re.I)
                      for action in intent.actions), "UNSUPPORTED_CANONICAL_CONSTRUCT",
@@ -523,6 +563,51 @@ def _planned_mode(shape: str, intent: Semantic_intent,
             return "documentation_only"
         return "coding"
     return "investigation_only"
+
+
+def _assertion_paths(intent: Semantic_intent, shape: str,
+                     data: dict[str, Any]) -> list[tuple[int, int, str]]:
+    """Recognize bounded material clauses and name their concrete gate."""
+    paths: list[tuple[int, int, str]] = []
+    common_requested = False
+    for step in intent.steps:
+        if step.keyword != "Then":
+            continue
+        for index, raw in enumerate(re.split(r"\s+and\s+", step.text, flags=re.I), 1):
+            clause = raw.strip().lower()
+            if shape == "orchestrated_workflow":
+                if re.fullmatch(r"(?:the )?exact union is reviewed", clause):
+                    gate = "gate:exact_union"
+                elif re.fullmatch(r"common validation passes", clause):
+                    common_requested = True
+                    _require(bool(data.get("common_validation_contract")),
+                             "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                             "common validation needs an exact supplied validation contract", step.line)
+                    _require(data.get("prompt", {}).get("validation_ceiling") == "targeted_unit_test",
+                             "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                             "common validation exceeds the frozen validation ceiling", step.line)
+                    gate = "gate:common_validation"
+                else:
+                    _error("UNSUPPORTED_CANONICAL_CONSTRUCT", f"unsupported material Then clause: {raw}", step.line)
+            elif shape == "multi_repository_coordination":
+                _require(bool(re.fullmatch(r"(?:the )?pair is validated", clause)),
+                         "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                         f"unsupported material Then clause: {raw}", step.line)
+                gate = "gate:pair_validation"
+            else:
+                simple = (r"(?:the )?report cites evidence|docs/[\w.-]+ is validated|"
+                          r"(?:the )?branch appears|output exists|success|"
+                          r"it exists|"
+                          r"(?:the )?result(?: [\w.-]+)? is (?:reported|ready)|"
+                          r"[\w.-]+ is reported|no remote repository is modified")
+                _require(bool(re.fullmatch(simple, clause)), "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                         f"unsupported material Then clause: {raw}", step.line)
+                gate = "prompt:validation_ceiling"
+            paths.append((step.line, index, gate))
+    _require(not data.get("common_validation_contract") or common_requested,
+             "UNSUPPORTED_CANONICAL_CONSTRUCT",
+             "common validation contract has no requested assertion")
+    return paths
 
 
 def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effects: tuple[Effect_intent, ...],
@@ -559,7 +644,11 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                           "git_effects": ["create_one_prompt_local_commit"]}}
 
     stages: list[dict[str, Any]] = []
+    integration_action = r"\bintegrat\w*\b|\badvance\s+(?:the\s+)?(?:integration\s+)?(?:branch|ref|target)\b"
     if shape == "orchestrated_workflow":
+        _require(bool(re.search(integration_action, " ".join(intent.actions), re.I)),
+                 "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                 "integration stage has no requested integration or advancement behavior")
         workers = data.get("worker_contract", {})
         writers = workers.get("writers", [])
         _require(len(writers) == 2 and [w.get("stage_id") for w in writers] == ["writer_a", "writer_b"],
@@ -613,13 +702,34 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                            ["stage:exact_union:union_postimages"],
                            "if a worker postimage changed, independent review and validation of that surface pass",
                            ["reconciled_review_evidence"]))
+        if data.get("common_validation_contract"):
+            contract = data["common_validation_contract"]
+            _require(isinstance(contract, dict) and set(contract) ==
+                     {"test_target", "target", "acceptance_gate"} and
+                     all(isinstance(value, str) and value.strip() for value in contract.values()),
+                     "UNSUPPORTED_CANONICAL_CONSTRUCT", "common validation contract is not exact")
+            _require(bool(re.fullmatch(r"tests/(?!.*\.\.)[A-Za-z0-9_./-]+\.py(?:::test_[A-Za-z0-9_]+)?",
+                                       contract["test_target"])),
+                     "UNSUPPORTED_CANONICAL_CONSTRUCT", "common validation needs a bounded named test target")
+            _require(contract["target"] == workers.get("composition_branch"),
+                     "UNSUPPORTED_CANONICAL_CONSTRUCT", "common validation target is not composed candidate")
+            stages.append(make("common_validation", "validation_only",
+                               "Run supplied targeted unit test through resolved wrapper and interpreter",
+                               ["stage:exact_union:observed_commit_head", "stage:reconciled_review:reconciled_review_evidence",
+                                f"target:{contract['target']}"], contract["acceptance_gate"],
+                               ["common_validation_evidence"]))
+            stages[-1]["validation_test_target"] = contract["test_target"]
         integration_effect = stage_effects("integration")
         target = workers.get("integration_target_branch")
         _require(len(integration_effect) == 1 and integration_effect[0].effect == "local_git_ref_write" and
                  integration_effect[0].target == "refs/heads/" + str(target),
                  "NOT_READY_MISSING_AUTHORITY_BINDING", "integration needs exact target ref effect")
+        integration_inputs = ["stage:exact_union:observed_commit_head",
+                              "stage:reconciled_review:reconciled_review_evidence"]
+        if data.get("common_validation_contract"):
+            integration_inputs.append("stage:common_validation:common_validation_evidence")
         item = make("integration", "integration_only", "Integrate committed controller candidate",
-                    ["stage:exact_union:observed_commit_head", "stage:reconciled_review:reconciled_review_evidence"],
+                    integration_inputs,
                     "source and target readback match the authorized fast-forward", ["observed_target_head"])
         item.update(stage_branch_policy="continue_existing_branch", target_branch=target,
                     integration_source_branch=composition_branch, integration_target_branch=target,
@@ -653,6 +763,9 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                                             "local_branch_deletion": "yes"}
         stages.append(item)
     else:
+        _require(bool(re.search(integration_action, " ".join(intent.actions), re.I)),
+                 "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                 "integration stages have no requested integration or advancement behavior")
         _require(data.get("multi_repository_state") == "NOT_STARTED",
                  "UNSUPPORTED_CANONICAL_CONSTRUCT",
                  "partial or completed multi-repository state needs a separately bound recovery/continuation plan")
@@ -724,7 +837,9 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
         item["generation_provenance"] = {
             "role": role, "semantic_line": when.line if item["stage_mode"] in
             {"coding", "integration_only", "branch_maintenance_only"} else then.line,
-            "rule_source": rule, "evidence_gate": "gate:" + role}
+            "rule_source": rule, "evidence_gate": "gate:" + role,
+            "provenance_class": ("necessary_governance_mechanic" if role in
+                                 {"independent_review", "reconciled_review"} else "requested_behavior")}
     return stages
 
 
@@ -748,6 +863,8 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
         expected = [worker["stage_id"] for worker in workers.get("writers", [])]
         expected += [workers.get("independent_review_stage"), workers.get("exact_union_stage"),
                      workers.get("conditional_reconciled_review_stage")]
+        if data.get("common_validation_contract"):
+            expected.append("common_validation")
         expected += [effect.stage_id for effect in effects if effect.effect in
                      {"local_git_ref_write", "delete_local_branch", "delete_remote_branch"} and
                      effect.stage_id not in {"writer_a", "writer_b", "exact_union"}]
@@ -769,7 +886,9 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
         _require(provenance.get("role") == stage_id and
                  provenance.get("semantic_line") in {when.line, then.line} and
                  provenance.get("rule_source") in GOVERNANCE and
-                 provenance.get("evidence_gate") == "gate:" + stage_id,
+                 provenance.get("evidence_gate") == "gate:" + stage_id and
+                 provenance.get("provenance_class") in
+                 {"requested_behavior", "necessary_governance_mechanic"},
                  "COMPILER_INVARIANT_FAILURE", f"stage {stage_id} lacks valid generation provenance")
         source = f"line:{provenance['semantic_line']}"
         edges.append(Trace_edge(source, f"stage:{stage_id}", "generated_from"))
@@ -783,7 +902,7 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
         if related_effects:
             edges.extend(Trace_edge(f"effect:{effect.effect_id}", f"stage:{stage_id}", "implemented_by")
                          for effect in related_effects)
-        elif stage_id in {"independent_review", data.get("candidate_pair_validation_stage"),
+        elif stage_id in {"independent_review", "common_validation", data.get("candidate_pair_validation_stage"),
                           data.get("worker_contract", {}).get("independent_review_stage"),
                           data.get("worker_contract", {}).get("exact_union_stage")}:
             edges.append(Trace_edge(f"line:{then.line}", f"stage:{stage_id}", "requires_validation_stage"))
@@ -819,7 +938,8 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
 
 
 def _trace_complete(intent: Semantic_intent, effects: tuple[Effect_intent, ...],
-                    stages: list[dict[str, Any]], edges: list[Trace_edge]) -> bool:
+                    stages: list[dict[str, Any]], edges: list[Trace_edge],
+                    assertion_paths: list[tuple[int, int, str]]) -> bool:
     pairs = {(edge.source, edge.output) for edge in edges}
     provenance = {(edge.source, edge.output) for edge in edges if edge.relation == "generated_from"}
     return (all((f"line:{step.line}", "semantic_intent") in pairs for step in intent.steps) and
@@ -835,6 +955,10 @@ def _trace_complete(intent: Semantic_intent, effects: tuple[Effect_intent, ...],
                         (target.startswith("gate:") or target == "prompt:validation_ceiling")
                         for source, target in pairs)
                 for step in intent.steps if step.keyword == "Then") and
+            all((f"line:{line}", f"assertion:{line}:{index}") in pairs and
+                (f"assertion:{line}:{index}", gate) in pairs and
+                (gate, f"evidence:assertion:{line}:{index}") in pairs
+                for line, index, gate in assertion_paths) and
             all((f"line:{step.line}", f"constraint:line:{step.line}") in pairs and
                 ("governance:AGENTS.md", f"constraint:line:{step.line}") in pairs
                 for step in intent.steps if step.keyword == "Then" and
@@ -1045,6 +1169,52 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     edges.extend(Trace_edge(f"line:{s.line}", "prompt:prompt_mode", "requests_action")
                  for s in intent.steps if s.keyword == "When")
     edges.extend(stage_edges)
+    def bind_identity(path: str, value: str, repo_id: str, stage_id: str, oid: bool = False) -> None:
+        binding_id = _exact_identity(bindings, path, value, repo_id, oid)
+        identity = f"identity:{path}={value}"
+        edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_value"))
+        edges.append(Trace_edge(identity, f"stage:{stage_id}", "consumed_by"))
+
+    if shape == "orchestrated_workflow":
+        repo_id = next(iter(data["repositories"]))
+        workers = data["worker_contract"]
+        for worker in workers["writers"]:
+            stage_id = worker["stage_id"]
+            for key in ("branch", "base_oid", "observed_head", "worktree_path"):
+                bind_identity(f"worker_contract.writers.{stage_id}.{key}", worker.get(key),
+                              repo_id, stage_id, key.endswith("oid") or key == "observed_head")
+        for key in ("composition_branch", "composition_base_oid", "composition_worktree_path"):
+            bind_identity(f"worker_contract.{key}", workers.get(key), repo_id, "exact_union",
+                          key.endswith("oid"))
+        bind_identity("worker_contract.integration_target_branch", workers.get("integration_target_branch"),
+                      repo_id, "integration")
+    if shape == "multi_repository_coordination":
+        for repo_id, repo in data["repositories"].items():
+            for key in ("base", "development_branch"):
+                bind_identity(f"repositories.{repo_id}.{key}", repo.get(key), repo_id,
+                              repo["stage_id"], key == "base")
+            bind_identity(f"repositories.{repo_id}.integration_branch",
+                          roles[repo_id]["permanent_integration_branch"], repo_id,
+                          "integrate_provider" if repo["stage_id"] == "provider_candidate" else "integrate_consumer")
+    if data.get("retirement") and shape == "orchestrated_workflow":
+        life = data["retirement"]
+        repo_id = next(iter(data["repositories"]))
+        for key in ("exact_old_oid", "expected_preserved_head"):
+            _require(bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(life.get(key, "")))),
+                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", f"retirement.{key} is not an exact OID")
+        for identity_path, fields, kind, configured_binding in (
+                ("retirement.owned_ref", ("exact_owned_surface", "exact_old_oid"),
+                 "repository_readback", "ownership_readback_binding"),
+                ("retirement.preserved_ref", ("preservation_ref", "expected_preserved_head"),
+                 "accepted_evidence", "preservation_binding")):
+            value = {key: life.get(key) for key in fields}
+            binding_id = _exact_related_identity(bindings, identity_path, value, repo_id, kind)
+            _require(binding_id == life.get(configured_binding),
+                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                     f"{identity_path} differs from configured evidence binding")
+            identity = f"identity:{identity_path}={value}"
+            edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_relation"))
+            edges.append(Trace_edge(identity, "stage:retirement", "consumed_by"))
     for step in intent.steps:
         if step.keyword == "Given":
             edges.append(Trace_edge(f"line:{step.line}", f"precondition_evidence:line:{step.line}",
@@ -1302,14 +1472,10 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         preserved = by_id.get(life.get("preservation_binding"))
         _require(owned is not None and owned.acquisition == "acquired" and
                  owned.source_kind == "repository_readback" and
-                 life["exact_owned_surface"] in owned.source_identity and
-                 life["exact_old_oid"] in owned.source_identity and
                  preserved is not None and preserved.acquisition == "acquired" and
-                 preserved.source_kind == "accepted_evidence" and
-                 life["preservation_ref"] in preserved.source_identity and
-                 life["expected_preserved_head"] in preserved.source_identity,
+                 preserved.source_kind == "accepted_evidence",
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
-                 "retirement ownership and portable preservation readbacks are not bound")
+                 "retirement ownership and portable preservation provenance missing")
         _require(any(e.stage_id == life["terminal_stage"] and e.effect in {"delete_local_branch",
                     "delete_remote_branch"} and e.target == life["exact_owned_surface"] and
                     e.positive_authority_binding == life["authority_binding"] for e in effects),
@@ -1339,6 +1505,11 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             else:
                 edges.append(Trace_edge(f"acceptance_assertion:line:{step.line}",
                                         "prompt:validation_ceiling", "validated_by_prompt"))
+    for line, index, gate in data["_assertion_paths"]:
+        assertion = f"assertion:{line}:{index}"
+        edges.append(Trace_edge(f"line:{line}", assertion, "material_clause"))
+        edges.append(Trace_edge(assertion, gate, "requires_concrete_gate"))
+        edges.append(Trace_edge(gate, f"evidence:{assertion}", "requires_clause_evidence"))
     return edges, authorized, excluded
 
 
@@ -1421,6 +1592,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         effects = _effects(data, intent)
         continuation = _continuation(data)
         shape = _shape(data, intent, effects, bindings, continuation)
+        data["_assertion_paths"] = _assertion_paths(intent, shape, data)
         receipt["selected_execution_shape"] = shape
         _check_closed_fields(data["prompt"], data.get("stages", []), contents)
         roles = _repository_modules(data, contents, identities)
@@ -1438,7 +1610,8 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         _require(data["prompt"].get("patch_kind_expected") == expected_patch,
                  "COMPILER_INVARIANT_FAILURE", f"patch_kind_expected must be {expected_patch} for generated plan")
         edges, authorized, excluded = _verify(data, intent, bindings, effects, continuation, shape, contents, roles)
-        trace_complete = _trace_complete(intent, effects, data.get("stages", []), edges)
+        trace_complete = _trace_complete(intent, effects, data.get("stages", []), edges,
+                                         data["_assertion_paths"])
         receipt["traceability"] = {"complete": trace_complete, "edges": [asdict(e) for e in edges]}
         _require(trace_complete, "COMPILER_INVARIANT_FAILURE", "material semantic trace edge missing")
         prompt_data = dict(data["prompt"])

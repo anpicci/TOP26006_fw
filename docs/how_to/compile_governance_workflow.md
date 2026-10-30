@@ -41,6 +41,36 @@ identities in `repositories`, and exact deletion/preservation identities in
 than assuming requested candidate heads are observed facts. An independent
 review stage requires compatible delegation. A supported tracked writer needs
 an exact owner-bound local ref effect and index/ref scope for commit closure.
+An authorized effect alone cannot request integration: the `When` must request
+integration or advancement. Commit closure for a tracked edit is a necessary
+governance mechanic even when the `When` does not say `commit`. Every generated
+stage records its semantic role and whether it comes from requested behavior
+or a necessary governance mechanic.
+
+For every exact identity consumed by a generated Q03/Q05 plan, add one acquired
+`repository_readback` or `accepted_evidence` binding with the repository in
+`validity_scope` and an `observed_state` mapping of the exact form
+`{identity_path: <field path>, value: <exact value>}`. For example, the worker
+base field uses `worker_contract.writers.writer_a.base_oid`; a repository base
+uses `repositories.topcoffea.base`. The exact field path, value and acquisition
+must match. Git OIDs need 40 or 64 lowercase hexadecimal characters. Generic
+owner, review, applicability or `source_identity` text does not bind a runtime
+literal. A prior generated stage output such as
+`stage:provider_candidate:observed_commit_head` remains a valid derived input.
+Retirement readbacks bind the owned ref and its old OID together under
+`retirement.owned_ref`; accepted preservation evidence binds the preservation
+ref and expected head together under `retirement.preserved_ref`.
+
+For the bounded parallel-writer assertion `common validation passes`, supply an
+exact `common_validation_contract` with a named `tests/...py` `test_target`,
+the composition branch as `target`, and an `acceptance_gate`. The frozen outer
+validation ceiling must be `targeted_unit_test`. The compiler places a
+validation stage after composition and before integration, and makes
+integration depend on its evidence. Without
+that contract, or for an unrecognized material `Then` clause, it emits an
+unsupported diagnostic. Q03/Q05 continuations with protected accepted work
+also fail explicitly until an exact delta planner is separately implemented;
+they never replay the fresh full plan.
 Tracked paths are relative to their selected repository, including when two
 repositories contain the same relative path.
 The bounded provider/consumer planner starts from `NOT_STARTED`; an observed

@@ -51,6 +51,16 @@ def run(feature=SIMPLE, data=None):
     return compile_contract(feature, yaml.safe_dump(base_data() if data is None else data), "inline-case")
 
 
+def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
+    data["bindings"].append({
+        "binding_id": "state_" + str(len(data["bindings"])),
+        "claim": identity_path, "materiality": "DECISION_MATERIAL",
+        "source_kind": "repository_readback", "source_identity": "readback:" + identity_path,
+        "acquisition": "acquired", "validity_scope": repo_id,
+        "observed_state": {"identity_path": identity_path, "value": value},
+    })
+
+
 def add_effect(data, effect, target, line, permission, stage_id=""):
     data["bindings"].append({
         "binding_id": "owner_effect", "claim": effect, "materiality": "DECISION_MATERIAL",
@@ -149,6 +159,11 @@ def multi_repo_data():
         "topcoffea": ["file.py", "refs/heads/tc/dev-live", "refs/heads/run3_test_mmerged"],
         "topeft": ["file.py", "refs/heads/te/datacard_sr_reco", "refs/heads/run3_test_mmerged"]}}
     data["prompt"]["allowed_to_modify"] = data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]
+    for repo_id, integration_branch in (("topcoffea", "run3_test_mmerged"),
+                                        ("topeft", "run3_test_mmerged")):
+        for key in ("base", "development_branch"):
+            bind_state(data, f"repositories.{repo_id}.{key}", data["repositories"][repo_id][key], repo_id)
+        bind_state(data, f"repositories.{repo_id}.integration_branch", integration_branch, repo_id)
     return data
 
 
@@ -271,10 +286,16 @@ def parallel_data():
                           "preservation_binding": "portable_preservation"}
     data["bindings"].append({**data["bindings"][0], "binding_id": "owned_temp_ref",
                              "source_kind": "repository_readback",
-                             "source_identity": "refs/heads/temp-worker@" + "c" * 40})
+                             "source_identity": "refs/heads/temp-worker@" + "c" * 40,
+                             "observed_state": {"identity_path": "retirement.owned_ref",
+                                                "value": {"exact_owned_surface": "refs/heads/temp-worker",
+                                                          "exact_old_oid": "c" * 40}}})
     data["bindings"].append({**data["bindings"][0], "binding_id": "portable_preservation",
                              "source_kind": "accepted_evidence",
-                             "source_identity": "portable:refs/heads/master@" + "c" * 40})
+                             "source_identity": "portable:refs/heads/master@" + "c" * 40,
+                             "observed_state": {"identity_path": "retirement.preserved_ref",
+                                                "value": {"preservation_ref": "refs/heads/master",
+                                                          "expected_preserved_head": "c" * 40}}})
     data["prompt"]["workflow_goal"] = "disjoint writer results with conditional reconciled review"
     data["prompt"]["workflow_stop_policy"] = "stop_on_failed_gate_or_new_decision_boundary"
     data["prompt"]["workflow_stage_ledger_path"] = "diagnostics/ledger.yml"
@@ -292,6 +313,12 @@ def parallel_data():
         "composition_base_oid": "a" * 40, "composition_worktree_path": "/workspace/controller_candidate",
         "integration_target_branch": "master",
     }
+    for worker in data["worker_contract"]["writers"]:
+        for key in ("branch", "base_oid", "observed_head", "worktree_path"):
+            bind_state(data, f"worker_contract.writers.{worker['stage_id']}.{key}", worker[key])
+    for key in ("composition_branch", "composition_base_oid", "composition_worktree_path",
+                "integration_target_branch"):
+        bind_state(data, f"worker_contract.{key}", data["worker_contract"][key])
     return data
 
 
@@ -906,3 +933,167 @@ def test_e2_patch_kind_matches_whole_plan():
     data = base_data()
     data["prompt"]["patch_kind_expected"] = "cumulative"
     assert run(data=data).compiler_result == "COMPILER_INVARIANT_FAILURE"
+
+
+def test_e3_unrequested_integration_effect_cannot_create_stage():
+    feature = ("Feature: parallel writers\nScenario: disjoint\nGiven isolated worktrees\n"
+               "When writers edit and retire branches\nThen exact union is reviewed")
+    result = run(feature, parallel_data())
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == ""
+    assert result.receipt["dispatchability"]["dispatchable"] is False
+    assert "integration" in result.receipt["diagnostics"][0]["message"]
+
+
+def test_e3_commit_is_governance_mechanic_without_commit_word():
+    feature, data = documentation_data()
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert "commit_ref" in result.receipt["authorized_effects"]
+    assert "commit" not in feature.lower()
+
+
+def test_e3_exact_union_assertion_has_concrete_gate():
+    result = run(PARALLEL, parallel_data())
+    edges = result.receipt["traceability"]["edges"]
+    stages = prompt_yaml(result)["workflow_stages"]
+    assert all(stage["generation_provenance"]["provenance_class"] in
+               {"requested_behavior", "necessary_governance_mechanic"} for stage in stages)
+    assert next(stage for stage in stages if stage["stage_id"] == "integration")[
+        "generation_provenance"]["provenance_class"] == "requested_behavior"
+    assert {"source": "assertion:5:1", "output": "gate:exact_union",
+            "relation": "requires_concrete_gate"} in edges
+
+
+def test_e3_common_validation_requires_supplied_exact_contract():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    missing = run(feature, parallel_data())
+    assert missing.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and missing.prompt == ""
+    data = parallel_data()
+    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
+    data["common_validation_contract"] = {
+        "test_target": "tests/test_exact_union.py::test_common_validation",
+        "target": "controller_candidate", "acceptance_gate": "exact supplied validation result passes",
+    }
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    stages = prompt_yaml(result)["workflow_stages"]
+    ids = [stage["stage_id"] for stage in stages]
+    assert ids.index("exact_union") < ids.index("common_validation") < ids.index("integration")
+    assert stages[ids.index("integration")]["stage_inputs"][-1] == \
+        "stage:common_validation:common_validation_evidence"
+    assert stages[ids.index("common_validation")]["validation_test_target"] == \
+        data["common_validation_contract"]["test_target"]
+    assert {"source": "assertion:5:2", "output": "gate:common_validation",
+            "relation": "requires_concrete_gate"} in result.receipt["traceability"]["edges"]
+
+
+def test_e3_unknown_material_assertion_fails_closed():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and unknown condition holds")
+    result = run(feature, parallel_data())
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == "" and result.receipt["traceability"]["complete"] is False
+
+
+def test_e3_common_validation_cannot_add_arbitrary_command():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    data = parallel_data()
+    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
+    data["common_validation_contract"] = {"command": "arbitrary shell action",
+                                          "target": "controller_candidate",
+                                          "acceptance_gate": "claimed pass"}
+    result = run(feature, data)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
+
+
+@pytest.mark.parametrize("feature,data", [(PARALLEL, parallel_data), (MULTI_REPO, multi_repo_data)])
+def test_e3_protected_continuation_never_replays_full_plan(feature, data):
+    instance = data()
+    instance["continuation"] = {
+        "prior_artifact_identity": "accepted-009-r1", "accepted_closure_layers": ["writer_b"],
+        "accepted_prior_evidence": ["writer_b:sha256:abc"],
+        "invalidation_boundary": ["writer_a"],
+        "delta_scope": ["writer_a", "exact_union", "integration", "retirement"],
+        "unresolved_checks_only": ["writer_a"], "checks_not_to_repeat": ["writer_b"],
+    }
+    instance["bindings"].append({**instance["bindings"][0], "binding_id": "accepted_009",
+                                 "source_kind": "accepted_evidence", "source_identity": "accepted-009-r1"})
+    result = run(feature, instance)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == ""
+    assert "delta planner" in result.receipt["diagnostics"][0]["message"]
+
+
+def test_e3_bogus_worker_identities_are_not_authenticated_by_generic_gates():
+    data = parallel_data()
+    worker = data["worker_contract"]["writers"][0]
+    worker.update(base_oid="d" * 40, observed_head="e" * 40,
+                  worktree_path="/workspace/bogus")
+    data["bindings"].extend([
+        {**data["bindings"][0], "binding_id": "manual_review", "source_kind": "accepted_evidence"},
+        {**data["bindings"][0], "binding_id": "live_applicability",
+         "source_kind": "repository_readback", "observed_state": {"status": "live"}},
+    ])
+    data["dispatch_gate"] = {"owner_authorization_binding": "owner_task",
+                             "manual_governance_review_binding": "manual_review",
+                             "live_applicability_binding": "live_applicability"}
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == "" and result.receipt["dispatchability"]["dispatchable"] is False
+
+
+def test_e3_bogus_q05_base_is_not_authenticated_by_generic_gates():
+    data = multi_repo_data()
+    data["repositories"]["topcoffea"]["base"] = "d" * 40
+    data["bindings"].extend([
+        {**data["bindings"][0], "binding_id": "manual_review", "source_kind": "accepted_evidence"},
+        {**data["bindings"][0], "binding_id": "live_applicability",
+         "source_kind": "repository_readback", "observed_state": {"status": "live"}},
+    ])
+    data["dispatch_gate"] = {"owner_authorization_binding": "owner_task",
+                             "manual_governance_review_binding": "manual_review",
+                             "live_applicability_binding": "live_applicability"}
+    result = run(MULTI_REPO, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == "" and result.receipt["dispatchability"]["dispatchable"] is False
+
+
+def test_e3_exact_value_readback_positive_mismatch_and_oid_shape():
+    data = parallel_data()
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    path = "worker_contract.writers.writer_a.base_oid"
+    bound = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") == path)
+    bound["observed_state"]["value"] = "f" * 40
+    assert run(PARALLEL, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    data = multi_repo_data()
+    assert run(MULTI_REPO, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data["repositories"]["topcoffea"]["base"] = "not-an-oid"
+    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_e3_source_identity_text_alone_cannot_bind_runtime_value():
+    data = parallel_data()
+    path = "worker_contract.writers.writer_a.observed_head"
+    bound = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") == path)
+    bound["source_identity"] = path + "@" + "a" * 40
+    del bound["observed_state"]
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == ""
+
+
+def test_e3_retirement_ref_oid_relation_is_exact():
+    data = parallel_data()
+    bound = next(b for b in data["bindings"] if b["binding_id"] == "owned_temp_ref")
+    bound["observed_state"]["value"]["exact_old_oid"] = "d" * 40
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == ""
+    data = parallel_data()
+    data["retirement"]["ownership_readback_binding"] = "owner_task"
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == ""
