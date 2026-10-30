@@ -47,36 +47,57 @@ governance mechanic even when the `When` does not say `commit`. Every generated
 stage records its semantic role and whether it comes from requested behavior
 or a necessary governance mechanic.
 
-For every exact identity consumed by a generated Q03/Q05 plan, add one acquired
+For every exact identity consumed by a generated Q03/Q05 plan, add an acquired
 `repository_readback` or `accepted_evidence` binding with the repository in
 `validity_scope` and an `observed_state` mapping of the exact form
 `{identity_path: <field path>, value: <exact value>}`. For example, the worker
 base field uses `worker_contract.writers.writer_a.base_oid`; a repository base
-uses `repositories.topcoffea.base`. The exact field path, value and acquisition
-must match. Git OIDs need 40 or 64 lowercase hexadecimal characters. Generic
-owner, review, applicability or `source_identity` text does not bind a runtime
-literal. A prior generated stage output such as
-`stage:provider_candidate:observed_commit_head` remains a valid derived input.
+uses `repositories.topcoffea.base`. Identity-critical Git facts also need one
+acquired relation binding: Q03 worker and controller carriers bind repository,
+worktree, attached branch, head and base together; Q05 binds the permanent live
+branch/head and candidate branch/worktree/head/base together. Individually
+matching scalar bindings cannot replace that relation. An ancestry claim needs
+an acquired exact relation result; two OIDs alone do not prove ancestry. Git
+OIDs need 40 or 64 lowercase hexadecimal characters. Generic owner, review,
+applicability or `source_identity` text does not bind a runtime literal. A prior
+generated stage output such as `stage:provider_candidate:observed_commit_head`
+remains a valid derived input.
 Retirement readbacks bind the owned ref and its old OID together under
 `retirement.owned_ref`; accepted preservation evidence binds the preservation
 ref and expected head together under `retirement.preserved_ref`.
 
 For the bounded parallel-writer assertion `common validation passes`, supply an
-exact `common_validation_contract` with a named `tests/...py` `test_target`,
-the composition branch as `target`, and an `acceptance_gate`. The frozen outer
-validation ceiling must be `targeted_unit_test`. The compiler places a
-validation stage after composition and before integration, and makes
-integration depend on its evidence. Without
-that contract, or for an unrecognized material `Then` clause, it emits an
-unsupported diagnostic. Q03/Q05 continuations with protected accepted work
-also fail explicitly until an exact delta planner is separately implemented;
-they never replay the fresh full plan.
+exact `common_validation_contract` with a named `tests/...py` `test_target` and
+the composition branch as `target`. Add one acquired `accepted_evidence`
+relation under `common_validation.target_relation` that binds the locator,
+repository, controller worktree/branch, generated candidate head and claimed
+coverage of exact union and common validation. The frozen outer validation
+ceiling must be `targeted_unit_test`. The compiler derives the `must_pass` rule;
+the caller cannot supply failure semantics. Missing, failed, unreadable or
+candidate-mismatched results block dependent stages. The stage carries exact
+branch, worktree and generated-head posture. Without the relation, or for an
+unrecognized material `Then` clause, compilation fails closed.
+
+The supported Q04 continuation is one two-writer case: one accepted writer
+result from an exact prior artifact and common base, one invalidated writer,
+and disjoint protection and delta scopes. The accepted writer is absent from
+executable stages; its exact reviewed result feeds the rebuilt union. The
+compiler repeats the invalidated writer and dependent review, union, validation
+and requested integration/retirement stages. Ambiguous or broader protected
+continuations remain unsupported.
 Tracked paths are relative to their selected repository, including when two
 repositories contain the same relative path.
-The bounded provider/consumer planner starts from `NOT_STARTED`; an observed
-partial or completed state yields a diagnostic that preserves the supplied
-partial-effect record and requires a separately bound continuation or recovery
-plan. It does not replay the initial stages.
+The bounded Q05 provider/consumer planner starts from `NOT_STARTED` and stops
+at a validated repo-local candidate pair. Each repository must already have an
+authorized candidate carrier in its native feature namespace, with exact
+permanent-start/candidate relation and local write/ref authority. The compiler
+does not create a carrier or advance `tc/dev-live`, `te/datacard_sr_reco` or any
+integration line. A `pair_validation_contract` names a test locator and covers
+provider, consumer and common contract; an acquired tuple relation binds that
+locator to both generated candidate heads. The validation stage must pass on
+the exact pair. An observed partial or completed state yields a diagnostic
+that preserves the supplied partial-effect record and requires a separately
+bound continuation or recovery plan. It does not replay the initial stages.
 Other dependent or unfamiliar action patterns fail closed as compiler
 limitations. The author must inspect the generated Markdown and receipt
 against live governance before any separately
@@ -115,6 +136,13 @@ validity and internal consistency only; governance completeness remains unassess
 generated prompt, receipt, or validator PASS is neither execution nor
 acceptance nor normative D8 adoption. Historical H1-H6 comparison belongs to
 D8-F.
+
+The compiler trusts the upstream acquisition/binder layer's `acquired` claim.
+Gherkin text never creates acquisition or authority. `source_identity` records
+provenance/locator identity; exact `observed_state` relations are required for
+identity-critical planning. The compiler does not independently authenticate
+or byte-verify each source. Keep that boundary visible in the later global
+audit and D8-F before any normative adoption decision.
 
 If the compiler cannot express a manually valid task, use the existing
 [manual prompt guide](write_a_prompt_manually.md) and

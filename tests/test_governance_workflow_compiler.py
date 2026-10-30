@@ -16,7 +16,7 @@ SIMPLE = """Feature: bounded inspection
     But no remote repository is modified
 """
 PARALLEL = "Feature: parallel writers\nScenario: disjoint\nGiven isolated worktrees\nWhen writers edit, integrate, and retire branches\nThen exact union is reviewed"
-MULTI_REPO = "Feature: provider consumer\nScenario: candidate pair\nGiven exact bases\nWhen provider and consumer write and integrate candidates\nThen the pair is validated"
+MULTI_REPO = "Feature: provider consumer\nScenario: candidate pair\nGiven exact bases\nWhen provider and consumer write candidates\nThen the pair is validated"
 
 
 def base_data():
@@ -56,6 +56,17 @@ def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
         "binding_id": "state_" + str(len(data["bindings"])),
         "claim": identity_path, "materiality": "DECISION_MATERIAL",
         "source_kind": "repository_readback", "source_identity": "readback:" + identity_path,
+        "acquisition": "acquired", "validity_scope": repo_id,
+        "observed_state": {"identity_path": identity_path, "value": value},
+    })
+
+
+def bind_relation(data, identity_path, value, repo_id="TOP26006_fw",
+                  source_kind="repository_readback"):
+    data["bindings"].append({
+        "binding_id": "relation_" + str(len(data["bindings"])),
+        "claim": identity_path, "materiality": "IDENTITY_CRITICAL",
+        "source_kind": source_kind, "source_identity": "readback:" + identity_path,
         "acquisition": "acquired", "validity_scope": repo_id,
         "observed_state": {"identity_path": identity_path, "value": value},
     })
@@ -102,26 +113,35 @@ def multi_repo_data():
     orchestrated(data)
     data["prompt"]["delegation_policy"] = "required"
     data["prompt"]["patch_kind_expected"] = "prompt_local"
+    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
     data["stages"] = [stage("provider_candidate"), stage("consumer_candidate"),
-                      stage("pair_validation"), stage("integrate_provider"), stage("integrate_consumer")]
+                      stage("independent_review"), stage("pair_validation")]
     data["repositories"] = {
         "topcoffea": {"base": "a" * 40, "candidate": "stage:provider_candidate:observed_commit_head", "authority_binding": "repo_a",
-                      "stage_id": "provider_candidate", "development_branch": "tc/dev-live"},
+                      "stage_id": "provider_candidate", "development_branch": "tc/dev-live",
+                      "candidate_branch": "tc/q05_candidate", "candidate_worktree": "/workspace/topcoffea_candidate",
+                      "candidate_head": "a" * 40, "candidate_base_oid": "a" * 40,
+                      "candidate_carrier_authority_binding": "commit_topcoffea_owner"},
         "topeft": {"base": "b" * 40, "candidate": "stage:consumer_candidate:observed_commit_head", "authority_binding": "repo_b",
-                   "stage_id": "consumer_candidate", "development_branch": "te/datacard_sr_reco"},
+                   "stage_id": "consumer_candidate", "development_branch": "te/datacard_sr_reco",
+                   "candidate_branch": "te/q05_candidate", "candidate_worktree": "/workspace/topeft_candidate",
+                   "candidate_head": "b" * 40, "candidate_base_oid": "b" * 40,
+                   "candidate_carrier_authority_binding": "commit_topeft_owner"},
     }
     data["prompt"]["repo_locations"] = {"topcoffea": "/workspace/topcoffea",
                                          "topeft": "/workspace/topeft"}
     data["prompt"]["read_only"] = {"topcoffea": ["AGENTS.md"], "topeft": ["AGENTS.md"]}
     data["candidate_pair_order"] = ["topcoffea", "topeft"]
     data["candidate_pair_validation_stage"] = "pair_validation"
-    data["integration_stages"] = ["integrate_provider", "integrate_consumer"]
+    data["integration_stages"] = []
+    data["pair_validation_contract"] = {"test_target": "tests/test_candidate_pair.py::test_contract",
+                                          "covers": ["provider", "consumer", "common"]}
     data["multi_repository_state"] = "NOT_STARTED"
     data["bindings"] += [{**data["bindings"][0], "binding_id": "repo_a", "validity_scope": "topcoffea"},
                          {**data["bindings"][0], "binding_id": "repo_b", "validity_scope": "topeft"}]
-    for repo_id, stage_id, target, source_branch, integration_branch in (
-            ("topcoffea", "provider_candidate", "file.py", "tc/dev-live", "run3_test_mmerged"),
-            ("topeft", "consumer_candidate", "file.py", "te/datacard_sr_reco", "run3_test_mmerged")):
+    for repo_id, stage_id, target, source_branch in (
+            ("topcoffea", "provider_candidate", "file.py", "tc/q05_candidate"),
+            ("topeft", "consumer_candidate", "file.py", "te/q05_candidate")):
         item = next(s for s in data["stages"] if s["stage_id"] == stage_id)
         item.update(repository_id=repo_id, stage_mode="coding",
                     stage_branch_policy="continue_existing_branch", target_branch=source_branch)
@@ -139,31 +159,27 @@ def multi_repo_data():
         data["requested_effects"].append({"effect_id": f"commit_{repo_id}",
             "effect": "local_git_ref_write", "target": source_ref, "requested_by_step": 4,
             "positive_authority_binding": f"commit_{repo_id}_owner", "stage_id": stage_id})
-        integration_stage = "integrate_provider" if repo_id == "topcoffea" else "integrate_consumer"
-        ref = f"refs/heads/{integration_branch}"
-        integration = next(s for s in data["stages"] if s["stage_id"] == integration_stage)
-        integration.update(repository_id=repo_id, stage_mode="integration_only",
-                           stage_branch_policy="continue_existing_branch",
-                           target_branch=integration_branch,
-                           integration_source_branch=source_branch,
-                           integration_target_branch=integration_branch,
-                           integration_method="ff_only", expected_source_head=data["repositories"][repo_id]["candidate"])
-        integration["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: [ref]}}
-        data["bindings"].append({**data["bindings"][0], "binding_id": f"integrate_{repo_id}_owner",
-                                 "validity_scope": repo_id, "authorizes_effect": True,
-                                 "effect": "local_git_ref_write", "target": ref})
-        data["requested_effects"].append({"effect_id": f"integrate_{repo_id}",
-            "effect": "local_git_ref_write", "target": ref, "requested_by_step": 4,
-            "positive_authority_binding": f"integrate_{repo_id}_owner", "stage_id": integration_stage})
+        repo = data["repositories"][repo_id]
+        bind_relation(data, f"repositories.{repo_id}.candidate_carrier",
+                      {"repository": repo_id,
+                       "permanent_live_development_branch": repo["development_branch"],
+                       "permanent_live_head": repo["base"], "candidate_branch": repo["candidate_branch"],
+                       "candidate_worktree": repo["candidate_worktree"], "candidate_head": repo["candidate_head"],
+                       "candidate_base_oid": repo["candidate_base_oid"]}, repo_id)
     data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": {
-        "topcoffea": ["file.py", "refs/heads/tc/dev-live", "refs/heads/run3_test_mmerged"],
-        "topeft": ["file.py", "refs/heads/te/datacard_sr_reco", "refs/heads/run3_test_mmerged"]}}
+        "topcoffea": ["file.py", "refs/heads/tc/q05_candidate"],
+        "topeft": ["file.py", "refs/heads/te/q05_candidate"]}}
     data["prompt"]["allowed_to_modify"] = data["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]
-    for repo_id, integration_branch in (("topcoffea", "run3_test_mmerged"),
-                                        ("topeft", "run3_test_mmerged")):
+    for repo_id in ("topcoffea", "topeft"):
         for key in ("base", "development_branch"):
             bind_state(data, f"repositories.{repo_id}.{key}", data["repositories"][repo_id][key], repo_id)
-        bind_state(data, f"repositories.{repo_id}.integration_branch", integration_branch, repo_id)
+    bind_relation(data, "pair_validation.candidate_tuple",
+                  {"validation_locator": data["pair_validation_contract"]["test_target"],
+                   "covers": ["provider", "consumer", "common"],
+                   "provider_repository": "topcoffea", "consumer_repository": "topeft",
+                   "provider_head": "stage:provider_candidate:observed_commit_head",
+                   "consumer_head": "stage:consumer_candidate:observed_commit_head"},
+                  "topcoffea", "accepted_evidence")
     return data
 
 
@@ -316,9 +332,17 @@ def parallel_data():
     for worker in data["worker_contract"]["writers"]:
         for key in ("branch", "base_oid", "observed_head", "worktree_path"):
             bind_state(data, f"worker_contract.writers.{worker['stage_id']}.{key}", worker[key])
+        bind_relation(data, f"worker_contract.writers.{worker['stage_id']}.carrier",
+                      {"repository": "TOP26006_fw", "worktree": worker["worktree_path"],
+                       "attached_branch": worker["branch"], "head": worker["observed_head"],
+                       "base_oid": worker["base_oid"]})
     for key in ("composition_branch", "composition_base_oid", "composition_worktree_path",
                 "integration_target_branch"):
         bind_state(data, f"worker_contract.{key}", data["worker_contract"][key])
+    bind_relation(data, "worker_contract.composition_carrier",
+                  {"repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
+                   "attached_branch": "controller_candidate", "head": "a" * 40,
+                   "base_oid": "a" * 40})
     return data
 
 
@@ -353,16 +377,73 @@ def test_q04_continuation_reuses_accepted_closure():
     assert "checks_not_to_repeat:" in result.prompt and "writer_b" in result.prompt
 
 
+def q04_data():
+    data = parallel_data()
+    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
+    data["common_validation_contract"] = {
+        "test_target": "tests/test_exact_union.py::test_common_validation",
+        "target": "controller_candidate",
+    }
+    bind_relation(data, "common_validation.target_relation",
+                  {"validation_locator": "tests/test_exact_union.py::test_common_validation",
+                   "repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
+                   "attached_branch": "controller_candidate",
+                   "head": "stage:exact_union:observed_commit_head",
+                   "covers": ["exact_union", "common_validation"]},
+                  source_kind="accepted_evidence")
+    accepted = {"writer_id": "writer_b", "observed_commit_head": "b" * 40,
+                "reviewed_evidence": "reviewed:writer_b", "base_oid": "a" * 40}
+    data["continuation"] = {
+        "prior_artifact_identity": "accepted-009-r1",
+        "accepted_closure_layers": ["writer_b"], "accepted_prior_evidence": [accepted],
+        "invalidation_boundary": ["writer_a"],
+        "delta_scope": ["writer_a", "independent_review", "exact_union", "reconciled_review",
+                        "common_validation", "integration", "retirement"],
+        "unresolved_checks_only": ["writer_a", "exact_union", "common_validation"],
+        "checks_not_to_repeat": ["writer_b"],
+    }
+    bind_relation(data, "q04.accepted_writer_result", accepted, source_kind="accepted_evidence")
+    data["bindings"][-1]["source_identity"] = "accepted-009-r1"
+    data["bindings"].append({**data["bindings"][0], "binding_id": "accepted_009",
+                             "source_kind": "accepted_evidence", "source_identity": "accepted-009-r1"})
+    return data
+
+
+def test_q04_positive_delta_preserves_accepted_writer():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    result = run(feature, q04_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    ids = [item["stage_id"] for item in stages]
+    assert "writer_b" not in ids
+    assert result.receipt["reused_accepted_effects"] == ["writer_b", "commit_writer_b"]
+    assert ids == ["writer_a", "independent_review", "exact_union", "reconciled_review",
+                   "common_validation", "integration", "retirement"]
+    union = next(item for item in stages if item["stage_id"] == "exact_union")
+    assert "prior:accepted-009-r1:writer_b@" + "b" * 40 in union["stage_inputs"]
+
+
 def test_q05_multi_repository_candidate_tuple_and_local_authority():
     data = multi_repo_data()
     result = run(MULTI_REPO, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert result.receipt["selected_execution_shape"] == "multi_repository_coordination"
     assert set(result.receipt["authorized_effects"]) == {
-        "write_topcoffea", "commit_topcoffea", "integrate_topcoffea",
-        "write_topeft", "commit_topeft", "integrate_topeft"}
+        "write_topcoffea", "commit_topcoffea", "write_topeft", "commit_topeft"}
     assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
     assert "global_git_transaction" not in result.prompt
+    prompt = prompt_yaml(result)
+    assert [stage["stage_id"] for stage in prompt["workflow_stages"]] == [
+        "provider_candidate", "consumer_candidate", "independent_review", "pair_validation"]
+    assert [stage["target_branch"] for stage in prompt["workflow_stages"][:2]] == [
+        "tc/q05_candidate", "te/q05_candidate"]
+    assert "refs/heads/tc/dev-live" not in str(prompt["allowed_to_modify"])
+    assert "refs/heads/te/datacard_sr_reco" not in str(prompt["allowed_to_modify"])
+    assert all(set(roles) == {"permanent_live_development_branch",
+                              "permanent_personal_reference_branch",
+                              "permanent_integration_branch", "feature_development_namespace"}
+               for roles in prompt["repository_branch_roles"].values())
 
 
 def test_q06_partial_integration_preserves_real_effect():
@@ -902,13 +983,15 @@ def test_e2_q05_candidate_pair_binds_prior_observations_without_pooled_authority
     stages = {item["stage_id"]: item for item in prompt["workflow_stages"]}
     assert set(stages["provider_candidate"]["stage_effect_permissions"]["allowed_to_modify"]) == {"topcoffea"}
     assert set(stages["consumer_candidate"]["stage_effect_permissions"]["allowed_to_modify"]) == {"topeft"}
-    assert stages["integrate_provider"]["expected_source_head"] == "stage:provider_candidate:observed_commit_head"
-    assert stages["integrate_consumer"]["expected_source_head"] == "stage:consumer_candidate:observed_commit_head"
+    assert stages["pair_validation"]["stage_inputs"][:2] == [
+        "stage:provider_candidate:observed_commit_head",
+        "stage:consumer_candidate:observed_commit_head"]
+    assert all("integrate" not in stage_id for stage_id in stages)
 
 
 def test_e2_q05_cross_repo_binding_cannot_authorize_other_repo():
     data = multi_repo_data()
-    next(item for item in data["bindings"] if item["binding_id"] == "integrate_topeft_owner")[
+    next(item for item in data["bindings"] if item["binding_id"] == "commit_topeft_owner")[
         "validity_scope"] = "topcoffea"
     result = run(MULTI_REPO, data)
     assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
@@ -974,8 +1057,15 @@ def test_e3_common_validation_requires_supplied_exact_contract():
     data["prompt"]["validation_ceiling"] = "targeted_unit_test"
     data["common_validation_contract"] = {
         "test_target": "tests/test_exact_union.py::test_common_validation",
-        "target": "controller_candidate", "acceptance_gate": "exact supplied validation result passes",
+        "target": "controller_candidate",
     }
+    bind_relation(data, "common_validation.target_relation",
+                  {"validation_locator": "tests/test_exact_union.py::test_common_validation",
+                   "repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
+                   "attached_branch": "controller_candidate",
+                   "head": "stage:exact_union:observed_commit_head",
+                   "covers": ["exact_union", "common_validation"]},
+                  source_kind="accepted_evidence")
     result = run(feature, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     stages = prompt_yaml(result)["workflow_stages"]
@@ -985,6 +1075,7 @@ def test_e3_common_validation_requires_supplied_exact_contract():
         "stage:common_validation:common_validation_evidence"
     assert stages[ids.index("common_validation")]["validation_test_target"] == \
         data["common_validation_contract"]["test_target"]
+    assert stages[ids.index("common_validation")]["stage_acceptance_gate"].startswith("must_pass:")
     assert {"source": "assertion:5:2", "output": "gate:common_validation",
             "relation": "requires_concrete_gate"} in result.receipt["traceability"]["edges"]
 
@@ -1024,7 +1115,8 @@ def test_e3_protected_continuation_never_replays_full_plan(feature, data):
     result = run(feature, instance)
     assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
     assert result.prompt == ""
-    assert "delta planner" in result.receipt["diagnostics"][0]["message"]
+    assert any(term in result.receipt["diagnostics"][0]["message"] for term in
+               ("delta planner", "Q04 invalidation/protection"))
 
 
 def test_e3_bogus_worker_identities_are_not_authenticated_by_generic_gates():
@@ -1097,3 +1189,112 @@ def test_e3_retirement_ref_oid_relation_is_exact():
     result = run(PARALLEL, data)
     assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
     assert result.prompt == ""
+
+
+def test_b01_common_validation_caller_gate_and_unrelated_target_fail_closed():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    data = q04_data()
+    data["common_validation_contract"]["acceptance_gate"] = "continue even if test fails"
+    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = q04_data()
+    data["common_validation_contract"]["test_target"] = "tests/test_unrelated.py::test_pass"
+    assert run(feature, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_b01_wrong_candidate_relation_fails_and_positive_has_exact_posture():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    data = q04_data()
+    relation = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") ==
+                    "common_validation.target_relation")
+    relation["observed_state"]["value"]["attached_branch"] = "other"
+    assert run(feature, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    result = run(feature, q04_data())
+    stage = next(s for s in prompt_yaml(result)["workflow_stages"] if s["stage_id"] == "common_validation")
+    assert stage["stage_branch_policy"] == "continue_existing_branch"
+    assert stage["target_branch"] == "controller_candidate"
+    assert stage["validation_worktree"] == "/workspace/controller_candidate"
+    assert stage["expected_candidate_head"] == "stage:exact_union:observed_commit_head"
+    assert stage["stage_acceptance_gate"].startswith("must_pass:")
+    assert result.receipt["traceability"]["complete"] is True
+    assert any(edge["relation"] == "requires_must_pass" for edge in result.receipt["traceability"]["edges"])
+
+
+def test_q04_invalid_protection_and_missing_accepted_identity_fail_closed():
+    feature = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+    data = q04_data()
+    data["continuation"]["invalidation_boundary"] = ["writer_a", "writer_b"]
+    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = q04_data()
+    data["continuation"]["delta_scope"].append("writer_b")
+    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = q04_data()
+    data["bindings"] = [b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") !=
+                        "q04.accepted_writer_result"]
+    assert run(feature, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_q05_candidate_carrier_and_pair_contract_fail_closed():
+    data = multi_repo_data()
+    del data["repositories"]["topcoffea"]["candidate_branch"]
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = multi_repo_data()
+    data["repositories"]["topcoffea"]["candidate_branch"] = "wrong/candidate"
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = multi_repo_data()
+    data["pair_validation_contract"]["covers"] = ["provider"]
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    data = multi_repo_data()
+    data["bindings"] = [b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") !=
+                        "pair_validation.candidate_tuple"]
+    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    data = multi_repo_data()
+    data["repositories"]["topcoffea"]["candidate_branch"] = "tc/dev-live"
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+def test_b04_split_or_contradictory_relations_fail_closed():
+    data = parallel_data()
+    data["bindings"] = [b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") !=
+                        "worker_contract.writers.writer_a.carrier"]
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.prompt == "" and result.receipt["traceability"]["complete"] is False
+    data = parallel_data()
+    relation = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") ==
+                    "worker_contract.writers.writer_a.carrier")
+    relation["observed_state"]["value"]["head"] = "f" * 40
+    assert run(PARALLEL, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    data = multi_repo_data()
+    relation = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") ==
+                    "repositories.topcoffea.candidate_carrier")
+    relation["observed_state"]["value"]["permanent_live_head"] = "f" * 40
+    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_b04_missing_relation_trace_cannot_claim_completeness(monkeypatch):
+    original = compiler._relation_edge
+
+    def drop_trace(bindings, edges, identity_path, values, repo_id, stage_id,
+                   source_kind="repository_readback"):
+        original(bindings, edges, identity_path, values, repo_id, stage_id, source_kind)
+        if identity_path == "worker_contract.writers.writer_a.carrier":
+            edges.pop()
+
+    monkeypatch.setattr(compiler, "_relation_edge", drop_trace)
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert result.prompt == "" and result.receipt["traceability"]["complete"] is False
+
+
+def test_q05_partial_candidate_state_is_preserved_without_rollback():
+    data = multi_repo_data()
+    data["multi_repository_state"] = "PARTIAL"
+    data["partial_effects"] = {"prepared_repo_identity": "topcoffea@" + "c" * 40,
+                               "unresolved_recovery": "consumer candidate failed"}
+    result = run(MULTI_REPO, data)
+    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == "" and result.receipt["partial_state"]["state"] == "PARTIAL"
+    assert "rollback" not in str(result.receipt).lower()
