@@ -1298,3 +1298,228 @@ def test_q05_partial_candidate_state_is_preserved_without_rollback():
     assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
     assert result.prompt == "" and result.receipt["partial_state"]["state"] == "PARTIAL"
     assert "rollback" not in str(result.receipt).lower()
+
+
+Q04_FEATURE = PARALLEL.replace("Then exact union is reviewed",
+                               "Then exact union is reviewed and common validation passes")
+
+
+def _binding(data, identity_path):
+    return next(item for item in data["bindings"]
+                if item.get("observed_state", {}).get("identity_path") == identity_path)
+
+
+def _replace_literal(value, old, new):
+    if isinstance(value, dict):
+        return {key: _replace_literal(item, old, new) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_replace_literal(item, old, new) for item in value]
+    return value.replace(old, new) if isinstance(value, str) else value
+
+
+def _plan(result):
+    return prompt_yaml(result)["workflow_stages"]
+
+
+def test_q04_m1_retired_protected_carrier_is_not_reacquired():
+    data = q04_data()
+    worker = data["worker_contract"]["writers"][1]
+    for key in ("branch", "worktree_path", "observed_head", "base_oid"):
+        del worker[key]
+    data["bindings"] = [item for item in data["bindings"]
+                        if not item.get("observed_state", {}).get("identity_path", "").startswith(
+                            "worker_contract.writers.writer_b.")]
+    result = run(Q04_FEATURE, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert "writer_b" not in [stage["stage_id"] for stage in _plan(result)]
+    assert "prior:accepted-009-r1:writer_b@" + "b" * 40 in _plan(result)[2]["stage_inputs"]
+    assert not any("writer_b.carrier" in str(edge) for edge in result.receipt["traceability"]["edges"])
+
+
+@pytest.mark.parametrize("change", ["head", "worktree", "absent", "last_observed"])
+def test_q04_m2_m3_later_carrier_observations_are_inert(change):
+    baseline = run(Q04_FEATURE, q04_data())
+    data = q04_data()
+    worker = data["worker_contract"]["writers"][1]
+    if change == "head":
+        worker["observed_head"] = "f" * 40
+        _binding(data, "worker_contract.writers.writer_b.observed_head")["observed_state"]["value"] = "f" * 40
+        _binding(data, "worker_contract.writers.writer_b.carrier")["observed_state"]["value"]["head"] = "f" * 40
+    elif change == "worktree":
+        worker["worktree_path"] = "/retired/elsewhere"
+        _binding(data, "worker_contract.writers.writer_b.worktree_path")["observed_state"]["value"] = "/retired/elsewhere"
+        _binding(data, "worker_contract.writers.writer_b.carrier")["observed_state"]["value"]["worktree"] = "/retired/elsewhere"
+    elif change == "absent":
+        del worker["worktree_path"]
+        data["bindings"] = [item for item in data["bindings"] if item.get("observed_state", {}).get(
+            "identity_path") not in {"worker_contract.writers.writer_b.worktree_path",
+                                     "worker_contract.writers.writer_b.carrier"}]
+    else:
+        for item in data["bindings"]:
+            if item.get("observed_state", {}).get("identity_path", "").startswith(
+                    "worker_contract.writers.writer_b."):
+                item["acquisition"] = "last_observed"
+    result = run(Q04_FEATURE, data)
+    assert result.compiler_result == baseline.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert _plan(result) == _plan(baseline)
+    assert result.receipt["safety_constraints"]["worker_contract"] == baseline.receipt[
+        "safety_constraints"]["worker_contract"]
+
+
+def test_q04_m4_m5_accepted_result_or_protection_change_fails_closed():
+    data = yaml.safe_load(yaml.safe_dump(q04_data()))
+    data["continuation"]["accepted_prior_evidence"][0] = dict(
+        data["continuation"]["accepted_prior_evidence"][0])
+    data["continuation"]["accepted_prior_evidence"][0]["observed_commit_head"] = "e" * 40
+    assert run(Q04_FEATURE, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    data = q04_data()
+    data["continuation"]["invalidation_boundary"] = ["writer_a", "writer_b"]
+    assert run(Q04_FEATURE, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+def test_q04_m6_m7_order_and_documentary_literals_do_not_create_authority():
+    baseline = run(Q04_FEATURE, q04_data())
+    data = q04_data()
+    data["bindings"].reverse()
+    data["bindings"].append({"binding_id": "documentary_oid", "claim": "unrelated note",
+                             "materiality": "DOCUMENTARY", "source_kind": "other",
+                             "source_identity": "note:" + "b" * 40, "acquisition": "acquired",
+                             "validity_scope": "TOP26006_fw",
+                             "observed_state": {"identity_path": "unrelated.note", "value": "b" * 40}})
+    result = run(Q04_FEATURE, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert _plan(result) == _plan(baseline)
+    assert result.receipt["authorized_effects"] == baseline.receipt["authorized_effects"]
+    data = q04_data()
+    _binding(data, "q04.accepted_writer_result")["materiality"] = "DOCUMENTARY"
+    assert run(Q04_FEATURE, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+@pytest.mark.parametrize("old,new", [
+    ("/workspace/worker_b", "/workspace/worker_a/../worker_a"),
+    ("temporary/writer_b", "temporary/writer_a"),
+    ("/workspace/controller_candidate", "/workspace/worker_a"),
+    ("controller_candidate", "temporary/writer_a"),
+])
+def test_q03_i1_i4_all_material_path_and_ref_aliases_fail_after_local_binding(old, new):
+    data = _replace_literal(parallel_data(), old, new)
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.receipt["isolation_verification"]["relation_local_consistency"] is True
+    assert result.receipt["isolation_verification"]["cross_role_isolation"] is False
+
+
+def test_q03_i5_i6_order_and_documentary_literals_are_inert():
+    baseline = run(PARALLEL, parallel_data())
+    data = parallel_data()
+    data["bindings"].reverse()
+    data["bindings"].append({"binding_id": "documentary_carrier", "claim": "unrelated",
+                             "materiality": "DOCUMENTARY", "source_kind": "other",
+                             "source_identity": "/workspace/worker_a", "acquisition": "acquired",
+                             "validity_scope": "TOP26006_fw"})
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert _plan(result) == _plan(baseline)
+    assert result.receipt["isolation_verification"]["cross_role_isolation"] is True
+
+
+@pytest.mark.parametrize("role_a,role_b", [
+    ("topcoffea:primary", "topeft:primary"),
+    ("topcoffea:candidate", "topeft:candidate"),
+    ("topcoffea:candidate", "topeft:primary"),
+    ("topeft:candidate", "topcoffea:primary"),
+])
+def test_q05_i1_i3_all_cross_repository_path_aliases_fail(role_a, role_b):
+    data = multi_repo_data()
+    def path_of(role):
+        repo_id, carrier = role.split(":")
+        return (data["prompt"]["repo_locations"][repo_id] if carrier == "primary" else
+                data["repositories"][repo_id]["candidate_worktree"])
+    repo_id, carrier = role_a.split(":")
+    new_path = path_of(role_b) + ("/../" + path_of(role_b).rsplit("/", 1)[-1] if
+                                  carrier == "candidate" else "")
+    if carrier == "primary":
+        data["prompt"]["repo_locations"][repo_id] = new_path
+    else:
+        data["repositories"][repo_id]["candidate_worktree"] = new_path
+        _binding(data, f"repositories.{repo_id}.candidate_carrier")["observed_state"]["value"][
+            "candidate_worktree"] = new_path
+    result = run(MULTI_REPO, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.receipt["isolation_verification"]["relation_local_consistency"] is True
+    assert result.receipt["isolation_verification"]["cross_repository_isolation"] is False
+
+
+def test_q05_i4_wrong_repository_relation_fails_locally():
+    data = multi_repo_data()
+    _binding(data, "repositories.topcoffea.candidate_carrier")["observed_state"]["value"][
+        "repository"] = "topeft"
+    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+def test_q05_i5_i7_valid_carriers_and_permuted_repository_map():
+    baseline = run(MULTI_REPO, multi_repo_data())
+    assert baseline.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data = multi_repo_data()
+    data["repositories"] = dict(reversed(list(data["repositories"].items())))
+    data["prompt"]["repo_locations"] = dict(reversed(list(data["prompt"]["repo_locations"].items())))
+    data["bindings"].reverse()
+    result = run(MULTI_REPO, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert _plan(result) == _plan(baseline)
+    assert result.receipt["isolation_verification"]["cross_repository_isolation"] is True
+
+
+def test_q05_i6_repository_aware_branch_check_does_not_pool_refs():
+    data = multi_repo_data()
+    data["repositories"]["topeft"]["candidate_branch"] = data["repositories"]["topcoffea"][
+        "candidate_branch"]
+    audit = {}
+    edges = []
+    compiler._verify_carrier_isolation(data, "multi_repository_coordination", edges, audit)
+    assert audit["cross_repository_isolation"] is True
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+@pytest.mark.parametrize("shape", ["orchestrated_workflow", "multi_repository_coordination"])
+def test_generic_material_carrier_path_alias_matrix(shape):
+    data = parallel_data() if shape == "orchestrated_workflow" else multi_repo_data()
+    audit = {}
+    compiler._verify_carrier_isolation(data, shape, [], audit)
+    roles = audit["carrier_roles"]
+    for left in range(len(roles)):
+        for right in range(left + 1, len(roles)):
+            altered = yaml.safe_load(yaml.safe_dump(data))
+            if shape == "orchestrated_workflow":
+                carriers = altered["worker_contract"]["writers"]
+                carriers.append({"stage_id": "exact_union", "worktree_path": altered[
+                    "worker_contract"]["composition_worktree_path"], "branch": altered[
+                    "worker_contract"]["composition_branch"]})
+                carriers[left]["worktree_path"] = carriers[right]["worktree_path"]
+            else:
+                def get_path(role):
+                    repo_id, kind = role.split(":")
+                    return (altered["prompt"]["repo_locations"][repo_id] if kind == "primary" else
+                            altered["repositories"][repo_id]["candidate_worktree"])
+                repo_id, kind = roles[left].split(":")
+                if kind == "primary":
+                    altered["prompt"]["repo_locations"][repo_id] = get_path(roles[right])
+                else:
+                    altered["repositories"][repo_id]["candidate_worktree"] = get_path(roles[right])
+            with pytest.raises(compiler.Compile_error, match="material carrier path aliases"):
+                compiler._verify_carrier_isolation(altered, shape, [], {})
+
+
+def test_generic_q03_material_ref_alias_matrix():
+    data = parallel_data()
+    branches = [worker["branch"] for worker in data["worker_contract"]["writers"]] + [
+        data["worker_contract"]["composition_branch"]]
+    for left in range(len(branches)):
+        for right in range(left + 1, len(branches)):
+            altered = yaml.safe_load(yaml.safe_dump(data))
+            if left < 2:
+                altered["worker_contract"]["writers"][left]["branch"] = branches[right]
+            else:
+                altered["worker_contract"]["composition_branch"] = branches[right]
+            with pytest.raises(compiler.Compile_error, match="material mutable ref aliases"):
+                compiler._verify_carrier_isolation(altered, "orchestrated_workflow", [], {})

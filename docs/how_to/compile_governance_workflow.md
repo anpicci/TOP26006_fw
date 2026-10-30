@@ -81,12 +81,27 @@ unrecognized material `Then` clause, compilation fails closed.
 The supported Q04 continuation is one two-writer case: one accepted writer
 result from an exact prior artifact and common base, one invalidated writer,
 and disjoint protection and delta scopes. The accepted writer is absent from
-executable stages; its exact reviewed result feeds the rebuilt union. The
-compiler repeats the invalidated writer and dependent review, union, validation
+executable stages; its exact reviewed portable result feeds the rebuilt union.
+The historical writer branch, worktree and current HEAD are not reacquired or
+serialized as join preconditions. Later carrier observations are documentary
+unless an explicit invalidation rule makes them material; they cannot replace
+the accepted result. The compiler repeats the invalidated writer and dependent
+review, union, validation
 and requested integration/retirement stages. Ambiguous or broader protected
 continuations remain unsupported.
 Tracked paths are relative to their selected repository, including when two
 repositories contain the same relative path.
+Local carrier relations and global isolation are separate checks. For Q03 the
+compiler compares normalized lexical worktree paths and repository-local mutable
+refs across active writers and the controller. For Q05 it compares the two
+repository roots and both candidate worktrees; the candidate branches remain
+repo-local and follow their distinct native namespaces. Equal branch strings
+in distinct repositories do not establish an alias. The receipt records local
+relation consistency, cross-role isolation and cross-repository isolation.
+The lexical check does not follow symlinks or establish realpath identity; that
+remains with acquired binder and runtime evidence. `acquisition: acquired` is
+an upstream trust assertion, not compiler authentication. Unsupported safe
+cases fail locally and leave the manually governed workflow available.
 The bounded Q05 provider/consumer planner starts from `NOT_STARTED` and stops
 at a validated repo-local candidate pair. Each repository must already have an
 authorized candidate carrier in its native feature namespace, with exact
