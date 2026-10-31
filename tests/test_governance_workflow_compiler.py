@@ -1,5 +1,8 @@
 """Focused D8-E implementation checks; retrospective H1-H6 oracle review is D8-F."""
 
+import hashlib
+from pathlib import Path
+
 import yaml
 import pytest
 
@@ -1424,7 +1427,6 @@ def test_q03_i5_i6_order_and_documentary_literals_are_inert():
 
 
 @pytest.mark.parametrize("role_a,role_b", [
-    ("topcoffea:primary", "topeft:primary"),
     ("topcoffea:candidate", "topeft:candidate"),
     ("topcoffea:candidate", "topeft:primary"),
     ("topeft:candidate", "topcoffea:primary"),
@@ -1506,8 +1508,12 @@ def test_generic_material_carrier_path_alias_matrix(shape):
                     altered["prompt"]["repo_locations"][repo_id] = get_path(roles[right])
                 else:
                     altered["repositories"][repo_id]["candidate_worktree"] = get_path(roles[right])
-            with pytest.raises(compiler.Compile_error, match="material carrier path aliases"):
+            if shape == "multi_repository_coordination" and roles[left].endswith(":primary") and \
+                    roles[right].endswith(":primary"):
                 compiler._verify_carrier_isolation(altered, shape, [], {})
+            else:
+                with pytest.raises(compiler.Compile_error, match="material carrier path aliases"):
+                    compiler._verify_carrier_isolation(altered, shape, [], {})
 
 
 def test_generic_q03_material_ref_alias_matrix():
@@ -1523,3 +1529,165 @@ def test_generic_q03_material_ref_alias_matrix():
                 altered["worker_contract"]["composition_branch"] = branches[right]
             with pytest.raises(compiler.Compile_error, match="material mutable ref aliases"):
                 compiler._verify_carrier_isolation(altered, "orchestrated_workflow", [], {})
+
+
+def test_f01_controller_cannot_be_permanent_target_but_preservation_can():
+    data = parallel_data()
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data["worker_contract"]["composition_branch"] = "master"
+    bind = _binding(data, "worker_contract.composition_branch")
+    bind["observed_state"]["value"] = "master"
+    _binding(data, "worker_contract.composition_carrier")["observed_state"]["value"][
+        "attached_branch"] = "master"
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert "permanent integration target" in result.receipt["diagnostics"][0]["message"]
+    data = parallel_data()
+    data["retirement"]["exact_owned_surface"] = "refs/heads/master"
+    assert run(PARALLEL, data).compiler_result != "COMPILED_CONFORMING_CANDIDATE"
+    data = parallel_data()
+    data["worker_contract"]["integration_target_branch"] = "temporary/writer_a"
+    with pytest.raises(compiler.Compile_error, match="permanent integration target"):
+        compiler._verify_carrier_isolation(data, "orchestrated_workflow", [], {})
+
+
+def test_f01_repository_roots_may_share_location_while_candidates_stay_isolated():
+    data = multi_repo_data()
+    data["prompt"]["repo_locations"]["topeft"] = data["prompt"]["repo_locations"]["topcoffea"]
+    assert run(MULTI_REPO, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+
+
+def test_f02_raw_yaml_repository_permutation_reaches_parser_and_preserves_pair_order():
+    data = multi_repo_data()
+    raw = yaml.safe_dump(data, sort_keys=False)
+    start = raw.index("  topcoffea:", raw.index("\nrepositories:\n"))
+    middle = raw.index("  topeft:", start)
+    end = raw.index("\nprompt:\n", middle)
+    transformed = raw[:start] + raw[middle:end] + "\n" + raw[start:middle].rstrip("\n") + raw[end:]
+    assert transformed != raw
+    assert transformed.index("  topeft:", start) < transformed.index("  topcoffea:", start)
+    assert list(yaml.safe_load(transformed)["repositories"]) == ["topeft", "topcoffea"]
+    baseline = compile_contract(MULTI_REPO, raw, "raw-map")
+    result = compile_contract(MULTI_REPO, transformed, "raw-map")
+    assert result.compiler_result == baseline.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert _plan(result) == _plan(baseline)
+    assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
+    data["candidate_pair_order"] = ["topeft", "topcoffea"]
+    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+
+
+def test_f02_union_paths_are_set_like_but_pair_order_is_not():
+    baseline = run(PARALLEL, parallel_data())
+    data = parallel_data()
+    data["worker_contract"]["union_paths"].reverse()
+    result = run(PARALLEL, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert _plan(result) == _plan(baseline)
+
+
+@pytest.mark.parametrize("surface", ["allowed_to_modify", "heavy_command_permissions"])
+def test_f03a_extra_simple_executable_scope_fails_closed(surface):
+    feature, data = documentation_data()
+    area = data["prompt"][surface]
+    if surface == "heavy_command_permissions":
+        area = area["allowed_to_modify"]
+    area["TOP26006_fw"]["tracked_paths"].append("docs/unrequested.md")
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert "unrequested" in result.receipt["diagnostics"][0]["message"]
+    assert run(*documentation_data()).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+
+
+def test_f03a_extra_lifecycle_mechanic_and_wrong_repository_scope_fail():
+    feature, data = documentation_data()
+    data["prompt"]["allowed_to_modify"]["TOP26006_fw"]["git_effects"].append("integrate_exact_source")
+    assert run(feature, data).compiler_result == "COMPILER_INVARIANT_FAILURE"
+    feature, data = documentation_data()
+    data["prompt"]["allowed_to_modify"]["topeft"] = ["docs/a.md"]
+    with pytest.raises(compiler.Compile_error, match="unrequested"):
+        compiler._verify_simple_scope(data["prompt"], compiler._effects(data, compiler.parse_gherkin(feature, "f")),
+                                      compiler._bindings(data), {"TOP26006_fw": {}, "topeft": {}})
+
+
+def test_f03b_material_given_uses_local_preflight_and_documentary_given_is_inert():
+    feature, data = documentation_data()
+    data["bindings"].append({
+        "binding_id": "given_head", "claim": "branch applicability", "materiality": "DECISION_MATERIAL",
+        "source_kind": "repository_readback", "source_identity": "branch:docs/example",
+        "acquisition": "pending", "validity_scope": "TOP26006_fw",
+        "dependent_effect_ids": ["commit_ref"],
+        "runtime_preflight": "verify refs/heads/docs/example still names the authorized commit target",
+        "material_reason": "the local ref write would otherwise target a different branch",
+    })
+    data["given_bindings"] = {"3": "given_head"}
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert "must_pass before effects commit_ref" in result.prompt
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight"
+    data["bindings"][-1]["runtime_preflight"] = ""
+    missing = run(feature, data)
+    assert missing.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert missing.prompt and missing.receipt["excluded_effects"] == ["commit_ref"]
+    assert missing.receipt["authorized_effects"] == ["effect_1"]
+    assert missing.receipt["dispatchability"]["dispatchable"] is False
+    data["bindings"][-1]["runtime_preflight"] = "verify HEAD_required"
+    assert run(feature, data).receipt["excluded_effects"] == ["commit_ref"]
+    data["bindings"][-1]["materiality"] = "DOCUMENTARY"
+    assert run(feature, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+
+
+def test_f03b_nonmaterial_head_drift_does_not_block_simple_task():
+    feature, data = documentation_data()
+    data["bindings"].append({
+        "binding_id": "given_head", "claim": "observed head", "materiality": "DOCUMENTARY",
+        "source_kind": "repository_readback", "source_identity": "branch:docs/example",
+        "acquisition": "acquired", "validity_scope": "TOP26006_fw",
+        "observed_state": {"identity_path": "ordinary_head", "value": "a" * 40},
+        "dependent_effect_ids": [],
+    })
+    data["given_bindings"] = {"3": "given_head"}
+    baseline = run(feature, data)
+    data["bindings"][-1]["observed_state"]["value"] = "b" * 40
+    result = run(feature, data)
+    assert result.compiler_result == baseline.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert prompt_yaml(result) == prompt_yaml(baseline)
+
+
+def test_f03c_negative_remote_assertion_constrains_effects():
+    data = base_data()
+    data["prompt"].update(prompt_mode="pr_publication", branch_policy="continue_existing_branch",
+                          target_branch="main")
+    data["prompt"]["allowed_to_modify"] = {"TOP26006_fw": ["refs/heads/main"]}
+    data["prompt"]["heavy_command_permissions"] = {"remote_git_write": True, "network_access": True}
+    add_effect(data, "remote_git_write", "refs/heads/main", 4, "remote_git_write")
+    feature = "Feature: remote publication\nScenario: publish\nGiven authority is bound\nWhen I push remote ref\nThen success\nBut no remote repository is modified"
+    assert run(feature, data).compiler_result == "NOT_READY_NEW_DECISION_BOUNDARY"
+    assert run(feature.replace("\nBut no remote repository is modified", ""), data).compiler_result == \
+        "COMPILED_CONFORMING_CANDIDATE"
+
+
+@pytest.mark.parametrize("unsafe", ["refs/heads/-oops;rm", "refs/heads/../../main",
+                                           "refs/heads/temp.lock", "refs/heads/temp name"])
+def test_f04_unsafe_retirement_ref_never_becomes_command(unsafe):
+    data = _replace_literal(parallel_data(), "refs/heads/temp-worker", unsafe)
+    result = run(PARALLEL, data)
+    assert result.prompt == ""
+    assert result.compiler_result in {"UNSUPPORTED_CANONICAL_CONSTRUCT",
+                                       "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"}
+    assert run(PARALLEL, parallel_data()).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+
+
+def test_f05_receipt_source_and_validator_identities_are_current():
+    result = run()
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    receipt = result.receipt
+    assert receipt["generated_prompt_sha256"] == hashlib.sha256(result.prompt.encode()).hexdigest()
+    assert receipt["compiler_identity"]["sha256"] == hashlib.sha256(Path(
+        compiler.__file__).read_bytes()).hexdigest()
+    assert receipt["canonical_governance"]["applicable_sources"]["AGENTS.md"] == \
+        hashlib.sha256((Path(compiler.__file__).resolve().parents[1] / "AGENTS.md").read_bytes()).hexdigest()
+    assert receipt["maintained_validator"]["sha256"] == hashlib.sha256(compiler.VALIDATOR.read_bytes()).hexdigest()
+    assert receipt["maintained_validator"]["locator"] == str(compiler.VALIDATOR.relative_to(compiler.ROOT))
+    assert receipt["maintained_validator"]["version"]
+    assert receipt["input_binding_identity"]["sha256"] == hashlib.sha256(
+        yaml.safe_dump(base_data()).encode()).hexdigest()

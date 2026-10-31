@@ -65,6 +65,10 @@ remains a valid derived input.
 Retirement readbacks bind the owned ref and its old OID together under
 `retirement.owned_ref`; accepted preservation evidence binds the preservation
 ref and expected head together under `retirement.preserved_ref`.
+The compiler checks a bounded local-branch ref grammar before inserting a
+temporary ref in its compare-and-delete command. The retired ref cannot be a
+writer, controller, permanent target, or preservation ref. The preservation
+ref may name the permanent target. Exact ref/OID bindings remain necessary.
 
 For the bounded parallel-writer assertion `common validation passes`, supply an
 exact `common_validation_contract` with a named `tests/...py` `test_target` and
@@ -93,10 +97,13 @@ Tracked paths are relative to their selected repository, including when two
 repositories contain the same relative path.
 Local carrier relations and global isolation are separate checks. For Q03 the
 compiler compares normalized lexical worktree paths and repository-local mutable
-refs across active writers and the controller. For Q05 it compares the two
-repository roots and both candidate worktrees; the candidate branches remain
-repo-local and follow their distinct native namespaces. Equal branch strings
-in distinct repositories do not establish an alias. The receipt records local
+refs across active writers and the controller, and excludes the permanent
+integration target from those candidate refs before common validation. For Q05
+it compares candidate worktrees with each other and with both repository roots;
+repository roots may share a location when neither is a candidate carrier.
+Candidate branches remain repo-local and follow their distinct native
+namespaces. Equal branch strings in distinct repositories do not establish an
+alias. The receipt records local
 relation consistency, cross-role isolation and cross-repository isolation.
 The lexical check does not follow symlinks or establish realpath identity; that
 remains with acquired binder and runtime evidence. `acquisition: acquired` is
@@ -121,8 +128,34 @@ authorized dispatch.
 `dispatch_gate` may name three acquired binding IDs: `owner_authorization_binding`,
 `manual_governance_review_binding`, and `live_applicability_binding`. Without
 them, the receipt marks the candidate prepared while leaving conformance,
-owner authorization, and dispatchability unestablished. A failed compile writes
-only a diagnostic receipt; it never writes a valid prompt.
+owner authorization, and dispatchability unestablished. A structural or authority
+failure writes only a diagnostic receipt. A material `Given` without evidence
+or a usable preflight may produce a prepared prompt, but its receipt excludes
+the dependent effects, marks it non-dispatchable, and the CLI exits nonzero.
+
+Map insertion order is inert. `candidate_pair_order` remains semantic: it must
+name provider then consumer. Writer path unions are set-like and normalized in
+the plan. A simple prompt's positive executable path/ref scope is checked in
+reverse against the exact requested effect and repository-local authority
+binding; an extra path or lifecycle category is rejected.
+
+For effect-local readiness, `given_bindings` maps a `Given` source line to a
+binding. The binding may name `dependent_effect_ids`, `material_reason`, and
+`runtime_preflight`. An acquired binding is ready. An unresolved documentary
+premise remains traced without blocking. A linked material premise must name
+its dependent effects. For an unresolved material premise, a `verify ...`
+runtime preflight that names the exact dependent targets becomes a must-pass
+gate before only those effects.
+Generic HEAD/SHA placeholders are insufficient. Ordinary unrelated HEAD/hash
+drift does not create a gate. Exact identity readbacks remain mandatory where a
+plan consumes that identity. The supported negative assertion `no remote repository is
+modified` rejects contradictory remote effects. Unrecognized negative
+assertions remain unsupported rather than becoming decorative trace edges.
+
+Every successful receipt binds the SHA-256 of the prompt, raw binding input,
+compiler source, applicable live governance, and maintained validator source.
+It records the validator locator and version. Regenerate affected final samples
+after source changes; old receipts remain historical evidence.
 
 The compiler resolves each selected repository module from the live typed
 registry. TOPEFT and TOPCOFFEA prompts carry all four native branch-role fields;

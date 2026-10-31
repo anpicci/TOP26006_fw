@@ -130,6 +130,9 @@ class Binding:
     authorizes_effect: bool = False
     effect: str = ""
     target: str = ""
+    dependent_effect_ids: tuple[str, ...] = ()
+    runtime_preflight: str = ""
+    material_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -185,6 +188,18 @@ def _require(condition: bool, result: str, message: str, line: Optional[int] = N
 
 def _source_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _safe_local_branch_ref(value: Any) -> bool:
+    """Bound the ref grammar before inserting a ref in a generated command."""
+    if not isinstance(value, str) or not value.startswith("refs/heads/"):
+        return False
+    name = value[len("refs/heads/"):]
+    if not name or len(name) > 240 or not re.fullmatch(r"[A-Za-z0-9_./-]+", name):
+        return False
+    return all(part and part not in {".", ".."} and not part.startswith(".") and
+               not part.endswith(".") and not part.endswith(".lock")
+               for part in name.split("/")) and ".." not in name
 
 
 def _canonical_sources() -> tuple[dict[str, str], dict[str, str]]:
@@ -428,8 +443,12 @@ def _bindings(data: dict[str, Any]) -> tuple[Binding, ...]:
             _error("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", f"incomplete binding: {exc}")
         _require(all(isinstance(getattr(binding, name), str) for name in
                      ("binding_id", "claim", "materiality", "source_kind", "source_identity",
-                      "acquisition", "validity_scope", "effect", "target")),
+                      "acquisition", "validity_scope", "effect", "target",
+                      "runtime_preflight", "material_reason")),
                  "COMPILER_INVARIANT_FAILURE", "binding fields must be strings")
+        _require(isinstance(binding.dependent_effect_ids, (tuple, list)) and
+                 all(isinstance(item, str) for item in binding.dependent_effect_ids),
+                 "COMPILER_INVARIANT_FAILURE", "dependent effect IDs must be strings")
         _require(type(binding.authorizes_effect) is bool and binding.materiality in
                  {"IDENTITY_CRITICAL", "DECISION_MATERIAL", "DOCUMENTARY"} and
                  binding.source_kind in {"owner_decision", "governance", "repository_readback",
@@ -511,6 +530,22 @@ def _verify_carrier_isolation(data: dict[str, Any], shape: str,
                 add(worker["stage_id"], repo_id, worker["worktree_path"], worker["branch"])
         work = data["worker_contract"]
         add("exact_union", repo_id, work["composition_worktree_path"], work["composition_branch"])
+        # The permanent target is a mutable ref even when it has no dedicated
+        # worktree in the input. A controller on that ref would integrate before
+        # review and common validation. Preservation may refer to the target;
+        # retirement may not delete it or any active carrier.
+        target = work.get("integration_target_branch")
+        active_refs = {branch for _, _, _, branch in carriers}
+        _require(target not in active_refs, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                 "material mutable ref aliases candidate and permanent integration target")
+        life = data.get("retirement", {})
+        retired = life.get("exact_owned_surface")
+        if retired:
+            protected_refs = {"refs/heads/" + branch for branch in active_refs | {target}}
+            protected_refs.add(life.get("preservation_ref"))
+            _require(retired not in protected_refs,
+                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                     "retirement ref aliases active, permanent, or preservation role")
     else:
         for repo_id in data["candidate_pair_order"]:
             repo = data["repositories"][repo_id]
@@ -519,6 +554,10 @@ def _verify_carrier_isolation(data: dict[str, Any], shape: str,
     audit["carrier_roles"] = [role for role, _, _, _ in carriers]
     for index, (role, repo_id, path, branch) in enumerate(carriers):
         for other_role, other_repo, other_path, other_branch in carriers[index + 1:]:
+            if role.endswith(":primary") and other_role.endswith(":primary"):
+                # Repository roots can share a checkout location. Candidate
+                # worktrees are the mutable surfaces that require isolation.
+                continue
             if path == other_path:
                 audit["cross_role_isolation"] = False
                 if shape == "multi_repository_coordination":
@@ -790,7 +829,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
         stages.append(make("independent_review", "validation_only", "Independently review frozen writer results",
                            writer_inputs,
                            "independent reviewer findings disposed", ["review_evidence"]))
-        union_paths = workers.get("union_paths", [])
+        union_paths = sorted(workers.get("union_paths", []))
         composition_branch = workers.get("composition_branch")
         _require(bool(workers.get("composition_base_oid") and workers.get("composition_worktree_path")),
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "composition carrier identity missing")
@@ -862,6 +901,9 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                  re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", life["exact_old_oid"]) and
                  re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", life["expected_preserved_head"]),
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "retirement identity/preservation inputs missing")
+        _require(_safe_local_branch_ref(life["exact_owned_surface"]) and
+                 _safe_local_branch_ref(life["preservation_ref"]),
+                 "UNSUPPORTED_CANONICAL_CONSTRUCT", "unsafe retirement or preservation ref grammar")
         item = make("retirement", "branch_maintenance_only", "Retire exact owned temporary ref",
                     ["stage:integration:observed_target_head", "portable preservation evidence",
                      "reopened semantic and review gates"],
@@ -1093,7 +1135,9 @@ def _trace_complete(intent: Semantic_intent, effects: tuple[Effect_intent, ...],
             all((f"line:{step.line}", "semantic_intent") in pairs for step in intent.steps) and
             all((f"line:{step.line}", f"precondition_evidence:line:{step.line}") in pairs
                 and (any(source == f"precondition_evidence:line:{step.line}" and
-                         (target.startswith("binding:") or target.startswith("unresolved_readback:"))
+                         (target.startswith("binding:") or target.startswith("documentary_given:") or
+                          target.startswith("plan_bound_given:") or
+                          target.startswith("gate:given:"))
                          for source, target in pairs))
                 for step in intent.steps if step.keyword == "Given") and
             all((f"line:{step.line}", f"evidence_requirement:line:{step.line}") in pairs
@@ -1172,6 +1216,63 @@ def _grant_key_matches_effect(key: str, effect: Effect_intent) -> bool:
             (key == "merge_allowed" and effect.effect == "merge"))
 
 
+def _verify_simple_scope(prompt: dict[str, Any], effects: tuple[Effect_intent, ...],
+                         bindings: tuple[Binding, ...],
+                         repositories: dict[str, Any]) -> None:
+    """Reverse-check every executable simple scope against a consuming effect."""
+    grants = prompt["heavy_command_permissions"]
+    allowed = prompt["allowed_to_modify"]
+    by_id = {binding.binding_id: binding for binding in bindings}
+
+    def local_effect(repo_id: str, target: str, kinds: set[str]) -> bool:
+        return any(effect.effect in kinds and effect.target == target and
+                   effect.positive_authority_binding in by_id and
+                   _scope_names_repo(by_id[effect.positive_authority_binding].validity_scope, repo_id)
+                   for effect in effects)
+
+    for surface_name, surface in (("allowed_to_modify", allowed),
+                                  ("heavy_command_permissions.allowed_to_modify",
+                                   grants.get("allowed_to_modify", {}))):
+        _require(isinstance(surface, dict), "COMPILER_INVARIANT_FAILURE",
+                 f"{surface_name} is not a repository scope")
+        for repo_id, area in surface.items():
+            _require(repo_id in repositories and isinstance(area, (dict, list)),
+                     "COMPILER_INVARIANT_FAILURE", f"{surface_name} has unbound repository/category")
+            if isinstance(area, list):
+                _require(all(isinstance(target, str) and
+                             local_effect(repo_id, target, set(EFFECT_KEYS)) for target in area),
+                         "COMPILER_INVARIANT_FAILURE", f"unrequested {surface_name} target")
+                continue
+            for category, targets in area.items():
+                _require(category in {"tracked_paths", "git_index_entries", "local_refs",
+                                      "storage_paths", "git_effects"} and isinstance(targets, list),
+                         "COMPILER_INVARIANT_FAILURE", f"unsupported executable scope category {category}")
+                for target in targets:
+                    _require(isinstance(target, str) and bool(target),
+                             "COMPILER_INVARIANT_FAILURE", f"invalid {category} target")
+                    if category == "git_effects":
+                        justified = ((target == "create_one_prompt_local_commit" and
+                                      any(local_effect(repo_id, e.target, {"tracked_write"}) for e in effects)) or
+                                     (target == "create_feature_branch_from_reference" and
+                                      prompt.get("branch_policy") == "create_feature_branch_from_reference" and
+                                      any(local_effect(repo_id, e.target, {"local_git_ref_write"})
+                                          for e in effects)))
+                    elif category == "storage_paths":
+                        # A diagnostic storage declaration is inert without
+                        # its positive storage grant.
+                        justified = grants.get("storage_writes") not in (True, "yes") or local_effect(
+                            repo_id, target, {"production_storage_write"})
+                    else:
+                        kind = "tracked_write" if category in {"tracked_paths", "git_index_entries"} else \
+                            "local_git_ref_write"
+                        justified = local_effect(repo_id, target, {kind})
+                        if category == "local_refs":
+                            justified = justified or local_effect(repo_id, target,
+                                                                   {"delete_local_branch", "delete_remote_branch"})
+                    _require(justified, "COMPILER_INVARIANT_FAILURE",
+                             f"unrequested {surface_name}.{category} target {target}")
+
+
 def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Binding, ...],
             effects: tuple[Effect_intent, ...], continuation: Optional[Continuation],
             shape: str, contents: dict[str, str],
@@ -1187,12 +1288,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
              "caller cannot serialize workflow_stages outside the compiler plan")
     _require(any(b.source_kind == "owner_decision" and b.acquisition == "acquired" for b in bindings),
              "NOT_READY_MISSING_AUTHORITY_BINDING", "acquired owner decision binding is missing")
-    for binding in bindings:
-        if (binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
-                binding.acquisition != "acquired" and
-                not _historical_protected_carrier(binding, continuation)):
-            _error("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
-                   f"material binding {binding.binding_id} is {binding.acquisition}")
+    # An unacquired binding is not a global veto. Exact identities consumed
+    # below still require acquisition; Givens use their declared effect-local
+    # dependency and may instead carry a must-pass runtime preflight.
     _require(bool(prompt.get("decision_question") and prompt.get("prompt_id")),
              "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "prompt_id or decision_question missing")
     mode = str(prompt.get("prompt_mode", ""))
@@ -1281,6 +1379,15 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     moved = {m.group(1) for s in intent.steps for m in
              [re.search(r"(?:move|advance) (?:reference branch|ref) ([\w/.-]+)", s.text, re.I)] if m}
     _require(not (unchanged & moved), "NOT_READY_NEW_DECISION_BOUNDARY", "same reference must move and remain unchanged")
+    for assertion in intent.negative_assertions:
+        if re.fullmatch(r"no remote repository is modified", assertion.strip(), re.I):
+            _require(not any(effect.effect in {"remote_git_write", "publication", "merge",
+                                               "delete_remote_branch"} for effect in effects),
+                     "NOT_READY_NEW_DECISION_BOUNDARY",
+                     "negative remote assertion contradicts requested remote effect")
+        elif shape not in {"orchestrated_workflow", "multi_repository_coordination"}:
+            _error("UNSUPPORTED_CANONICAL_CONSTRUCT",
+                   f"negative assertion has no bounded constraint checker: {assertion}")
     if not effects:
         supported_words = (r"\b(inspect|read|compare|review|check|validate|report|production|publish|"
                            r"submit|edit|write|modify|change|move|advance|delete|retire|remove|"
@@ -1444,19 +1551,89 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             identity = f"identity:{identity_path}={value}"
             edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_relation"))
             edges.append(Trace_edge(identity, "stage:retirement", "consumed_by"))
+    given_readiness: list[dict[str, Any]] = []
+    blocked_given_effects: set[str] = set()
     for step in intent.steps:
         if step.keyword == "Given":
             edges.append(Trace_edge(f"line:{step.line}", f"precondition_evidence:line:{step.line}",
                                     "requires_acquisition_or_readback"))
             linked = data.get("given_bindings", {}).get(str(step.line))
             if linked:
-                _require(linked in by_id and by_id[linked].acquisition == "acquired",
-                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "Given binding not acquired", step.line)
-                edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
-                                        f"binding:{linked}", "resolved_by"))
+                _require(linked in by_id, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                         "Given names an unknown binding", step.line)
+                fact = by_id[linked]
+                dependencies = tuple(fact.dependent_effect_ids)
+                _require(len(dependencies) == len(set(dependencies)) and
+                         all(any(effect.effect_id == effect_id for effect in effects)
+                             for effect_id in dependencies),
+                         "COMPILER_INVARIANT_FAILURE", "Given has unknown dependent effect", step.line)
+                _require(fact.materiality == "DOCUMENTARY" or bool(dependencies),
+                         "UNSUPPORTED_CANONICAL_CONSTRUCT",
+                         "material Given has no declared dependent effect", step.line)
+                if fact.acquisition == "acquired":
+                    edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
+                                            f"binding:{linked}", "resolved_by"))
+                    state = "acquired"
+                elif fact.materiality == "DOCUMENTARY" or not dependencies:
+                    edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
+                                            f"binding:{linked}", "documentary_only"))
+                    state = "documentary_unresolved"
+                else:
+                    dependent_targets = [effect.target for effect in effects
+                                         if effect.effect_id in dependencies]
+                    valid_preflight = (fact.runtime_preflight.startswith("verify ") and
+                                       all(target in fact.runtime_preflight for target in dependent_targets) and
+                                       bool(fact.material_reason.strip()) and
+                                       "\n" not in fact.runtime_preflight and
+                                       not re.search(r"\b(?:HEAD_required|SHA_required|current_path_required|"
+                                                     r"live_readback_required)\b", fact.runtime_preflight))
+                    if valid_preflight:
+                        gate = (f"must_pass before effects {', '.join(dependencies)}: "
+                                f"{fact.runtime_preflight}; material because {fact.material_reason}")
+                        if data.get("stages"):
+                            for stage in data["stages"]:
+                                if any(effect.effect_id in dependencies and effect.stage_id == stage["stage_id"]
+                                       for effect in effects):
+                                    stage["stage_acceptance_gate"] += "; " + gate
+                        else:
+                            prompt.setdefault("evidence_requirements", []).append(gate)
+                        state = "runtime_preflight"
+                    else:
+                        gate = (f"effects {', '.join(dependencies)} are not dispatchable: "
+                                f"material Given {linked} lacks acquired evidence or a bounded runtime preflight")
+                        prompt.setdefault("evidence_requirements", []).append(gate)
+                        blocked_given_effects.update(dependencies)
+                        state = "missing_material_evidence"
+                    edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
+                                            f"gate:given:{step.line}", "requires_effect_local_preflight"))
+                    for effect_id in dependencies:
+                        edges.append(Trace_edge(f"gate:given:{step.line}", f"effect:{effect_id}",
+                                                "must_pass_before"))
+                given_readiness.append({"line": step.line, "binding_id": linked,
+                                        "materiality": fact.materiality,
+                                        "dependent_effect_ids": list(dependencies),
+                                        "state": state,
+                                        "why_material": fact.material_reason if dependencies else "documentary only",
+                                        "runtime_preflight_sufficient": state == "runtime_preflight"})
             else:
+                plan_bound = ((shape == "orchestrated_workflow" and
+                               re.search(r"\bisolated worktrees\b", step.text, re.I)) or
+                              (shape == "multi_repository_coordination" and
+                               re.search(r"\bexact bases\b", step.text, re.I)))
+                state = "material_via_exact_plan" if plan_bound else "documentary_unbound"
                 edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
-                                        f"unresolved_readback:line:{step.line}", "requires_runtime_readback"))
+                                        f"{'plan_bound_given' if plan_bound else 'documentary_given'}:line:{step.line}",
+                                        state))
+                given_readiness.append({"line": step.line, "binding_id": None,
+                                        "materiality": "DECISION_MATERIAL" if plan_bound else "DOCUMENTARY",
+                                        "dependent_effect_ids": [effect.effect_id for effect in effects]
+                                        if plan_bound else [],
+                                        "state": state,
+                                        "why_material": "exact carrier/base relations consumed by planner"
+                                        if plan_bound else "documentary only",
+                                        "runtime_preflight_sufficient": False})
+    data["_given_readiness"] = given_readiness
+    data["_blocked_given_effects"] = sorted(blocked_given_effects)
     for step in intent.steps:
         if re.search(r"\bauthori[sz]ed\b", step.text, re.I) and step.keyword == "Given":
             _require(any(b.acquisition == "acquired" and b.source_kind == "owner_decision" and
@@ -1570,6 +1747,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                      e.target in granted_area.get("git_index_entries", [])
                      for e in effects if e.effect == "tracked_write"),
                  "NOT_READY_MISSING_AUTHORITY_BINDING", "simple tracked edit lacks exact index/ref commit authority")
+    if not data.get("stages"):
+        _verify_simple_scope(prompt, effects, bindings, data["repositories"])
     grant_maps = [prompt.get("heavy_command_permissions", {})] if not data.get("stages") else [
         stage["stage_effect_permissions"] for stage in data["stages"]]
     for grants in grant_maps:
@@ -1626,8 +1805,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "repo-local base/candidate/authority missing")
         _require(bool(data.get("candidate_pair_order")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                  "candidate pair validation order missing")
-        _require(data.get("candidate_pair_order") == list(data.get("repositories", {})),
-                 "COMPILER_INVARIANT_FAILURE", "candidate tuple/order differs from repository binding order")
+        _require(set(data.get("candidate_pair_order", [])) == set(data.get("repositories", {})),
+                 "COMPILER_INVARIANT_FAILURE", "candidate tuple names differ from repository bindings")
         stage_ids = [stage["stage_id"] for stage in data.get("stages", [])]
         pair_stage = data.get("candidate_pair_validation_stage")
         _require(pair_stage in stage_ids, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
@@ -1685,7 +1864,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                  workers.get("conditional_reconciled_review_stage") in stage_ids,
                  "COMPILER_INVARIANT_FAILURE", "review/union/reconciled-review stages missing")
         _require(bool(workers.get("review_independent_of_writers")) and
-                 workers.get("union_paths") == sorted(set().union(*paths)) and
+                 isinstance(workers.get("union_paths"), list) and
+                 len(workers["union_paths"]) == len(set(workers["union_paths"])) and
+                 set(workers["union_paths"]) == set().union(*paths) and
                  bool(workers.get("reconciled_review_if_rewritten")) and
                  workers.get("worker_permanent_authority") is False,
                  "COMPILER_INVARIANT_FAILURE", "review independence or exact union missing")
@@ -1755,7 +1936,8 @@ def _validator(prompt: str) -> dict[str, Any]:
     result = module.validate_content(prompt.encode("utf-8"), Path("generated_prompt.md"))
     return {"executed": True, "result": "pass" if result["results"]["mechanical_validity"] and
             result["results"]["internal_consistency"] else "fail", "limit": "mechanical_only",
-            "locator": str(VALIDATOR.relative_to(ROOT)), "version": result["producer"]["version"],
+            "locator": str(VALIDATOR.relative_to(ROOT)), "sha256": _source_hash(VALIDATOR),
+            "version": result["producer"]["version"],
             "mechanical_validity": result["results"]["mechanical_validity"],
             "internal_consistency": result["results"]["internal_consistency"],
             "governance_completeness": result["governance_completeness"]}
@@ -1931,6 +2113,9 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                  review_binding.source_kind == "accepted_evidence")
         live_ready = bool(live_binding and live_binding.acquisition == "acquired" and
                           live_binding.source_kind == "repository_readback")
+        blocked_effects = set(data.get("_blocked_given_effects", []))
+        compiler_result = ("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE" if blocked_effects else
+                           "COMPILED_CONFORMING_CANDIDATE")
         receipt.update({
             "source_contract": {"identity": source_id, "feature": intent.feature,
                                 "feature_tags": list(intent.feature_tags),
@@ -1938,13 +2123,16 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                 "scenario_tags": [list(tags) for tags in intent.scenario_tags],
                                 "sha256": hashlib.sha256(gherkin.encode()).hexdigest()},
             "canonical_governance": {"applicable_sources": identities},
+            "input_binding_identity": {"sha256": hashlib.sha256(bindings_yaml.encode()).hexdigest()},
+            "given_readiness": data.get("_given_readiness", []),
             "rule_routing": routes,
             "owner_decisions_bound": [b.binding_id for b in bindings if b.source_kind == "owner_decision"],
             "material_bindings": {state: [asdict(b) for b in bindings if b.acquisition == state]
                                   for state in ("acquired", "pending", "not_acquired", "last_observed")},
             "selected_execution_shape": shape,
             "requested_effects": [asdict(e) for e in effects],
-            "authorized_effects": authorized, "excluded_effects": excluded,
+            "authorized_effects": [effect_id for effect_id in authorized if effect_id not in blocked_effects],
+            "excluded_effects": sorted(set(excluded) | blocked_effects),
             "unresolved_decisions": [],
             "unresolved_evidence": [b.binding_id for b in bindings
                                     if b.acquisition in {"pending", "not_acquired"} and
@@ -1958,10 +2146,11 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                "source_to_output_traceability": DERIVATION,
                                "unbound_scientific_selection": NEW_DECISION,
                                "unsupported_construct": UNSUPPORTED},
-            "maintained_validator": lint, "compiler_result": "COMPILED_CONFORMING_CANDIDATE",
+            "maintained_validator": lint, "compiler_result": compiler_result,
             "dispatchability": {"prepared": True, "conformant": manual_conformant,
                                 "owner_authorized": owner_ready,
-                                "dispatchable": owner_ready and manual_conformant and live_ready},
+                                "dispatchable": owner_ready and manual_conformant and live_ready and
+                                                not blocked_effects},
             "dispatch_gate_bindings": dispatch_gate,
             "dispatchability_limit": "binding_claims_require_separate_dispatch_and_external_acceptance",
             "generated_prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
@@ -1971,7 +2160,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                                        "state": "NOT_EVALUATED"}
                                           for case_id, requirement in HISTORICAL_CASES.items()},
         })
-        return Compile_result("COMPILED_CONFORMING_CANDIDATE", prompt, receipt)
+        return Compile_result(compiler_result, prompt, receipt)
     except yaml.YAMLError as exc:
         exc = Compile_error("COMPILER_INVARIANT_FAILURE", f"invalid binding YAML: {exc}")
         receipt["compiler_result"] = exc.result
@@ -2024,7 +2213,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if result.receipt.get("diagnostics"):
         for diagnostic in result.receipt["diagnostics"]:
             print(f"line {diagnostic['line']}: {diagnostic['message']}")
-    return 0 if result.prompt else 3
+    return 0 if result.compiler_result == "COMPILED_CONFORMING_CANDIDATE" else 3
 
 
 if __name__ == "__main__":
