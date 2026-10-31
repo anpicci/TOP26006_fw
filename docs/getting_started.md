@@ -4,6 +4,8 @@ Start with a research question and the evidence you would need to check an answe
 
 ## Understand the approach
 
+Start with [AI-assisted research foundations](foundations/ai_assisted_research.md). It explains what AI can contribute, how it can be wrong, and how to move from a question to evidence you can check before making a scientific decision.
+
 Read [the research workflow](explanation/research_workflow.md) for the connection between a question, assumptions, a bounded task, and evidence. You remain responsible for judging whether the method and result make sense. [Choosing an AI tool for a research task](how_to/choose_an_ai_tool_for_a_research_task.md) introduces the different contributions people and tools can make.
 
 ## Explore one bounded task

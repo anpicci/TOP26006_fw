@@ -5,8 +5,9 @@ Use this manual to frame a research question, give an assistant a bounded task, 
 ## Start here
 
 1. [Get oriented](getting_started.md): understand what you can read now and what needs local tooling.
-2. [Explore a small synthetic example](../examples/repeated_measurements/README.md): see a question, stated assumptions, and checkable inputs without real analysis data.
-3. [Try a first read-only task](tutorials/03_complete_a_first_read_only_task.md): use the existing exercise once your local tooling is prepared. It does not need a TOPEFT checkout.
+2. [Read the AI-assisted research foundations](foundations/ai_assisted_research.md): learn how to frame a question, use AI assistance, and check the evidence.
+3. [Explore a small synthetic example](../examples/repeated_measurements/README.md): see a question, stated assumptions, and checkable inputs without real analysis data.
+4. [Try a first read-only task](tutorials/03_complete_a_first_read_only_task.md): use the existing exercise once your local tooling is prepared. It does not need a TOPEFT checkout.
 
 ## Find the route you need
 
