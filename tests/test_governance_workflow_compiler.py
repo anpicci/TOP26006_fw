@@ -1,6 +1,7 @@
 """Focused D8-E implementation checks; retrospective H1-H6 oracle review is D8-F."""
 
 import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -51,7 +52,55 @@ def base_data():
 
 
 def run(feature=SIMPLE, data=None):
-    return compile_contract(feature, yaml.safe_dump(base_data() if data is None else data), "inline-case")
+    return compile_fixture(feature, yaml.safe_dump(base_data() if data is None else data), "inline-case")
+
+
+def fixture_graph(feature, bindings_yaml):
+    """Migrate legacy behavioral fixtures; graph regressions use literal drawings.
+
+    Three description lines keep original source-line dependencies mechanically
+    rebindable. This helper is test-only and never repairs user input.
+    """
+    if '```text' in feature:
+        return feature, bindings_yaml
+    lines = feature.splitlines()
+    insertion = next((i + 1 for i, line in enumerate(lines) if line.strip().startswith('Feature:')), 0)
+    scenarios = []
+    phase = None
+    for i, line in enumerate(lines):
+        if line.strip().startswith('Scenario:'):
+            scenarios.append([])
+            phase = None
+        match = re.match(r'(\s*)(Given|When|Then|And|But) (.+)', line)
+        if match and scenarios:
+            indent, keyword, body = match.groups()
+            phase = phase if keyword in {'And', 'But'} else keyword
+            node = f's{i + 1}'
+            scenarios[-1].append((node, phase))
+            lines[i] = f'{indent}{keyword} [{node}] {body}'
+    arrows = []
+    for steps in scenarios:
+        givens = [n for n, p in steps if p == 'Given']
+        actions = [n for n, p in steps if p == 'When']
+        assertions = [n for n, p in steps if p == 'Then']
+        if actions:
+            arrows += [(g, actions[0]) for g in givens]
+            arrows += list(zip(actions, actions[1:]))
+            arrows += [(actions[-1], t) for t in assertions]
+    drawing = '    '.join(f'[{a}] --> [{b}]' for a, b in arrows)
+    lines[insertion:insertion] = ['  ```text', '  ' + drawing, '  ```']
+    data = yaml.safe_load(bindings_yaml)
+    for effect in data.get('requested_effects', []):
+        if effect['requested_by_step'] > insertion:
+            effect['requested_by_step'] += 3
+    if 'given_bindings' in data:
+        data['given_bindings'] = {str(int(k) + 3 if int(k) > insertion else int(k)): v
+                                  for k, v in data['given_bindings'].items()}
+    return '\n'.join(lines), yaml.safe_dump(data, sort_keys=False)
+
+
+def compile_fixture(feature, bindings_yaml, source_id='inline-case'):
+    return compile_contract(*fixture_graph(feature, bindings_yaml), source_id)
 
 
 def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
@@ -346,6 +395,18 @@ def parallel_data():
                   {"repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
                    "attached_branch": "controller_candidate", "head": "a" * 40,
                    "base_oid": "a" * 40})
+    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
+    data["common_validation_contract"] = {
+        "test_target": "tests/test_exact_union.py::test_common_validation",
+        "target": "controller_candidate",
+    }
+    bind_relation(data, "common_validation.target_relation",
+                  {"validation_locator": "tests/test_exact_union.py::test_common_validation",
+                   "repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
+                   "attached_branch": "controller_candidate",
+                   "head": "stage:exact_union:observed_commit_head",
+                   "covers": ["exact_union", "common_validation"]},
+                  source_kind="accepted_evidence")
     return data
 
 
@@ -356,7 +417,8 @@ def test_q03_parallel_work_is_explicitly_staged_and_isolated():
     assert result.receipt["selected_execution_shape"] == "orchestrated_workflow"
     stages = yaml.safe_load(result.prompt.split("```yaml\n", 1)[1].split("\n```", 1)[0])["workflow_stages"]
     assert [s["stage_id"] for s in stages] == ["writer_a", "writer_b", "independent_review",
-                                                 "exact_union", "reconciled_review", "integration", "retirement"]
+                                                 "exact_union", "reconciled_review", "common_validation",
+                                                 "integration", "retirement"]
     assert stages[2]["stage_effect_permissions"] == stages[4]["stage_effect_permissions"] == {}
     assert stages[3]["stage_effect_permissions"] != {}
     assert stages[0]["stage_effect_permissions"] != stages[1]["stage_effect_permissions"]
@@ -382,18 +444,6 @@ def test_q04_continuation_reuses_accepted_closure():
 
 def q04_data():
     data = parallel_data()
-    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
-    data["common_validation_contract"] = {
-        "test_target": "tests/test_exact_union.py::test_common_validation",
-        "target": "controller_candidate",
-    }
-    bind_relation(data, "common_validation.target_relation",
-                  {"validation_locator": "tests/test_exact_union.py::test_common_validation",
-                   "repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
-                   "attached_branch": "controller_candidate",
-                   "head": "stage:exact_union:observed_commit_head",
-                   "covers": ["exact_union", "common_validation"]},
-                  source_kind="accepted_evidence")
     accepted = {"writer_id": "writer_b", "observed_commit_head": "b" * 40,
                 "reviewed_evidence": "reviewed:writer_b", "base_oid": "a" * 40}
     data["continuation"] = {
@@ -459,7 +509,7 @@ def test_q06_partial_integration_preserves_real_effect():
                                "preserved_candidate_identity": "topeft@b1",
                                "unresolved_recovery": "owner decision pending"}
     result = run(MULTI_REPO, data)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE' and result.prompt == ""
     assert result.receipt["selected_execution_shape"] == "multi_repository_coordination"
     assert result.receipt["partial_state"]["observed_effects"]["integrated_repo_identity"] == "topcoffea@a1"
     assert "rollback" not in result.receipt["diagnostics"][0]["message"].lower()
@@ -496,7 +546,7 @@ def test_q10_gherkin_authority_without_binding_fails_closed():
     result = run(feature)
     assert result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
     assert result.prompt == "" and result.receipt["dispatchability"]["dispatchable"] is False
-    assert result.receipt["diagnostics"][0]["line"] == 3
+    assert result.receipt["diagnostics"][0]["line"] == 6
 
 
 def test_q11_wrong_repository_branch_authority_is_rejected():
@@ -517,7 +567,7 @@ def test_q12_foreign_dirty_work_preserved_or_stopped():
 
 
 def test_q13_production_tag_routes_but_never_grants():
-    feature = "Feature: campaign\n@production\nScenario: run\nGiven inputs are known\nWhen I run production\nThen output exists"
+    feature = "Feature: campaign\n@production\nScenario: run\nGiven inputs are known\nWhen I run production\nThen the report cites evidence"
     result = run(feature)
     assert result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
     assert result.prompt == ""
@@ -558,7 +608,7 @@ def test_q16_small_edit_does_not_force_orchestration():
 
 
 def test_q17_contradictory_gherkin_has_no_prompt():
-    feature = "Feature: ref\nScenario: contradiction\nGiven reference branch master remains unchanged\nWhen I move reference branch master\nThen success"
+    feature = "Feature: ref\nScenario: contradiction\nGiven reference branch master remains unchanged\nWhen I move reference branch master\nThen the report cites evidence"
     result = run(feature)
     assert result.compiler_result == "NOT_READY_NEW_DECISION_BOUNDARY"
     assert result.prompt == ""
@@ -582,13 +632,13 @@ def test_q19_scientific_choice_preserves_preparation():
 def test_q20_unsupported_compiler_construct_does_not_revoke_manual_work():
     feature = "Feature: manual valid task\nScenario Outline: examples\nGiven a value\nThen success"
     result = run(feature)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
     assert result.receipt["manual_fallback"] == "independently_evaluable_under_canonical_governance"
     assert result.receipt["dispatchability"]["dispatchable"] is False
 
 
 def test_n1_syntax_tag_cannot_create_authority():
-    result = run("Feature: publish\n@production\nScenario: now\nGiven publication is authorized\nWhen I publish\nThen it exists")
+    result = run("Feature: publish\n@production\nScenario: now\nGiven publication is authorized\nWhen I publish\nThen the report cites evidence")
     assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
 
 
@@ -635,7 +685,7 @@ def test_n7_cleanup_cannot_precede_preservation():
 
 
 def test_n8_scientific_decision_cannot_be_chosen_by_compiler():
-    feature = "Feature: science\nScenario: choice\nGiven two mappings exist\nWhen I choose a mapping\nThen result is ready"
+    feature = "Feature: science\nScenario: choice\nGiven two mappings exist\nWhen I choose a mapping\nThen the report cites evidence"
     assert run(feature).compiler_result == "NOT_READY_NEW_DECISION_BOUNDARY"
     data = base_data()
     data["scientific_selection_binding"] = "missing_scientific_owner"
@@ -824,7 +874,7 @@ def test_e2_poisoned_stage_bodies_and_order_cannot_become_plan():
 def test_e2_unrecognized_semantic_action_is_unsupported():
     feature = "Feature: policy\nScenario: unknown\nGiven a scope\nWhen I arbitrate database ownership\nThen the answer is recorded"
     result = run(feature)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
+    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED' and result.prompt == ""
 
 
 def test_e2_missing_stage_generation_provenance_fails(monkeypatch):
@@ -918,7 +968,7 @@ def test_e2_missing_registry_module_fails_closed(monkeypatch):
 
     monkeypatch.setattr(compiler, "_canonical_repository", missing)
     result = run(MULTI_REPO, multi_repo_data())
-    assert result.prompt == "" and result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == "" and result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
 
 
 def test_e2_unparseable_registry_module_fails_closed(monkeypatch, tmp_path):
@@ -930,7 +980,7 @@ def test_e2_unparseable_registry_module_fails_closed(monkeypatch, tmp_path):
     data["repositories"] = {"topeft": {}}
     data["prompt"]["repo_locations"] = {"topeft": "/workspace/topeft"}
     result = run(data=data)
-    assert result.prompt == "" and result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.prompt == "" and result.compiler_result == 'IMPLEMENTATION_GAP'
 
 
 def test_e2_q03_git_review_and_retirement_contracts():
@@ -1025,10 +1075,10 @@ def test_e3_unrequested_integration_effect_cannot_create_stage():
     feature = ("Feature: parallel writers\nScenario: disjoint\nGiven isolated worktrees\n"
                "When writers edit and retire branches\nThen exact union is reviewed")
     result = run(feature, parallel_data())
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.compiler_result == "NOT_READY_NEW_DECISION_BOUNDARY"
     assert result.prompt == ""
     assert result.receipt["dispatchability"]["dispatchable"] is False
-    assert "integration" in result.receipt["diagnostics"][0]["message"]
+    assert "no composition dependency" in result.receipt["diagnostics"][0]["message"]
 
 
 def test_e3_commit_is_governance_mechanic_without_commit_word():
@@ -1047,28 +1097,18 @@ def test_e3_exact_union_assertion_has_concrete_gate():
                {"requested_behavior", "necessary_governance_mechanic"} for stage in stages)
     assert next(stage for stage in stages if stage["stage_id"] == "integration")[
         "generation_provenance"]["provenance_class"] == "requested_behavior"
-    assert {"source": "assertion:5:1", "output": "gate:exact_union",
+    assert {"source": "assertion:8:1", "output": "gate:exact_union",
             "relation": "requires_concrete_gate"} in edges
 
 
 def test_e3_common_validation_requires_supplied_exact_contract():
     feature = PARALLEL.replace("Then exact union is reviewed",
                                "Then exact union is reviewed and common validation passes")
-    missing = run(feature, parallel_data())
-    assert missing.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and missing.prompt == ""
+    missing_data = parallel_data()
+    del missing_data["common_validation_contract"]
+    missing = run(feature, missing_data)
+    assert missing.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE' and missing.prompt == ""
     data = parallel_data()
-    data["prompt"]["validation_ceiling"] = "targeted_unit_test"
-    data["common_validation_contract"] = {
-        "test_target": "tests/test_exact_union.py::test_common_validation",
-        "target": "controller_candidate",
-    }
-    bind_relation(data, "common_validation.target_relation",
-                  {"validation_locator": "tests/test_exact_union.py::test_common_validation",
-                   "repository": "TOP26006_fw", "worktree": "/workspace/controller_candidate",
-                   "attached_branch": "controller_candidate",
-                   "head": "stage:exact_union:observed_commit_head",
-                   "covers": ["exact_union", "common_validation"]},
-                  source_kind="accepted_evidence")
     result = run(feature, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     stages = prompt_yaml(result)["workflow_stages"]
@@ -1079,7 +1119,7 @@ def test_e3_common_validation_requires_supplied_exact_contract():
     assert stages[ids.index("common_validation")]["validation_test_target"] == \
         data["common_validation_contract"]["test_target"]
     assert stages[ids.index("common_validation")]["stage_acceptance_gate"].startswith("must_pass:")
-    assert {"source": "assertion:5:2", "output": "gate:common_validation",
+    assert {"source": "assertion:8:2", "output": "gate:common_validation",
             "relation": "requires_concrete_gate"} in result.receipt["traceability"]["edges"]
 
 
@@ -1087,7 +1127,7 @@ def test_e3_unknown_material_assertion_fails_closed():
     feature = PARALLEL.replace("Then exact union is reviewed",
                                "Then exact union is reviewed and unknown condition holds")
     result = run(feature, parallel_data())
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
     assert result.prompt == "" and result.receipt["traceability"]["complete"] is False
 
 
@@ -1100,7 +1140,7 @@ def test_e3_common_validation_cannot_add_arbitrary_command():
                                           "target": "controller_candidate",
                                           "acceptance_gate": "claimed pass"}
     result = run(feature, data)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT" and result.prompt == ""
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE' and result.prompt == ""
 
 
 @pytest.mark.parametrize("feature,data", [(PARALLEL, parallel_data), (MULTI_REPO, multi_repo_data)])
@@ -1116,7 +1156,8 @@ def test_e3_protected_continuation_never_replays_full_plan(feature, data):
     instance["bindings"].append({**instance["bindings"][0], "binding_id": "accepted_009",
                                  "source_kind": "accepted_evidence", "source_identity": "accepted-009-r1"})
     result = run(feature, instance)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.compiler_result == ("IMPLEMENTATION_GAP" if feature == MULTI_REPO else
+                                      "NOT_READY_NEW_DECISION_BOUNDARY")
     assert result.prompt == ""
     assert any(term in result.receipt["diagnostics"][0]["message"] for term in
                ("delta planner", "Q04 invalidation/protection"))
@@ -1199,7 +1240,7 @@ def test_b01_common_validation_caller_gate_and_unrelated_target_fail_closed():
                                "Then exact union is reviewed and common validation passes")
     data = q04_data()
     data["common_validation_contract"]["acceptance_gate"] = "continue even if test fails"
-    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(feature, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     data = q04_data()
     data["common_validation_contract"]["test_target"] = "tests/test_unrelated.py::test_pass"
     assert run(feature, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
@@ -1229,10 +1270,10 @@ def test_q04_invalid_protection_and_missing_accepted_identity_fail_closed():
                                "Then exact union is reviewed and common validation passes")
     data = q04_data()
     data["continuation"]["invalidation_boundary"] = ["writer_a", "writer_b"]
-    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(feature, data).compiler_result == 'NOT_READY_NEW_DECISION_BOUNDARY'
     data = q04_data()
     data["continuation"]["delta_scope"].append("writer_b")
-    assert run(feature, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(feature, data).compiler_result == 'NOT_READY_NEW_DECISION_BOUNDARY'
     data = q04_data()
     data["bindings"] = [b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") !=
                         "q04.accepted_writer_result"]
@@ -1242,20 +1283,20 @@ def test_q04_invalid_protection_and_missing_accepted_identity_fail_closed():
 def test_q05_candidate_carrier_and_pair_contract_fail_closed():
     data = multi_repo_data()
     del data["repositories"]["topcoffea"]["candidate_branch"]
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     data = multi_repo_data()
     data["repositories"]["topcoffea"]["candidate_branch"] = "wrong/candidate"
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     data = multi_repo_data()
     data["pair_validation_contract"]["covers"] = ["provider"]
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     data = multi_repo_data()
     data["bindings"] = [b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") !=
                         "pair_validation.candidate_tuple"]
     assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
     data = multi_repo_data()
     data["repositories"]["topcoffea"]["candidate_branch"] = "tc/dev-live"
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
 
 
 def test_b04_split_or_contradictory_relations_fail_closed():
@@ -1298,7 +1339,7 @@ def test_q05_partial_candidate_state_is_preserved_without_rollback():
     data["partial_effects"] = {"prepared_repo_identity": "topcoffea@" + "c" * 40,
                                "unresolved_recovery": "consumer candidate failed"}
     result = run(MULTI_REPO, data)
-    assert result.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     assert result.prompt == "" and result.receipt["partial_state"]["state"] == "PARTIAL"
     assert "rollback" not in str(result.receipt).lower()
 
@@ -1377,7 +1418,7 @@ def test_q04_m4_m5_accepted_result_or_protection_change_fails_closed():
     assert run(Q04_FEATURE, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
     data = q04_data()
     data["continuation"]["invalidation_boundary"] = ["writer_a", "writer_b"]
-    assert run(Q04_FEATURE, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(Q04_FEATURE, data).compiler_result == 'NOT_READY_NEW_DECISION_BOUNDARY'
 
 
 def test_q04_m6_m7_order_and_documentary_literals_do_not_create_authority():
@@ -1480,7 +1521,7 @@ def test_q05_i6_repository_aware_branch_check_does_not_pool_refs():
     edges = []
     compiler._verify_carrier_isolation(data, "multi_repository_coordination", edges, audit)
     assert audit["cross_repository_isolation"] is True
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
 
 
 @pytest.mark.parametrize("shape", ["orchestrated_workflow", "multi_repository_coordination"])
@@ -1539,6 +1580,9 @@ def test_f01_controller_cannot_be_permanent_target_but_preservation_can():
     bind["observed_state"]["value"] = "master"
     _binding(data, "worker_contract.composition_carrier")["observed_state"]["value"][
         "attached_branch"] = "master"
+    data["common_validation_contract"]["target"] = "master"
+    _binding(data, "common_validation.target_relation")["observed_state"]["value"][
+        "attached_branch"] = "master"
     result = run(PARALLEL, data)
     assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
     assert "permanent integration target" in result.receipt["diagnostics"][0]["message"]
@@ -1567,13 +1611,13 @@ def test_f02_raw_yaml_repository_permutation_reaches_parser_and_preserves_pair_o
     assert transformed != raw
     assert transformed.index("  topeft:", start) < transformed.index("  topcoffea:", start)
     assert list(yaml.safe_load(transformed)["repositories"]) == ["topeft", "topcoffea"]
-    baseline = compile_contract(MULTI_REPO, raw, "raw-map")
-    result = compile_contract(MULTI_REPO, transformed, "raw-map")
+    baseline = compile_fixture(MULTI_REPO, raw, "raw-map")
+    result = compile_fixture(MULTI_REPO, transformed, "raw-map")
     assert result.compiler_result == baseline.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     assert _plan(result) == _plan(baseline)
     assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
     data["candidate_pair_order"] = ["topeft", "topcoffea"]
-    assert run(MULTI_REPO, data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
 
 
 def test_f02_union_paths_are_set_like_but_pair_order_is_not():
@@ -1620,18 +1664,24 @@ def test_f03b_material_given_uses_local_preflight_and_documentary_given_is_inert
         "material_reason": "the local ref write would otherwise target a different branch",
     })
     data["given_bindings"] = {"3": "given_head"}
+    unsupported = run(feature, data)
+    assert unsupported.receipt["given_readiness"][0]["state"] == "unsupported_material_premise"
+    assert unsupported.receipt["excluded_effects"] == ["commit_ref"]
+    feature = feature.replace("semantics are established", "the selected commit branch is checked out")
     result = run(feature, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
-    assert "must_pass before effects commit_ref" in result.prompt
-    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight"
+    assert "must_pass_before_effects" in result.prompt
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
     data["bindings"][-1]["runtime_preflight"] = ""
-    missing = run(feature, data)
+    # Removing prose cannot remove a compiler-derived check.
+    assert prompt_yaml(run(feature, data)) == prompt_yaml(result)
+    missing = run(feature.replace("the selected commit branch is checked out", "magic holds"), data)
     assert missing.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
     assert missing.prompt and missing.receipt["excluded_effects"] == ["commit_ref"]
     assert missing.receipt["authorized_effects"] == ["effect_1"]
     assert missing.receipt["dispatchability"]["dispatchable"] is False
     data["bindings"][-1]["runtime_preflight"] = "verify HEAD_required"
-    assert run(feature, data).receipt["excluded_effects"] == ["commit_ref"]
+    assert prompt_yaml(run(feature, data)) == prompt_yaml(result)
     data["bindings"][-1]["materiality"] = "DOCUMENTARY"
     assert run(feature, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
 
@@ -1660,7 +1710,7 @@ def test_f03c_negative_remote_assertion_constrains_effects():
     data["prompt"]["allowed_to_modify"] = {"TOP26006_fw": ["refs/heads/main"]}
     data["prompt"]["heavy_command_permissions"] = {"remote_git_write": True, "network_access": True}
     add_effect(data, "remote_git_write", "refs/heads/main", 4, "remote_git_write")
-    feature = "Feature: remote publication\nScenario: publish\nGiven authority is bound\nWhen I push remote ref\nThen success\nBut no remote repository is modified"
+    feature = "Feature: remote publication\nScenario: publish\nGiven authority is bound\nWhen I push remote ref\nThen the report cites evidence\nBut no remote repository is modified"
     assert run(feature, data).compiler_result == "NOT_READY_NEW_DECISION_BOUNDARY"
     assert run(feature.replace("\nBut no remote repository is modified", ""), data).compiler_result == \
         "COMPILED_CONFORMING_CANDIDATE"
@@ -1672,7 +1722,7 @@ def test_f04_unsafe_retirement_ref_never_becomes_command(unsafe):
     data = _replace_literal(parallel_data(), "refs/heads/temp-worker", unsafe)
     result = run(PARALLEL, data)
     assert result.prompt == ""
-    assert result.compiler_result in {"UNSUPPORTED_CANONICAL_CONSTRUCT",
+    assert result.compiler_result in {'COMPILER_INVARIANT_FAILURE',
                                        "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"}
     assert run(PARALLEL, parallel_data()).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
 
@@ -1690,4 +1740,651 @@ def test_f05_receipt_source_and_validator_identities_are_current():
     assert receipt["maintained_validator"]["locator"] == str(compiler.VALIDATOR.relative_to(compiler.ROOT))
     assert receipt["maintained_validator"]["version"]
     assert receipt["input_binding_identity"]["sha256"] == hashlib.sha256(
-        yaml.safe_dump(base_data()).encode()).hexdigest()
+        fixture_graph(SIMPLE, yaml.safe_dump(base_data()))[1].encode()).hexdigest()
+
+
+@pytest.mark.parametrize("assertion", ["exact union is reviewed", "the composed candidate is reviewed",
+                                      "combined worker results are reviewed"])
+def test_composition_behavior_derives_common_validation_without_magic_words(assertion):
+    feature = PARALLEL.replace("exact union is reviewed", assertion)
+    result = run(feature, parallel_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    ids = [stage["stage_id"] for stage in stages]
+    assert ids.index("exact_union") < ids.index("common_validation") < ids.index("integration")
+    assert "stage:common_validation:common_validation_evidence" in stages[-2]["stage_inputs"]
+    data = parallel_data()
+    del data["common_validation_contract"]
+    assert run(feature, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+
+
+def test_validation_words_without_composition_do_not_invent_gate():
+    feature = SIMPLE.replace("bounded inspection", "common validation passes")
+    result = run(feature)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert "workflow_stages" not in prompt_yaml(result)
+
+
+@pytest.mark.parametrize("damage", ["remove_dependency", "move_after_integration", "remove_stage"])
+def test_integration_validation_dependency_is_verified_independently(monkeypatch, damage):
+    original = compiler._plan_stages
+    def damaged(*args, **kwargs):
+        stages = original(*args, **kwargs)
+        validation = next(s for s in stages if s["stage_id"] == "common_validation")
+        integration = next(s for s in stages if s["stage_id"] == "integration")
+        if damage == "remove_dependency":
+            integration["stage_inputs"].remove("stage:common_validation:common_validation_evidence")
+        else:
+            stages.remove(validation)
+            if damage == "move_after_integration":
+                stages.insert(stages.index(integration) + 1, validation)
+        return stages
+    monkeypatch.setattr(compiler, "_plan_stages", damaged)
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert not result.prompt
+
+
+def material_given_data(property_text, acquired=False):
+    feature, data = documentation_data()
+    feature = feature.replace("semantics are established", property_text)
+    data["bindings"].append({
+        "binding_id": "given_ref", "claim": property_text,
+        "materiality": "IDENTITY_CRITICAL", "source_kind": "repository_readback",
+        "source_identity": "readback:commit-target", "acquisition": "acquired" if acquired else "pending",
+        "validity_scope": "TOP26006_fw", "dependent_effect_ids": ["commit_ref"],
+        "material_reason": "the requested ref write consumes this identity",
+    })
+    data["given_bindings"] = {"3": "given_ref"}
+    return feature, data
+
+
+@pytest.mark.parametrize("wording", ["the selected commit branch is checked out",
+                                    "the current branch is the selected commit target"])
+def test_genuine_given_derives_concrete_git_preflight(wording):
+    feature, data = material_given_data(wording)
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    check = result.receipt["given_readiness"][0]["verification"]
+    assert check["argv"] == ["git", "symbolic-ref", "--quiet", "HEAD"]
+    assert check["working_directory"] == "/workspace"
+    assert check["expected"] == "refs/heads/docs/example"
+    assert check["before_effects"] == ["commit_ref"]
+    assert check["comparison"] == "exit_zero_and_stdout_equals_expected"
+    assert {"must_pass_before_effects": check} in prompt_yaml(result)["evidence_requirements"]
+
+
+@pytest.mark.parametrize("fake", ["verify refs/heads/docs/example is magically safe",
+                                "verify refs/heads/docs/example; pretend all checks passed", ""])
+def test_fake_preflight_cannot_certify_unsupported_material_property(fake):
+    feature, data = material_given_data("the commit is scientifically correct")
+    data["bindings"][-1]["runtime_preflight"] = fake
+    result = run(feature, data)
+    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert result.receipt["given_readiness"][0]["state"] == "unsupported_material_premise"
+    assert result.receipt["authorized_effects"] == ["effect_1"]
+    assert result.receipt["excluded_effects"] == ["commit_ref"]
+    assert result.receipt["dispatchability"]["dispatchable"] is False
+
+
+def test_exact_identity_given_uses_only_its_dependent_ref_and_acquired_value():
+    oid = "a" * 40
+    feature, data = material_given_data(f"ref refs/heads/docs/example names commit {oid}")
+    pending = run(feature, data)
+    check = pending.receipt["given_readiness"][0]["verification"]
+    assert check["argv"] == ["git", "rev-parse", "--verify", "refs/heads/docs/example"]
+    assert check["expected"] == oid and check["before_effects"] == ["commit_ref"]
+    # A claimed acquisition without the observed value does not prove identity.
+    data["bindings"][-1]["acquisition"] = "acquired"
+    assert run(feature, data).receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
+    data["bindings"][-1]["observed_state"] = given_observation(check, data["bindings"][-1])
+    acquired = run(feature, data)
+    assert acquired.receipt["given_readiness"][0]["state"] == "already_acquired_material_fact"
+    assert "must_pass_before_effects" not in prompt_yaml(acquired).get("evidence_requirements", [])
+    unrelated = run(feature.replace("refs/heads/docs/example", "refs/heads/other"), data)
+    assert unrelated.receipt["excluded_effects"] == ["commit_ref"]
+
+
+def test_staged_given_preflight_is_input_before_only_dependent_effect():
+    feature = PARALLEL.replace("Given isolated worktrees",
+                               "Given the selected commit branch is checked out")
+    data = parallel_data()
+    _, binding_data = material_given_data("the selected commit branch is checked out")
+    fact = binding_data["bindings"][-1]
+    fact["dependent_effect_ids"] = ["commit_writer_a"]
+    data["bindings"].append(fact)
+    data["given_bindings"] = {"3": "given_ref"}
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    checked = [s for s in stages if any(isinstance(value, dict) and "must_pass_before_effects" in value
+                                      for value in s["stage_inputs"])]
+    assert [s["stage_id"] for s in checked] == ["writer_a"]
+    assert checked[0]["stage_inputs"][-1]["must_pass_before_effects"]["before_effects"] == ["commit_writer_a"]
+    assert checked[0]["stage_inputs"][-1]["must_pass_before_effects"]["working_directory"] == "/workspace/worker_a"
+    assert all("must_pass_before_effects" not in s["stage_acceptance_gate"] for s in stages)
+
+
+def test_documentary_given_with_declared_dependencies_does_not_create_gate():
+    feature, data = material_given_data("historical SHA was recorded")
+    data["bindings"][-1]["materiality"] = "DOCUMENTARY"
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    readiness = result.receipt["given_readiness"][0]
+    assert readiness["state"] == "non_material_documentary_premise"
+    assert readiness["dependent_effect_ids"] == []
+    assert readiness["verification"] is None
+
+
+@pytest.mark.parametrize("action", [
+    "writers edit, integrate, and retire branches",
+    "two writers write disjoint files, advance the target, and remove temporary branches",
+])
+def test_r2_composition_dependency_is_semantic_and_role_sensitive(action):
+    feature = PARALLEL.replace("writers edit, integrate, and retire branches", action)
+    result = run(feature, parallel_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    assert [s["stage_id"] for s in stages][-3:] == ["common_validation", "integration", "retirement"]
+    assert {"source": "gate:common_validation", "output": "stage:integration",
+            "relation": "required_predecessor"} in result.receipt["traceability"]["edges"]
+
+
+@pytest.mark.parametrize("action", [
+    "writers edit and retire branches",
+    "writers edit integration documentation and retire branches",
+    "writers edit but do not integrate, and retire branches",
+])
+def test_r2_inventory_or_mentions_cannot_request_integration(action):
+    result = run(PARALLEL.replace("writers edit, integrate, and retire branches", action), parallel_data())
+    assert result.compiler_result == ("NOT_READY_NEW_DECISION_BOUNDARY"
+                                      if action == "writers edit and retire branches" else
+                                      "ARCHITECTURE_BOUNDARY_UNRESOLVED")
+    assert not result.prompt
+
+
+def test_r2_orchestration_without_composition_has_no_common_gate():
+    result = run(MULTI_REPO, multi_repo_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert prompt_yaml(result)["prompt_mode"] == "orchestrated_workflow"
+    assert "common_validation" not in [s["stage_id"] for s in prompt_yaml(result)["workflow_stages"]]
+
+
+@pytest.mark.parametrize("assertion", ["success", "output exists", "the result is ready",
+                                      "common validation passes"])
+def test_r2_generic_or_unrepresentable_assertion_cannot_claim_completeness(assertion):
+    result = run(SIMPLE.replace("the report cites evidence", assertion))
+    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
+    assert not result.receipt["traceability"]["complete"]
+
+
+def given_observation(check, fact):
+    return {**{key: check[key] for key in
+               ("property", "repository_id", "working_directory", "target", "argv", "comparison")},
+            "observed_value": check["expected"], "source_identity": fact["source_identity"],
+            "validity_scope": fact["validity_scope"],
+            "dependent_effect_ids": sorted(fact["dependent_effect_ids"])}
+
+
+def staged_given_data(effect_id="commit_writer_a", source_kind="repository_readback", data=None):
+    data = parallel_data() if data is None else data
+    feature = PARALLEL.replace("isolated worktrees", "the selected commit branch is checked out")
+    _, simple = material_given_data("the selected commit branch is checked out")
+    fact = simple["bindings"][-1]
+    fact.update(dependent_effect_ids=[effect_id], source_kind=source_kind)
+    data["bindings"].append(fact)
+    data["given_bindings"] = {"3": fact["binding_id"]}
+    return feature, data, fact
+
+
+@pytest.mark.parametrize("effect_id,carrier", [
+    ("commit_writer_a", "/workspace/worker_a"),
+    ("commit_controller", "/workspace/controller_candidate"),
+])
+def test_r2_given_uses_effect_carrier_independently_of_root(effect_id, carrier):
+    feature, data, fact = staged_given_data(effect_id)
+    result = run(feature, data)
+    check = result.receipt["given_readiness"][0]["verification"]
+    assert check["working_directory"] == carrier
+    data["prompt"]["repo_locations"]["TOP26006_fw"] = "/unrelated/root"
+    bind_state(data, "root.current_branch", "wrong-root-branch")
+    changed = run(feature, data)
+    assert changed.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert changed.receipt["given_readiness"] == result.receipt["given_readiness"]
+    fact["acquisition"] = "acquired"
+    fact["observed_state"] = given_observation(check, fact)
+    assert run(feature, data).receipt["given_readiness"][0]["state"] == "already_acquired_material_fact"
+    fact["observed_state"]["observed_value"] = "refs/heads/wrong_writer"
+    bind_state(data, "root.current_branch", check["expected"])
+    wrong = run(feature, data)
+    assert wrong.receipt["excluded_effects"] == [effect_id]
+    assert not wrong.receipt["dispatchability"]["dispatchable"]
+
+
+@pytest.mark.parametrize("source_kind", ["repository_readback", "accepted_evidence"])
+@pytest.mark.parametrize("damage", ["working_directory", "source_identity", "argv", "validity_scope",
+                                    "observed_value", "dependent_effect_ids"])
+def test_r2_acquired_fact_binds_exact_context_and_evidence_identity(source_kind, damage):
+    feature, data, fact = staged_given_data(source_kind=source_kind)
+    check = run(feature, data).receipt["given_readiness"][0]["verification"]
+    fact.update(acquisition="acquired", observed_state=given_observation(check, fact))
+    accepted = run(feature, data)
+    assert accepted.receipt["given_readiness"][0]["state"] == "already_acquired_material_fact"
+    assert "must_pass_before_effects" not in accepted.prompt
+    if damage == "source_identity":
+        # Even unchanged observed content cannot silently authenticate a new locator.
+        fact["source_identity"] = "different:artifact"
+    else:
+        fact["observed_state"][damage] = "/workspace" if damage == "working_directory" else "wrong"
+    rejected = run(feature, data)
+    assert rejected.receipt["excluded_effects"] == ["commit_writer_a"]
+    assert "writer_b" in rejected.receipt["authorized_effects"]
+    assert not rejected.receipt["dispatchability"]["dispatchable"]
+
+
+def test_r2_generic_live_evidence_cannot_authenticate_exact_given():
+    feature, data = material_given_data("ref refs/heads/docs/example names commit " + "f" * 40, acquired=True)
+    fact = data["bindings"][-1]
+    fact["source_identity"] = "generic:live_applicability"
+    result = run(feature, data)
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
+    assert "must_pass_before_effects" in result.prompt
+    fact["observed_state"] = {"value": "f" * 40}
+    assert run(feature, data).receipt["excluded_effects"] == ["commit_ref"]
+
+
+@pytest.mark.parametrize("acquisition", ["pending", "superseded", "last_observed"])
+def test_r2_expired_accepted_current_fact_requires_fresh_exact_check(acquisition):
+    feature, data, fact = staged_given_data(source_kind="accepted_evidence")
+    check = run(feature, data).receipt["given_readiness"][0]["verification"]
+    fact.update(acquisition=acquisition, observed_state=given_observation(check, fact))
+    result = run(feature, data)
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
+    assert "must_pass_before_effects" in result.prompt
+
+
+def test_r2_invalidated_accepted_fact_is_not_reused():
+    feature, data, fact = staged_given_data(source_kind="accepted_evidence", data=q04_data())
+    check = run(feature, data).receipt["given_readiness"][0]["verification"]
+    fact.update(acquisition="acquired", observed_state=given_observation(check, fact))
+    result = run(feature, data)
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
+    assert "writer_b" not in [s["stage_id"] for s in prompt_yaml(result)["workflow_stages"]]
+
+
+def test_r2_q04_given_consumes_portable_accepted_result_without_carrier_readback():
+    data = q04_data()
+    accepted = data["continuation"]["accepted_prior_evidence"][0]
+    fact = _binding(data, "q04.accepted_writer_result")
+    fact["dependent_effect_ids"] = ["commit_controller"]
+    data["given_bindings"] = {"3": fact["binding_id"]}
+    feature = PARALLEL.replace("isolated worktrees",
+        "accepted writer writer_b result names commit " + accepted["observed_commit_head"])
+    for worker in data["worker_contract"]["writers"]:
+        if worker["stage_id"] == "writer_b":
+            worker.update(branch="retired", worktree_path="/retired", observed_head="f" * 40)
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert result.receipt["given_readiness"][0]["state"] == "already_acquired_material_fact"
+    assert "must_pass_before_effects" not in result.prompt
+    assert "/retired" not in result.prompt
+    assert "writer_b" not in [s["stage_id"] for s in prompt_yaml(result)["workflow_stages"]]
+    wrong = run(feature.replace(accepted["observed_commit_head"], "d" * 40), data)
+    assert wrong.receipt["excluded_effects"] == ["commit_controller"]
+
+
+def test_r2_permanent_target_given_needs_explicit_target_carrier():
+    feature, data, fact = staged_given_data("integrate")
+    assert run(feature, data).receipt["excluded_effects"] == ["integrate"]
+    bind_relation(data, "worker_contract.integration_target_carrier", {
+        "repository": "TOP26006_fw", "worktree": "/permanent/target", "attached_branch": "master",
+        "head": "a" * 40})
+    result = run(feature, data)
+    assert result.receipt["given_readiness"][0]["verification"]["working_directory"] == "/permanent/target"
+    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
+
+
+def test_r2_q05_given_uses_repository_local_candidate():
+    data = multi_repo_data()
+    effect = next(e for e in data["requested_effects"] if e["stage_id"] == "provider_candidate" and
+                  e["effect"] == "local_git_ref_write")
+    _, simple = material_given_data("the selected commit branch is checked out")
+    fact = simple["bindings"][-1]
+    fact.update(validity_scope="topcoffea", dependent_effect_ids=[effect["effect_id"]])
+    data["bindings"].append(fact); data["given_bindings"] = {"3": fact["binding_id"]}
+    result = run(MULTI_REPO.replace("exact bases", fact["claim"]), data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    check = result.receipt["given_readiness"][0]["verification"]
+    assert check["working_directory"] == data["repositories"]["topcoffea"]["candidate_worktree"]
+    assert check["repository_id"] == "topcoffea"
+
+
+def test_r2_given_plan_follows_writer_carrier_and_ignores_yaml_order():
+    feature, data, fact = staged_given_data()
+    baseline = run(feature, data)
+    moved = _replace_literal(data, "/workspace/worker_a", "/new/writer_a")
+    result = compile_fixture(feature, yaml.safe_dump(moved, sort_keys=False))
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert result.receipt["given_readiness"][0]["verification"]["working_directory"] == "/new/writer_a"
+    assert result.receipt["given_readiness"] != baseline.receipt["given_readiness"]
+    reordered = compile_fixture(feature, yaml.safe_dump(moved, sort_keys=True))
+    assert prompt_yaml(reordered) == prompt_yaml(result)
+
+
+def test_r2_only_material_observed_oid_changes_effect_readiness():
+    oid = "a" * 40
+    feature, data = material_given_data("ref refs/heads/docs/example names commit " + oid)
+    fact = data["bindings"][-1]
+    check = run(feature, data).receipt["given_readiness"][0]["verification"]
+    fact.update(acquisition="acquired", source_kind="accepted_evidence")
+    fact["observed_state"] = given_observation(check, fact)
+    baseline = run(feature, data)
+    bind_state(data, "unrelated.HEAD", "e" * 40)
+    assert run(feature, data).receipt["given_readiness"] == baseline.receipt["given_readiness"]
+    fact["observed_state"]["observed_value"] = "b" * 40
+    changed = run(feature, data)
+    assert changed.receipt["excluded_effects"] == ["commit_ref"]
+    assert changed.receipt["authorized_effects"] == ["effect_1"]
+
+
+def parallel_subset_data(composition=True):
+    """Owner bindings for a smaller behavior; no orphan effects are retained."""
+    data = parallel_data()
+    roles = {'writer_a', 'writer_b'} | ({'exact_union'} if composition else set())
+    data['requested_effects'] = [e for e in data['requested_effects'] if e['stage_id'] in roles]
+    data.pop('retirement')
+    data.pop('common_validation_contract')
+    return data
+
+
+@pytest.mark.parametrize('composition', [True, False])
+def test_r3_parallel_subset_is_implemented_without_invented_integration(composition):
+    assertion = 'exact union is reviewed' if composition else 'writer results are reviewed'
+    feature = PARALLEL.replace('writers edit, integrate, and retire branches', 'writers edit').replace(
+        'exact union is reviewed', assertion)
+    result = run(feature, parallel_subset_data(composition))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    ids = [s['stage_id'] for s in prompt_yaml(result)['workflow_stages']]
+    assert ids == ['writer_a', 'writer_b', 'independent_review'] + (
+        ['exact_union', 'reconciled_review'] if composition else [])
+    assert not {'integration', 'retirement', 'common_validation'} & set(ids)
+    assert result.receipt['execution_shape_classification'] == 'SUPPORTED_EXECUTION_SHAPE'
+
+
+def test_r3_effect_inventory_cannot_request_absent_parallel_phases():
+    feature = PARALLEL.replace('writers edit, integrate, and retire branches', 'writers edit')
+    data = parallel_data()
+    data.pop('common_validation_contract')
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILER_INVARIANT_FAILURE'
+    assert not result.prompt
+
+
+def test_r3_boundary_payload_distinguishes_contract_gap_and_unknown():
+    data = base_data()
+    data['prompt']['branch_policy'] = 'historical_worker_magic'
+    unsupported = run(data=data)
+    assert unsupported.compiler_result == 'UNSUPPORTED_CANONICAL_CONSTRUCT'
+    gap_data = multi_repo_data()
+    feature = MULTI_REPO.replace('write candidates', 'write candidates and integrate')
+    gap = run(feature, gap_data)
+    assert gap.compiler_result == 'IMPLEMENTATION_GAP'
+    ambiguous = run(SIMPLE.replace('the report cites evidence', 'the undefined oracle succeeds'))
+    assert ambiguous.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
+    for result, classification in [(unsupported, 'normative'), (gap, 'implementation_gap'),
+                                   (ambiguous, 'unresolved')]:
+        boundary = result.receipt['unsupported_construct']
+        assert boundary['current_architecture_boundary']['classification'] == classification
+        assert boundary['current_architecture_boundary']['source_documents']
+        assert boundary['current_architecture_boundary']['exact_contract_or_section']
+        assert boundary['semantic_pattern'] and boundary['missing_capability']
+        assert boundary['recommended_next_boundary'] and boundary['decision_options']
+        assert result.receipt['authorized_effects'] == [] and not result.prompt
+        assert result.receipt['manual_fallback'] == 'independently_evaluable_under_canonical_governance'
+
+
+def move_writer_head(data, writer_id, new_head):
+    worker = next(w for w in data['worker_contract']['writers'] if w['stage_id'] == writer_id)
+    worker['observed_head'] = new_head
+    for binding in data['bindings']:
+        state = binding.get('observed_state')
+        if not isinstance(state, dict):
+            continue
+        if state.get('identity_path') == f'worker_contract.writers.{writer_id}.observed_head':
+            state['value'] = new_head
+        if state.get('identity_path') == f'worker_contract.writers.{writer_id}.carrier':
+            state['value']['head'] = new_head
+
+
+def acquired_writer_ref_given(source_kind='accepted_evidence'):
+    feature, data, fact = staged_given_data(source_kind=source_kind)
+    feature = feature.replace('the selected commit branch is checked out',
+                              'ref refs/heads/temporary/writer_a names commit ' + 'a' * 40)
+    check = run(feature, data).receipt['given_readiness'][0]['verification']
+    fact.update(acquisition='acquired', observed_state=given_observation(check, fact))
+    return feature, data, fact
+
+
+@pytest.mark.parametrize('source_kind', ['accepted_evidence', 'repository_readback'])
+def test_r3_changed_consumed_carrier_invalidates_only_dependent_effect(source_kind):
+    feature, data, fact = acquired_writer_ref_given(source_kind)
+    unchanged = run(feature, data)
+    assert unchanged.receipt['given_readiness'][0]['state'] == 'already_acquired_material_fact'
+    move_writer_head(data, 'writer_a', 'b' * 40)
+    result = run(feature, data)
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+    assert result.receipt['excluded_effects'] == ['commit_writer_a']
+    assert 'commit_writer_b' in result.receipt['authorized_effects']
+    relation = result.receipt['given_readiness'][0]['validity_relation']
+    assert relation['state'] == 'stale_consumed_property'
+    assert relation['observed_property'] == 'local_ref_oid'
+    comparison = relation['carrier_comparisons'][0]
+    assert comparison['current_observed_value'] == 'b' * 40
+    assert comparison['required_value'] == 'a' * 40
+    assert not result.receipt['dispatchability']['dispatchable']
+
+
+def test_r3_unrelated_carrier_and_unconsumed_head_do_not_invalidate_given():
+    feature, data, fact = acquired_writer_ref_given()
+    move_writer_head(data, 'writer_b', 'd' * 40)
+    assert run(feature, data).receipt['excluded_effects'] == []
+    feature, data, fact = staged_given_data(source_kind='accepted_evidence')
+    check = run(feature, data).receipt['given_readiness'][0]['verification']
+    fact.update(acquisition='acquired', observed_state=given_observation(check, fact))
+    move_writer_head(data, 'writer_a', 'e' * 40)
+    result = run(feature, data)
+    assert result.receipt['excluded_effects'] == []
+    assert result.receipt['given_readiness'][0]['validity_relation']['state'] == 'unchanged_consumed_property'
+
+
+def test_r3_validity_relation_is_property_based_for_simple_current_carrier():
+    feature, data = material_given_data('the selected commit branch is checked out')
+    fact = data['bindings'][-1]
+    check = run(feature, data).receipt['given_readiness'][0]['verification']
+    fact.update(acquisition='acquired', observed_state=given_observation(check, fact))
+    bind_relation(data, 'repositories.TOP26006_fw.current_carrier', {
+        'repository': 'TOP26006_fw', 'worktree': check['working_directory'],
+        'attached_branch': 'other_branch', 'head': 'a' * 40})
+    result = run(feature, data)
+    assert result.receipt['excluded_effects'] == ['commit_ref']
+    assert result.receipt['given_readiness'][0]['validity_relation']['observed_property'] == 'current_branch'
+
+
+GRAPH_SIMPLE = '''Feature: bounded inspection
+  This description documents the flow and grants no authority.
+  ```text
+  [G1] Given
+    |
+    v
+  [W1] Inspect
+    |
+    v
+  [T1] Evidence
+  ```
+  Scenario: inspect one document
+    Given [G1] the document identity is acquired
+    When [W1] I inspect the document
+    Then [T1] the report cites evidence
+'''
+
+
+def test_r3_literal_source_and_generated_ascii_graphs_match_semantics():
+    result = compile_contract(GRAPH_SIMPLE, yaml.safe_dump(base_data()))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    visualization = result.receipt['workflow_visualization']
+    assert visualization['source_graph']['nodes'] == ['G1', 'T1', 'W1']
+    assert visualization['source_graph']['connectors'] == [
+        {'source': 'G1', 'target': 'W1'}, {'source': 'W1', 'target': 'T1'}]
+    assert visualization['consistency'] is True
+    assert 'derived_external_acceptance' in visualization['generated_graph']['nodes']
+    drawing = result.prompt.split('```text\n', 1)[1].split('\n```', 1)[0]
+    assert compiler._ascii_graph(drawing) == visualization['generated_graph']
+    assert result.receipt['maintained_validator']['result'] == 'pass'
+
+
+@pytest.mark.parametrize('replacement', [
+    ('[W1] Inspect', '[new_effect] Publish'),
+    ('    |\n    v\n  [T1] Evidence', '  [T1] Evidence'),
+    ('  [T1] Evidence\n  ```', '  [T1] Evidence\n  [T1] --> [G1]\n  ```'),
+    ('    v\n  [W1]', '    |\n  [W1]'),
+])
+def test_r3_graph_cannot_add_omit_or_reverse_behavior(replacement):
+    result = compile_contract(GRAPH_SIMPLE.replace(*replacement), yaml.safe_dump(base_data()))
+    assert result.compiler_result == 'WORKFLOW_GRAPH_INCONSISTENT'
+    assert not result.prompt and not result.receipt['dispatchability']['dispatchable']
+
+
+def test_r3_missing_graph_cannot_emit_conforming_prompt():
+    result = compile_contract(SIMPLE, yaml.safe_dump(base_data()))
+    assert result.compiler_result == 'WORKFLOW_GRAPH_INCONSISTENT'
+    assert not result.prompt
+
+
+def test_r3_harmless_graph_captions_and_description_preserve_plan():
+    first = compile_contract(GRAPH_SIMPLE, yaml.safe_dump(base_data()))
+    second = compile_contract(GRAPH_SIMPLE.replace('Inspect\n', 'Read document\n').replace(
+        'documents the flow', 'describes this same workflow'), yaml.safe_dump(base_data()))
+    assert first.compiler_result == second.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert first.receipt['workflow_visualization'] == second.receipt['workflow_visualization']
+
+
+def test_r3_ascii_branch_and_join_geometry_without_edge_list():
+    diagram = '''              +--> [W1] Writer A --+
+              |                    |
+[G1] Given ---+                    +--> [C1] Exact union
+              |                    |
+              +--> [W2] Writer B --+'''
+    graph = compiler._ascii_graph(diagram)
+    assert {(e['source'], e['target']) for e in graph['connectors']} == {
+        ('G1', 'W1'), ('G1', 'W2'), ('W1', 'C1'), ('W2', 'C1')}
+
+
+def test_r3_generated_parallel_graph_has_branches_join_validation_and_stop():
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    graph = result.receipt['workflow_visualization']['generated_graph']
+    edges = {(e['source'], e['target']) for e in graph['connectors']}
+    assert {('s4', 'derived_writer_a'), ('s4', 'derived_writer_b'),
+            ('derived_writer_a', 'derived_independent_review'),
+            ('derived_writer_b', 'derived_independent_review'),
+            ('derived_common_validation', 'derived_integration'),
+            ('derived_integration', 'derived_retirement'),
+            ('derived_integration', 'derived_stop')} <= edges
+    assert ('derived_writer_a', 'derived_writer_b') not in edges
+    assert set(graph['nodes']) == {m['node'] for m in result.receipt['workflow_visualization']['execution_mapping']}
+
+
+def test_r3_preflight_graph_gates_only_consuming_effect():
+    feature, data, fact = staged_given_data()
+    result = run(feature, data)
+    graph = result.receipt['workflow_visualization']['generated_graph']
+    edges = {(e['source'], e['target']) for e in graph['connectors']}
+    assert ('derived_preflight_s3', 'derived_writer_a') in edges
+    assert ('derived_preflight_s3', 'derived_writer_b') not in edges
+    assert ('derived_preflight_s3', 'derived_stop') in edges
+
+
+def test_r3_generator_corruption_fails_graph_readback(monkeypatch):
+    draw = compiler._draw_ascii
+    monkeypatch.setattr(compiler, '_draw_ascii', lambda nodes, edges: draw(nodes, edges) + '\n[extra_effect]')
+    result = compile_contract(GRAPH_SIMPLE, yaml.safe_dump(base_data()))
+    assert result.compiler_result == 'WORKFLOW_GRAPH_INCONSISTENT'
+    assert not result.prompt
+
+
+GRAPH_PARALLEL = '''Feature: parallel writers
+  ```text
+                +--> [W1] Writer A --+
+                |                    |
+  [G1] Given ---+                    +--> [C1] Union --> [I1] Integrate --> [R1] Retire --> [T1]
+                |                    |
+                +--> [W2] Writer B --+
+  ```
+Scenario: disjoint writers compose and integrate
+Given [G1] isolated worktrees
+When [W1] I edit writer_a disjoint files
+And [W2] I edit writer_b disjoint files
+And [C1] I compose the exact union
+And [I1] I integrate the composed candidate
+And [R1] I retire temporary branches
+Then [T1] exact union is reviewed
+'''
+
+
+def separate_parallel_data():
+    data = parallel_data()
+    ids = {re.search(r'\[([^]]+)\]', line).group(1): i for i, line in enumerate(
+        GRAPH_PARALLEL.splitlines(), 1) if line.startswith(('Given', 'When', 'And', 'Then'))}
+    role_nodes = {'writer_a': 'W1', 'writer_b': 'W2', 'exact_union': 'C1',
+                  'integration': 'I1', 'retirement': 'R1'}
+    for effect in data['requested_effects']:
+        effect['requested_by_step'] = ids[role_nodes[effect['stage_id']]]
+    return data
+
+
+def test_r3_separate_gherkin_steps_show_semantic_parallelism_and_keep_ids():
+    result = compile_contract(GRAPH_PARALLEL, yaml.safe_dump(separate_parallel_data()))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    visual = result.receipt['workflow_visualization']
+    source_edges = {(e['source'], e['target']) for e in visual['source_graph']['connectors']}
+    assert {('G1', 'W1'), ('G1', 'W2'), ('W1', 'C1'), ('W2', 'C1'), ('C1', 'I1')} <= source_edges
+    generated_edges = {(e['source'], e['target']) for e in visual['generated_graph']['connectors']}
+    assert ('derived_common_validation', 'I1') in generated_edges
+    assert ('W1', 'W2') not in generated_edges
+    mapping = {m['node']: m for m in visual['execution_mapping']}
+    assert mapping['W1']['stage_id'] == 'writer_a'
+    assert mapping['W2']['stage_id'] == 'writer_b'
+    assert mapping['C1']['stage_id'] == 'exact_union'
+    assert mapping['I1']['stage_id'] == 'integration'
+
+
+def test_r3_source_geometry_cannot_serialize_independent_writers():
+    feature = GRAPH_PARALLEL.replace('[W2] Writer B --+', '[W1] Writer B --+')
+    result = compile_contract(feature, yaml.safe_dump(separate_parallel_data()))
+    assert result.compiler_result == 'WORKFLOW_GRAPH_INCONSISTENT'
+    assert not result.prompt
+
+
+def test_r3_q04_explicitly_invalidated_writer_is_regenerated_only():
+    data = q04_data()
+    data = _replace_literal(data, 'writer_a', 'writer_swap')
+    data = _replace_literal(data, 'writer_b', 'writer_a')
+    data = _replace_literal(data, 'writer_swap', 'writer_b')
+    data['worker_contract']['writers'].sort(key=lambda worker: worker['stage_id'])
+    result = run(PARALLEL, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    ids = [s['stage_id'] for s in prompt_yaml(result)['workflow_stages']]
+    assert 'writer_b' in ids and 'writer_a' not in ids
+    assert result.receipt['reused_accepted_effects'] == ['writer_a', 'commit_writer_a']
+    visual = result.receipt['workflow_visualization']
+    reused = next(m for m in visual['execution_mapping'] if m['node'] == 'derived_writer_a')
+    assert reused['role'] == 'reused_portable_result' and reused['effect'] is False
+
+
+def test_r3_missing_vocabulary_extractor_is_gap_not_normative_boundary(monkeypatch):
+    monkeypatch.setattr(compiler, '_closed_values', lambda field_name, contents: set())
+    data = base_data()
+    data['prompt']['dirty_worktree_policy'] = 'require_clean_worktree'
+    result = run(data=data)
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert result.receipt['unsupported_construct']['current_architecture_boundary']['classification'] == 'implementation_gap'

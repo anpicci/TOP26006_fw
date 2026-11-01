@@ -1,7 +1,8 @@
 # Model and reasoning policy
 
-Catalog/routing policy extracted from accepted I1 on 2026-10-25. This is an
-owner-adopted local vocabulary, not a claim of current product availability.
+Catalog/routing policy extracted from accepted I1 on 2026-10-25 and updated by
+owner decision on 2026-10-31. This is an owner-adopted local vocabulary, not a
+claim of account availability or representative project qualification.
 Stable authority and no-silent-switch invariants remain in AGENTS.md.
 
 
@@ -18,9 +19,23 @@ Concrete Codex model labels:
 
 ```text
 gpt-6-luna
+gpt-6.1-sol
 gpt-6-sol
 gpt-6-astra
 ```
+
+The current preferred labels for new prompts are `gpt-6-luna`, `gpt-6.1-sol`
+and `gpt-6-astra`. `gpt-6-sol` remains recognized for historical reproducibility
+and an explicitly selected transition; it is not an alias for `gpt-6.1-sol`.
+For new ordinary and complex substantive work, `gpt-6.1-sol` is the current
+owner-approved default under the routing table below. Representative local
+evaluation is required before claiming broad migration, equivalence or
+superiority over the historical `gpt-6-sol` workload; it is not a universal
+per-prompt prerequisite. A broad migration of existing workloads also requires
+an explicit project adoption decision. This policy update adopts prospective
+defaults; it does not claim that a migration evaluation has occurred or
+silently migrate an existing dispatch. The hardest open or adversarial
+reasoning retains `gpt-6-astra` / `high` as its preferred default.
 
 Legacy/fallback-only concrete labels, subject to the conditions below:
 
@@ -160,14 +175,14 @@ value, including `high` to `medium`, requires the current attempt to stop and a
 fresh explicit dispatch with the relevant owner authorization. Stop and report
 before any fallback dispatch.
 
-Canonical default guidance:
+Canonical default guidance (owner-approved project policy):
 
 | Task or decision characteristics | Default |
 |---|---|
 | Mechanical work with fixed inputs and directly checkable results | `gpt-6-luna` / `medium` |
 | Focused, bounded structured work | `gpt-6-luna` / `high` |
-| Ordinary substantive work | `gpt-6-sol` / `medium` |
-| Complex substantive work | `gpt-6-sol` / `high` |
+| Ordinary substantive work | `gpt-6.1-sol` / `medium` |
+| Complex substantive work | `gpt-6.1-sol` / `high` |
 | The hardest open or adversarial reasoning | `gpt-6-astra` / `high` |
 
 Classify the substantive decision, not the lane label, project importance, or
@@ -182,12 +197,15 @@ Upper exceptions are limited to:
 
 | Model/reasoning pair | Condition |
 |---|---|
-| `gpt-6-sol` / `xhigh` | Rare motivated exception |
+| `gpt-6.1-sol` / `xhigh` | Rare motivated exception |
+| `gpt-6-sol` / `xhigh` | Legacy/transitional exception only |
 | `gpt-6-astra` / `xhigh` | Rare motivated exception |
 | `gpt-6-astra` / `max` | Explicit exceptional owner/eval-driven exception only |
 
-Each upper exception requires a specific reasoning need and a bounded scope or
-resource decision, without requiring a prior lower-tier failure. It confers no
+Every `xhigh` or `max` exception requires representative evidence that its
+quality benefit justifies the added cost and latency, a specific reasoning need,
+and a bounded scope or resource decision, without requiring a prior lower-tier
+failure. It confers no
 additional authority and does not relax evidence or acceptance criteria.
 
 GPT-5.6 Terra, Sol, and Luna are legacy/fallback only. Their use requires either
@@ -202,6 +220,38 @@ reasoning escalation is allowed. Missing evidence, an ambiguous gate, a
 qualified warning, a short answer, service rejection, or another non-cognitive
 failure does not by itself demonstrate reasoning insufficiency; address the
 relevant cause.
+Missing evidence or authorization is not solved by a stronger model.
+
+## External documentation and local adoption
+
+Official OpenAI documentation was consulted on 2026-10-31. These are external
+product descriptions, separate from the project routing decision above:
+
+- The [GPT-6 guide](https://developers.openai.com/api/docs/guides/latest-model)
+  distinguishes the current family and calls for migration review when moving
+  from `gpt-6-sol` to `gpt-6.1-sol`.
+- The [GPT-6.1 Sol model page](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
+  describes performance near Astra for complex coding and professional work at
+  lower cost. It lists `medium` as the default effort. These vendor claims do
+  not establish equivalent results, costs or latency on this project's tasks.
+- The [GPT-6 Astra model page](https://developers.openai.com/api/docs/models/gpt-6-astra)
+  positions Astra for demanding reasoning and coding work. This does not
+  authorize routing every important task to Astra.
+- The [deployment checklist](https://developers.openai.com/api/docs/guides/deployment-checklist)
+  recommends workload-specific evaluation, comparing task success, latency,
+  token use and cost per successful task. It reserves higher effort for
+  measured benefits. The local routing table is an owner decision, not an
+  inference from public benchmark scores or prices.
+- The [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning)
+  distinguishes effort from execution mode. Pro mode is a possible future
+  evaluation axis only: this revision adds no `reasoning.mode` prompt field or
+  execution grant. External support for changing effort within a conversation
+  does not override this project's immutable-attempt and new-dispatch rules.
+
+No comparative project model evaluation, production qualification, availability
+probe or broad model migration was performed for this update. Missing account
+availability evidence is not a universal workflow gate. A concrete unavailable
+profile affects its own dispatch, under the existing fallback rules.
 
 Historical benchmark/report model and reasoning labels remain historical truth;
 do not rewrite them prospectively. Historical evidence does not establish GPT-6
