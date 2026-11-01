@@ -336,10 +336,9 @@ surface a contradiction rather than silently choose a unit.
 After the first response, refine the task using what you learned. You might
 correct a mistaken assumption, supply a missing source, or narrow a question
 that proved too broad. OpenAI's [prompting guidance](https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt)
-supports clear requests, relevant context, and iterative refinement. Its
-Academy guide *ChatGPT for research* also recommends planning the research,
-requesting support for key claims, checking source quality, and identifying
-gaps. These are useful general practices, not rules tied to a particular
+supports clear requests, relevant context, and iterative refinement. Research workflows can also benefit from planning the research,
+supporting important claims with evidence, checking source quality, and
+identifying gaps. These are useful general practices, not rules tied to a particular
 interface or guarantees of a reliable answer.
 
 ## Verification that matches the claim
