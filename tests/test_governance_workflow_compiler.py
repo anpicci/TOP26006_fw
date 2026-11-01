@@ -1,6 +1,7 @@
 """Focused D8-E implementation checks; retrospective H1-H6 oracle review is D8-F."""
 
 import hashlib
+from copy import deepcopy
 import re
 from pathlib import Path
 
@@ -235,6 +236,24 @@ def multi_repo_data():
     return data
 
 
+def multi_repo_advancement_data():
+    data = multi_repo_data()
+    for repo_id, repo in data["repositories"].items():
+        repo["permanent_target_branch"] = repo["development_branch"]
+        target = "refs/heads/" + repo["permanent_target_branch"]
+        data["prompt"]["allowed_to_modify"][repo_id].append(target)
+        data["bindings"].append({**data["bindings"][0], "binding_id": "advance_" + repo_id,
+                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "effect": "local_git_ref_write", "target": target})
+        data["requested_effects"].append({"effect_id": "advance_" + repo_id,
+            "effect": "local_git_ref_write", "target": target, "requested_by_step": 4,
+            "positive_authority_binding": "advance_" + repo_id, "stage_id": "integrate_" + repo_id})
+        bind_relation(data, f"repositories.{repo_id}.permanent_target",
+                      {"repository": repo_id, "worktree": data["prompt"]["repo_locations"][repo_id],
+                       "attached_branch": repo["permanent_target_branch"], "head": repo["base"]}, repo_id)
+    return data
+
+
 def test_q01_simple_read_only_and_traceability(tmp_path):
     result = run()
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
@@ -427,6 +446,15 @@ def test_q03_parallel_work_is_explicitly_staged_and_isolated():
         "compose_writer_b", "commit_controller", "integrate", "retire"}
     assert result.receipt["safety_constraints"]["worker_contract"]["union_paths"] == [
         "docs/writer_a.md", "docs/writer_b.md"]
+    assert stages[3]["target_branch"] != stages[6]["target_branch"]
+    assert "stage:common_validation:common_validation_evidence" in stages[6]["stage_inputs"]
+    composed = run(PARALLEL.replace("writers edit, integrate, and retire branches", "writers edit"),
+                   parallel_subset_data(True))
+    assert composed.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    composition_stages = prompt_yaml(composed)["workflow_stages"]
+    assert [s["stage_id"] for s in composition_stages] == [
+        "writer_a", "writer_b", "independent_review", "exact_union", "reconciled_review"]
+    assert not any(s["stage_mode"] == "integration_only" for s in composition_stages)
 
 
 def test_q04_continuation_reuses_accepted_closure():
@@ -477,7 +505,7 @@ def test_q04_positive_delta_preserves_accepted_writer():
     assert "prior:accepted-009-r1:writer_b@" + "b" * 40 in union["stage_inputs"]
 
 
-def test_q05_multi_repository_candidate_tuple_and_local_authority():
+def test_q05_multi_repository_candidate_tuple_and_local_authority(monkeypatch):
     data = multi_repo_data()
     result = run(MULTI_REPO, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
@@ -497,6 +525,84 @@ def test_q05_multi_repository_candidate_tuple_and_local_authority():
                               "permanent_personal_reference_branch",
                               "permanent_integration_branch", "feature_development_namespace"}
                for roles in prompt["repository_branch_roles"].values())
+
+    # Q05 preparation is distinct from Q06 permanent authority advancement.
+    feature = MULTI_REPO.replace("write candidates", "write candidates and integrate")
+    advanced = run(feature, multi_repo_advancement_data())
+    assert advanced.compiler_result == "COMPILED_CONFORMING_CANDIDATE", advanced.receipt.get("diagnostics")
+    plan = prompt_yaml(advanced)
+    stages = plan["workflow_stages"]
+    assert [s["stage_id"] for s in stages] == ["provider_candidate", "consumer_candidate",
+        "independent_review", "pair_validation", "integrate_topcoffea", "integrate_topeft"]
+    assert advanced.receipt["execution_assertions"] == "NOT_EVALUATED"
+    assert advanced.receipt["workflow_visualization"]["consistency"] is True
+    assert advanced.receipt["traceability"]["complete"] is True
+    for position, repo_id in enumerate(("topcoffea", "topeft")):
+        item = stages[4 + position]
+        repo = multi_repo_advancement_data()["repositories"][repo_id]
+        assert item["repository_id"] == repo_id and item["stage_mode"] == "integration_only"
+        assert item["integration_source_branch"] != item["integration_target_branch"]
+        assert item["expected_source_head"] == repo["candidate"]
+        assert item["expected_target_head"] == repo["base"]
+        assert item["must_pass_before_effects"]["candidate_tuple"] == plan["candidate_pair"]
+        assert item["must_pass_before_effects"]["require_fast_forward_ancestry"] is True
+        assert "stage:pair_validation:candidate_pair_evidence" in item["stage_inputs"]
+        assert "stage:independent_review:review_evidence" in item["stage_inputs"]
+        scope = item["stage_effect_permissions"]["allowed_to_modify"]
+        assert set(scope) == {repo_id}
+        assert scope[repo_id]["local_refs"] == ["refs/heads/" + repo["development_branch"]]
+        assert scope[repo_id]["git_effects"] == ["integrate_exact_source"]
+        assert "no automatic rollback or retry" in item["stage_failure_behavior"]
+        assert set(item["failure_outcomes"]) == {"failed_before_effect", "observed_effect", "OUTCOME_UNKNOWN"}
+    assert "stage:integrate_topcoffea:observed_target_head" in stages[-1]["stage_inputs"]
+    graph_edges = advanced.receipt["workflow_visualization"]["generated_graph"]["connectors"]
+    assert {"source": "derived_pair_validation", "target": "derived_integrate_topcoffea"} in graph_edges
+    assert {"source": "derived_integrate_topcoffea", "target": "derived_integrate_topeft"} in graph_edges
+    assert {"source": "derived_integrate_topeft", "target": "derived_stop"} in graph_edges
+
+    # An inventory cannot insert advancement into preparation-only semantics.
+    injected = run(MULTI_REPO, multi_repo_advancement_data())
+    assert not injected.prompt and injected.receipt["authorized_effects"] == []
+    for mutation in ("missing_authority", "wrong_repo", "missing_effect", "wrong_tuple",
+                     "missing_target_relation", "aliased_target", "pooled_envelope"):
+        invalid = multi_repo_advancement_data()
+        if mutation == "missing_authority":
+            invalid["bindings"] = [b for b in invalid["bindings"] if b["binding_id"] != "advance_topeft"]
+        elif mutation == "wrong_repo":
+            next(b for b in invalid["bindings"] if b["binding_id"] == "advance_topeft")["validity_scope"] = "topcoffea"
+        elif mutation == "missing_effect":
+            invalid["requested_effects"] = [e for e in invalid["requested_effects"] if e["effect_id"] != "advance_topeft"]
+        elif mutation == "wrong_tuple":
+            _binding(invalid, "pair_validation.candidate_tuple")["observed_state"]["value"]["consumer_head"] = "d" * 40
+        elif mutation == "missing_target_relation":
+            invalid["bindings"].remove(_binding(invalid, "repositories.topeft.permanent_target"))
+        elif mutation == "aliased_target":
+            invalid["repositories"]["topeft"]["permanent_target_branch"] = "te/q05_candidate"
+        else:
+            invalid["prompt"]["workflow_effect_envelope"] = deepcopy(invalid["prompt"]["workflow_effect_envelope"])
+            invalid["prompt"]["workflow_effect_envelope"]["allowed_to_modify"]["topeft"].remove("refs/heads/te/datacard_sr_reco")
+        failure = run(feature, invalid)
+        assert failure.compiler_result in {"NOT_READY_MISSING_AUTHORITY_BINDING",
+                                           "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                                           "COMPILER_INVARIANT_FAILURE"}, (mutation, failure.receipt)
+        assert not failure.prompt and failure.receipt["authorized_effects"] == []
+
+    original = compiler._plan_stages
+    for mutation in ("order", "validation_dependency", "candidate_tuple"):
+        def damaged(*args):
+            stages = original(*args)
+            if mutation == "order":
+                stages[3], stages[4] = stages[4], stages[3]
+            elif mutation == "validation_dependency":
+                stages[-1]["stage_inputs"].remove("stage:pair_validation:candidate_pair_evidence")
+            else:
+                stages[-1]["must_pass_before_effects"]["candidate_tuple"]["topeft"] = "d" * 40
+            return stages
+        with monkeypatch.context() as scoped:
+            scoped.setattr(compiler, "_plan_stages", damaged)
+            failure = run(feature, multi_repo_advancement_data())
+        assert failure.compiler_result == "COMPILER_INVARIANT_FAILURE", (mutation, failure.receipt)
+        assert not failure.prompt
 
 
 def test_q06_partial_integration_preserves_real_effect():
@@ -632,9 +738,40 @@ def test_q19_scientific_choice_preserves_preparation():
 def test_q20_unsupported_compiler_construct_does_not_revoke_manual_work():
     feature = "Feature: manual valid task\nScenario Outline: examples\nGiven a value\nThen success"
     result = run(feature)
-    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
     assert result.receipt["manual_fallback"] == "independently_evaluable_under_canonical_governance"
     assert result.receipt["dispatchability"]["dispatchable"] is False
+    assert result.receipt["unsupported_construct"]["affected_behavior_steps"]
+    for header in ("Background: shared premises", "Scenario Outline: bounded examples"):
+        result = run("Feature: standard input\n" + header + "\nGiven known inputs\nWhen I inspect the document\nThen the report cites evidence")
+        assert result.compiler_result == "IMPLEMENTATION_GAP"
+        assert result.receipt["unsupported_construct"]["current_architecture_boundary"]["classification"] == "implementation_gap"
+
+    # A known shape with no evaluable oracle is an evidence problem. A truly
+    # undefined action has no authoritative architectural execution contract.
+    missing = run(SIMPLE.replace("the report cites evidence", "the undefined oracle succeeds"))
+    assert missing.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert "unsupported_construct" not in missing.receipt
+    unknown = run(SIMPLE.replace("I inspect the document", "I invoke an undefined operation"))
+    assert unknown.compiler_result == "ARCHITECTURE_BOUNDARY_UNRESOLVED"
+    assert unknown.receipt["unsupported_construct"]["current_architecture_boundary"]["classification"] == "unresolved"
+    malformed = run("Feature: misplaced\nWhen I inspect the document")
+    assert malformed.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    inventory = base_data()
+    inventory["requested_effects"] = [{"effect_id": "unknown", "effect": "invented_effect",
+        "target": "document", "requested_by_step": 5, "positive_authority_binding": "owner_task"}]
+    invalid_inventory = run(SIMPLE, inventory)
+    assert invalid_inventory.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    supported = run()
+    assert supported.receipt["execution_shape_classification"] == "SUPPORTED_EXECUTION_SHAPE"
+    data = base_data()
+    data["prompt"]["branch_policy"] = "invented_branch_policy"
+    unsupported = run(data=data)
+    assert unsupported.compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
+    assert unsupported.receipt["unsupported_construct"]["current_architecture_boundary"]["classification"] == "normative"
+    for stopped in (missing, unknown, malformed, invalid_inventory, unsupported):
+        assert stopped.prompt == "" and stopped.receipt["authorized_effects"] == []
+        assert stopped.receipt["manual_fallback"] == "independently_evaluable_under_canonical_governance"
 
 
 def test_n1_syntax_tag_cannot_create_authority():
@@ -872,7 +1009,7 @@ def test_e2_poisoned_stage_bodies_and_order_cannot_become_plan():
 
 
 def test_e2_unrecognized_semantic_action_is_unsupported():
-    feature = "Feature: policy\nScenario: unknown\nGiven a scope\nWhen I arbitrate database ownership\nThen the answer is recorded"
+    feature = "Feature: policy\nScenario: unknown\nGiven a scope\nWhen I arbitrate database ownership\nThen the report cites evidence"
     result = run(feature)
     assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED' and result.prompt == ""
 
@@ -1127,7 +1264,7 @@ def test_e3_unknown_material_assertion_fails_closed():
     feature = PARALLEL.replace("Then exact union is reviewed",
                                "Then exact union is reviewed and unknown condition holds")
     result = run(feature, parallel_data())
-    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     assert result.prompt == "" and result.receipt["traceability"]["complete"] is False
 
 
@@ -1342,6 +1479,21 @@ def test_q05_partial_candidate_state_is_preserved_without_rollback():
     assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     assert result.prompt == "" and result.receipt["partial_state"]["state"] == "PARTIAL"
     assert "rollback" not in str(result.receipt).lower()
+
+    # A observed advancement survives B's certain pre-effect failure, and an
+    # uncertain effect remains a distinct record. Neither permits replay.
+    for outcome in ("failed_before_effect", "OUTCOME_UNKNOWN"):
+        partial = multi_repo_advancement_data()
+        partial["multi_repository_state"] = "PARTIALLY_INTEGRATED"
+        partial["partial_effects"] = {
+            "integrated_repo_identity": "topcoffea@" + "c" * 40,
+            "preserved_candidate_identity": "topeft@" + "d" * 40,
+            "consumer_effect_outcome": outcome,
+            "unresolved_recovery": "readback required" if outcome == "OUTCOME_UNKNOWN" else "stopped before B effect"}
+        stopped = run(MULTI_REPO.replace("write candidates", "write candidates and integrate"), partial)
+        assert stopped.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+        assert stopped.receipt["partial_state"]["observed_effects"] == partial["partial_effects"]
+        assert stopped.receipt["authorized_effects"] == [] and not stopped.prompt
 
 
 Q04_FEATURE = PARALLEL.replace("Then exact union is reviewed",
@@ -1899,7 +2051,7 @@ def test_r2_inventory_or_mentions_cannot_request_integration(action):
     result = run(PARALLEL.replace("writers edit, integrate, and retire branches", action), parallel_data())
     assert result.compiler_result == ("NOT_READY_NEW_DECISION_BOUNDARY"
                                       if action == "writers edit and retire branches" else
-                                      "ARCHITECTURE_BOUNDARY_UNRESOLVED")
+                                      "IMPLEMENTATION_GAP")
     assert not result.prompt
 
 
@@ -1914,7 +2066,7 @@ def test_r2_orchestration_without_composition_has_no_common_gate():
                                       "common validation passes"])
 def test_r2_generic_or_unrepresentable_assertion_cannot_claim_completeness(assertion):
     result = run(SIMPLE.replace("the report cites evidence", assertion))
-    assert result.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
     assert not result.receipt["traceability"]["complete"]
 
 
@@ -2125,11 +2277,10 @@ def test_r3_boundary_payload_distinguishes_contract_gap_and_unknown():
     data['prompt']['branch_policy'] = 'historical_worker_magic'
     unsupported = run(data=data)
     assert unsupported.compiler_result == 'UNSUPPORTED_CANONICAL_CONSTRUCT'
-    gap_data = multi_repo_data()
-    feature = MULTI_REPO.replace('write candidates', 'write candidates and integrate')
-    gap = run(feature, gap_data)
+    gap = run("Feature: standard input\nScenario Outline: bounded examples\nGiven known inputs\n"
+              "When I inspect the document\nThen the report cites evidence")
     assert gap.compiler_result == 'IMPLEMENTATION_GAP'
-    ambiguous = run(SIMPLE.replace('the report cites evidence', 'the undefined oracle succeeds'))
+    ambiguous = run(SIMPLE.replace('I inspect the document', 'I invoke an undefined operation'))
     assert ambiguous.compiler_result == 'ARCHITECTURE_BOUNDARY_UNRESOLVED'
     for result, classification in [(unsupported, 'normative'), (gap, 'implementation_gap'),
                                    (ambiguous, 'unresolved')]:

@@ -20,7 +20,7 @@ boundaries. This implementation supports `Feature`, documentary `Rule` grouping,
 `And` and `But` inherit the preceding step's role. Free-form descriptions may
 contain the required ASCII diagram. Standard constructs whose semantics are
 not implemented, including `Background`, `Scenario Outline`, and `Examples`,
-stop with a line-referenced diagnostic; parser limits do not establish a
+stop with a line-referenced `IMPLEMENTATION_GAP`; parser limits do not establish a
 canonical capability boundary. This is a bounded subset,
 not a full Gherkin implementation. Tags remain visible as classification and
 routing hints; they never grant authority or select production by themselves.
@@ -89,18 +89,20 @@ the assertion only requests review of the exact union, composed candidate, or
 combined worker results. Mentioning validation in a title, comment or documentary
 premise creates no gate. The verifier independently checks the candidate → common
 validation → integration order and the explicit evidence dependency; missing
-contracts or removed dependencies fail closed. Q05 validates its candidate tuple
-and continues to reject permanent advancement outside its supported contract.
+contracts or removed dependencies fail closed. The provider/consumer plan
+validates its candidate tuple before separately requested permanent advancement.
 Workflow mode and effect inventory cannot supply that behavior. The bounded
 two-writer action grammar recognizes editing/writing disjoint files, integrating
 or advancing the target, and retiring/removing temporary branches. The assertion
 must identify the reviewed exact union, composed candidate or combined worker
 results. Mere mentions or negation do not request integration. A bounded partial
 two-writer workflow emits only the requested composition/integration/retirement
-roles. Unfamiliar clauses require semantic/architecture resolution. Q05 is an orchestrated plan
+roles. Unrepresented parallel clauses report a compiler implementation gap.
+Candidate-only Q05 is an orchestrated plan
 without this composition/integration dependency and emits no common-validation
 stage. Generic assertions such as `success`, `output exists` or `result is ready`
-require semantic/architecture resolution because they do not identify an evaluable evidence claim.
+require an evaluable evidence contract and report missing decision-material
+evidence; they do not establish architectural uncertainty.
 
 The supported Q04 continuation is one two-writer case: one accepted writer
 result from an exact prior artifact and common base, one invalidated writer,
@@ -129,15 +131,31 @@ The lexical check does not follow symlinks or establish realpath identity; that
 remains with acquired binder and runtime evidence. `acquisition: acquired` is
 an upstream trust assertion, not compiler authentication. Unimplemented safe
 cases fail locally and leave the manually governed workflow available.
-The bounded Q05 provider/consumer planner starts from `NOT_STARTED` and stops
-at a validated repo-local candidate pair. Each repository must already have an
+The bounded provider/consumer planner starts from `NOT_STARTED`. The action
+`provider and consumer write candidates` stops at a validated repo-local
+candidate pair. Adding `and integrate` requests sequential permanent advancement
+of the provider and consumer after independent review and common pair validation.
+Each repository must already have an
 authorized candidate carrier in its native feature namespace, with exact
 permanent-start/candidate relation and local write/ref authority. The compiler
-does not create a carrier or advance `tc/dev-live`, `te/datacard_sr_reco` or any
-integration line. A `pair_validation_contract` names a test locator and covers
+does not create a carrier. For advancement, each repository explicitly binds
+`permanent_target_branch` to its native live branch, distinct from its candidate.
+An acquired `repositories.REPO_ID.permanent_target` relation binds repository,
+worktree, attached branch and head; each `integrate_REPO_ID` stage needs its own
+exact local-ref effect and owner binding within that repository's scope and
+the envelope. Candidate authority alone cannot supply this grant.
+A `pair_validation_contract` names a test locator and covers
 provider, consumer and common contract; an acquired tuple relation binds that
 locator to both generated candidate heads. The validation stage must pass on
-the exact pair. An observed partial or completed state yields a diagnostic
+the exact pair. Permanent stages consume that evidence and both candidate
+identities. Their pre-effect gates require exact source/target readback, a clean
+index/worktree and fast-forward ancestry. The consumer additionally requires
+the provider's observed advancement. Each stage preserves candidate/effect
+evidence and stops downstream work on failure. A failure before the effect and
+`OUTCOME_UNKNOWN` have distinct outcomes; the latter requires authoritative
+repo-local readback before any separately authorized retry. No global
+transaction, automatic rollback, retirement or publication is generated.
+An observed partial or completed state yields a diagnostic
 that preserves the supplied partial-effect record and requires a separately
 bound continuation or recovery plan. It does not replay the initial stages.
 Other dependent or unfamiliar action patterns fail closed as compiler
@@ -273,13 +291,18 @@ assertion for independent results is `writer results are reviewed`.
 The compiler distinguishes `SUPPORTED_EXECUTION_SHAPE`, `IMPLEMENTATION_GAP`,
 `UNSUPPORTED_CANONICAL_CONSTRUCT`, and `ARCHITECTURE_BOUNDARY_UNRESOLVED`.
 A rejected live closed-vocabulary value is a canonical boundary. Missing facts
-and authority retain their corresponding NOT_READY results. Unknown semantic
-clauses require an architecture/semantic resolution; they are not proof that
-canonical governance forbids the behavior. A missing implementation for a
-D8-supported pattern is an implementation gap. For example, permanent
-advancement after the two-repository candidate plan remains an implementation
-gap; it must not be relabeled canonically unsupported or emitted as a partial
-implementation of the requested behavior.
+and authority retain their corresponding NOT_READY results. A material result
+clause without an evaluable evidence contract is missing evidence. A malformed
+input or unknown effect-inventory key violates the input contract, independently
+of architectural support. Standard Gherkin syntax without parser support and
+unrepresented coordination grammar are implementation gaps. These distinctions
+come from the failed semantic/input obligation, not an error-message or
+caller-supplied classification. An action with no established canonical behavior
+or execution contract remains `ARCHITECTURE_BOUNDARY_UNRESOLVED`. This does not
+mean that canonical governance forbids it. Permanent provider/consumer
+advancement is supported by the bounded plan above when its separate local
+authority and exact evidence bindings are present; missing bindings do not
+turn it back into an architecture question.
 
 Boundary receipts include the semantic pattern, affected steps and effects,
 attempted execution shape, source/section, missing capability, decision options
