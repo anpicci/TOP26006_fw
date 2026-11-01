@@ -71,6 +71,36 @@ repository policy plus contracts actually triggered. Contracts are normative
 under this file; they do not grant effects. Read required referenced sections
 even if a trigger begins inside another contract.
 
+## Normative prompt-validation source
+
+For every prompt-generation and prompt-compliance validation level, including
+author-side construction, mechanical lint/validator, dispatch preflight,
+pre-effect revalidation, continuation or repair, and review/acceptance of
+prompt compliance, the normative governance source is the current content of
+`TOP26006_fw` at `refs/heads/master`.
+
+When multiple worktrees or branches exist, do not use copies of `AGENTS.md`,
+`CPC.md`, applicable contracts, prompt schema, validator or other governance
+surfaces from the active candidate worktree or feature branch as the normative
+source. Candidate governance changes are proposed implementation content, not
+authority and cannot self-authorize their own prompt validation.
+
+Resolve decision-material governance content from the exact Git objects at
+`refs/heads/master` (for example, `git show refs/heads/master:<path>`) or from
+an exact checkout whose `HEAD` is freshly verified to `refs/heads/master`.
+Record the current master OID and the relevant source identities when they are
+decision-material.
+
+A changed master OID alone does not invalidate a continuation when the declared
+decision-material governance dependencies are unchanged; revalidate against
+the current master and compare the relevant dependency identities. If a
+material governance, contract, scope or validation dependency changes, or the
+current master cannot be read or verified, stop the dependent validation or
+dispatch.
+
+The maintained prompt validator remains mechanical lint only; its result does
+not certify governance completeness, authorization or acceptance.
+
 ## Scope, effects and capability
 
 Every prompt names repository IDs, preflighted paths, allowed_to_modify and

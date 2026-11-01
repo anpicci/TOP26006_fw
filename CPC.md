@@ -9,6 +9,20 @@ Do not restate their procedures or maintain competing permission/model tables.
 An explicit owner override must name the rule, exact alternative and scope;
 an unresolved conflict stops emission or the dependent action.
 
+### Normative governance source for prompt validation
+
+Validate every prompt against the current `TOP26006_fw` `refs/heads/master`
+governance source at every applicable level: authoring, mechanical
+lint/validator, dispatch preflight, pre-effect revalidation, continuation or
+repair, and prompt-compliance review. When candidate and master worktrees or
+branches differ, the candidate copy is never the normative validation source.
+Use exact master Git objects or a checkout whose `HEAD` is freshly verified to
+`refs/heads/master`. A changed master OID alone triggers revalidation but does
+not invalidate a continuation when the decision-material governance
+dependencies are unchanged; material dependency change or inability to verify
+master stops the dependent validation or dispatch. The maintained validator is
+mechanical lint only and does not assess governance completeness.
+
 Use one authoritative metadata block, one decision_question and exact scopes.
 A goal is optional only when it adds distinct information. No expected audit
 verdicts or zero-failure discovery targets. Cite prior artifacts/locators

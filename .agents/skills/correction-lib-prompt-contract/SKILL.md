@@ -20,6 +20,16 @@ vocabulary, mode contract, or authorization model. Its result always records
 that governance completeness was not assessed, and its output cannot create or
 revoke authorization.
 
+When TOP26006_fw has multiple worktrees or branches, the controlling workflow
+must resolve normative prompt-governance inputs from the current
+`refs/heads/master`; candidate worktree/branch copies are not authoritative.
+If the master OID changes, revalidate against the current master; the OID
+change alone does not invalidate a continuation when the decision-material
+governance dependencies are unchanged. A material governance, contract,
+scope or validation dependency change, or inability to verify master, stops
+the dependent validation or dispatch. The helper remains mechanical lint only
+and does not replace that live-master governance read.
+
 Unknown fields are accepted during ordinary linting. A helper failure is local
 to this lint operation unless the controlling workflow explicitly requires its
 artifact.
