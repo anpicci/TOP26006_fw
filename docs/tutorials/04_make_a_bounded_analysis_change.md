@@ -81,6 +81,10 @@ git diff --cached
 git commit -m 'docs: record synthetic interpretation with provenance'
 git rev-parse HEAD HEAD^
 git diff HEAD^ HEAD -- interpretation.md
+if test -e ../tutorial04_change.patch; then
+  printf '%s\n' 'tutorial04_change.patch already exists; inspect it instead of overwriting it' >&2
+  exit 1
+fi
 git diff HEAD^ HEAD -- interpretation.md > ../tutorial04_change.patch
 git status --porcelain=v1
 ```
