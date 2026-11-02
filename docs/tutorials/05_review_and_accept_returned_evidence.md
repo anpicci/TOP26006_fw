@@ -1,47 +1,52 @@
 # Tutorial 5: review and accept returned evidence
 
-**Learning goal:** review your own synthetic result, repair a bounded provenance defect, and distinguish a teaching acceptance record from a real owner's decision.
+**Learning goal:** inspect a returned change and separate completion, evidence, interpretation, and acceptance.
 
-Continue from [Tutorial 4](04_make_a_bounded_analysis_change.md). Reuse your `practice_root` and `analysis="$practice_root/analysis_repository"`. The note exists but is not yet committed. If you opened a new shell, set these variables to **your** scratch paths before running commands.
+- **You are:** a researcher reviewing a returned synthetic interpretation.
+- **You want:** a defensible recommendation and an explicit human decision boundary.
+- **You will use:** the maintained observed scenario and review-report template.
+- **You will change:** only your own lesson review record outside maintained inputs.
+- **You will not change:** returned evidence, fixtures, templates, scratch histories, data, code, or environment.
+- **You should finish with:** a source-bound review recording a provenance finding, its reported repair, limits, and acceptance status.
+- **Prerequisites:** read access to the linked files and somewhere to keep personal notes. Tutorial 4 execution, its shell variables, and its commits are not required.
 
-1. Capture the seed and first result in your repository. Read the note as the executor's claim, inspect its exact change, and commit only that note:
+## Identify the returned evidence
 
-   ```sh
-   analysis_seed_head="$(git -C "$analysis" rev-parse HEAD)"
-   git -C "$analysis" status --porcelain=v1 -- interpretation.md
-   cat "$analysis/interpretation.md"
-   git -C "$analysis" add -- interpretation.md
-   git -C "$analysis" diff --cached -- interpretation.md
-   git -C "$analysis" commit -m 'docs: record first synthetic interpretation'
-   first_result_head="$(git -C "$analysis" rev-parse HEAD)"
-   git -C "$analysis" diff --name-only "$analysis_seed_head" "$first_result_head"
-   ```
+Open the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md). Use this maintained documentary artifact as the returned evidence for this exercise. Record its path and current SHA-256, obtained from your actual checkout root:
 
-   Only `interpretation.md` should differ from the seed. If your Tutorial-4 state differs from that precondition, stop and inspect its provenance before committing.
-2. Reopen the calculation and input provenance with the wrapper/interpreter from [Tutorial 4](04_make_a_bounded_analysis_change.md):
+```sh
+cd /absolute/path/to/TOP26006_fw
+sha256sum examples/research_workflow_lifecycle/observed_scenario.md
+cat examples/research_workflow_lifecycle/observed_scenario.md
+```
 
-   ```sh
-   "$wrap" "$python_env" "$analysis/analyze.py"
-   csv_sha256="$(sha256sum "$analysis/data/measurements.csv" | cut -d ' ' -f1)"
-   git -C "$analysis" show --stat --oneline "$first_result_head"
-   ```
+Replace the absolute checkout path before running these read-only commands. The scenario's analysis seed is `803b07b22f32fb813257adbe9f74890fb31c7e3c`; its first returned note is `eb40d2703e74350e09e00c459459d706bbc8fa74`; its provenance repair is `c9f7c6b9e090fdc3ae3c29b34171cf3a7cb88ff4`. These identify historical stages in a separate scratch history. They are not commits you must possess or recreate, and they are not your checkout HEAD.
 
-   Record the output: five rows, mean `10.060000`, standard error `0.089443`, chi-square `4.300000`, four degrees of freedom. The first note's missing source commit and CSV hash is blocking for the note's provenance, while the arithmetic remains reproducible. Put those distinct findings in the [review report](../../templates/review_report.md).
-3. Make the bounded repair in the **scratch** note. Record the first result commit as the source identity; the repair commit cannot cite itself in its own contents.
+The entry condition is a readable scenario containing those stages and its simulated-review qualification. If it is missing or materially different, record that discrepancy before using it. Do not substitute an unidentified Tutorial 4 note. The scenario is a compact report, not the underlying full command receipt or full note diff; those limits constrain the review.
 
-   ```sh
-   printf '\nSource analysis commit: %s\nInput CSV SHA-256: %s\nExecution: local wrapper and configured Python ran analyze.py.\nLimit: synthetic descriptive calculation; no real-data inference.\n' \
-     "$first_result_head" "$csv_sha256" >> "$analysis/interpretation.md"
-   git -C "$analysis" diff -- interpretation.md
-   git -C "$analysis" add -- interpretation.md
-   git -C "$analysis" diff --cached -- interpretation.md
-   git -C "$analysis" commit -m 'docs: add synthetic result provenance'
-   accepted_analysis_head="$(git -C "$analysis" rev-parse HEAD)"
-   git -C "$analysis" status --porcelain=v1 -- interpretation.md
-   ```
+## Review four distinct things
 
-4. In a **simulated teaching owner role**, record acceptance only of the bounded synthetic arithmetic record after checking the repaired note and its source IDs. The variable `accepted_analysis_head` is an observed Git identity, not proof of owner acceptance. A separately tasked reviewer or coordinating Chat may perform adversarial project review. Same-executor simulated review is not independent scientific replication or human peer review; human scientific/owner acceptance remains a separate real decision boundary.
+Use the existing [review report](../../templates/review_report.md) as a read-only guide. Write your own record with the following distinctions:
 
-**Verified reference run:** the recorded [scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) used first result `eb40d2703e74350e09e00c459459d706bbc8fa74` and repaired result `c9f7c6b9e090fdc3ae3c29b34171cf3a7cb88ff4`. Your IDs should differ.
+| Layer | What you can record here |
+| --- | --- |
+| Executor result | The scenario reports completion of a first note, followed by a provenance repair. Completion is a claim to examine. |
+| Observed evidence | You directly read the scenario's recorded identities, CSV hash, quantities, finding, and qualification. You have not directly inspected the historical Git objects or execution log. |
+| Reviewer's interpretation | The reported missing source commit and CSV hash block acceptance of the initial note's provenance. That defect does not by itself invalidate the reported arithmetic. |
+| Human acceptance decision | The historical owner role was simulated. Your recommendation creates no real owner or scientific acceptance; a real decision remains pending. |
 
-**Checkpoint:** your record separates executor claim, direct observations, blocking provenance finding, repaired commit identity, and simulated teaching acceptance scope. Continue to [continuation](06_continue_from_existing_evidence.md).
+Read the scenario's output row: five measurements; mean `10.060000`; model-based standard error `0.089443`; chi-square `4.300000`; four degrees of freedom. Keep its independent Gaussian assumption and synthetic descriptive scope attached. The CSV identity is `f6b9311f0ce6e675999c5ef31a14d82589179a9f8e82be917df6695c6893c294`.
+
+Record the initial provenance finding separately from the reported repair. A repair can name an earlier source identity; a commit cannot cite its own final identity inside its own contents. The scenario reports that the numerical run was not repeated. Do not run it merely to complete this review lesson.
+
+## Recommend, qualify, and leave a decision
+
+Your review should contain the artifact path/hash, stage identities, executor claims, direct observations, blocking and nonblocking findings, checks not performed, recommendation, and decision owner. Mark independent checks of the underlying historical note, diff, and runtime receipt as **not performed**. Same-person teaching review is not independent replication.
+
+For this documentary exercise, recommend that the initial note remain unaccepted until its provenance defect is repaired and checked. Report the scenario's repair and simulated acceptance as historical evidence, not your own verification of the repaired Git contents. A real reviewer would need the returned note, exact parent/result diff, input identities, command/output evidence, and actual owner decision before granting a stronger conclusion. Do not invent missing evidence or silently perform a repair during review.
+
+## Preserve the review and restart
+
+Save your review with the scenario identity and the last completed review step. If interrupted, reopen that record and the scenario, compare hashes, and resume at the first unanswered field. Unchanged evidence does not require recreating the first note, repeating arithmetic, or appending provenance again. Changed or unavailable evidence reopens only the affected finding; preserve the earlier review rather than overwriting it.
+
+You finish with either a qualified teaching recommendation or an unresolved evidence request, never automatic acceptance. To practise a new bounded change use [Tutorial 4](04_make_a_bounded_analysis_change.md); to prepare the next task from documented closure use [Tutorial 6](06_continue_from_existing_evidence.md).
