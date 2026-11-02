@@ -1,6 +1,20 @@
 # Tutorial 9: transfer work to a collaborator
 
-**Learning goal:** make a handoff from your own two scratch repositories and the intentionally stopped task.
+**Learning goal:** give a collaborator enough durable evidence and residual context to continue without reopening valid accepted work.
+
+A handoff can stay inside one repository or span several. Use only the repositories the task actually needs. Start with the [handoff template](../../templates/handoff.md): state the purpose, exact repository identities, artifact locations and what each artifact establishes. Distinguish reviewed/accepted claims and their limits from last-observed state and unresolved work. A last-observed HEAD or clean status must be refreshed when continuation depends on it; it is not a permanent guarantee.
+
+Describe what would invalidate reused evidence and which checks should not be repeated while that boundary holds. Reopen only the invalidated or directly coupled delta, rather than rerunning everything for confidence. Include relevant uncommitted changes as identified evidence, without adopting them or granting permission to change them.
+
+The recipient first locates and reads the evidence, then checks decision-material current identities and local state. They confirm what is established, what is pending, and the next responsible-human decision. A handoff transfers context and evidence; it grants no write permission, repository authority, scientific acceptance or authorization to rerun closed work. Any residual action needs its own applicable authorization. Executor completion, repository-local validation and human acceptance are separate statuses.
+
+For a provider-to-consumer handoff, record both commits and the claim relied upon using [Tutorial 7's transfer map](07_coordinate_a_multi_repository_change.md#follow-the-dependency-serially). Provider checks remain provider-local. The consumer must still verify its selected dependency and affected use and obtain separate acceptance. Preserve valid provider work if consumer work remains pending or fails; there is no global rollback.
+
+**Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
+
+## Optional scratch continuation
+
+The exercise below uses your two scratch repositories and intentionally stopped task; they are not prerequisites for an ordinary one-repository handoff.
 
 Continue from [Tutorial 8](08_recover_from_a_stopped_task.md) with your `analysis`, `methods`, `first_result_head`, `accepted_analysis_head`, `methods_evidence_head`, and `csv_sha256`. If variables were lost, recover them from **your** repository logs and notes; never substitute the recorded scenario's IDs.
 
@@ -32,6 +46,7 @@ Continue from [Tutorial 8](08_recover_from_a_stopped_task.md) with your `analysi
    Superseded: first note without source commit and input hash.
    Stopped-state evidence: stopped_analysis_note.patch; analysis HEAD $accepted_analysis_head.
    Residual decision: classify ownership of the uncommitted note edit.
+   Authorization: this handoff grants no edits, reruns, or acceptance.
    Invalidation: CSV, script, model, source identities, or task-path state drift.
    Checks not to repeat: accepted numerical run while boundary holds.
    Next decision: human owner classifies edit before any continuation.
