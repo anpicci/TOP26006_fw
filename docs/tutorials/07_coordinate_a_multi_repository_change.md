@@ -41,57 +41,33 @@ For a future authorized correction change, hand over the exact provider revision
 
 **Checkpoint:** explain why this question needs two authorities, which evidence can be reused, which consumer check remains, and who may authorize and accept that consumer action. Use the [handoff template](../../templates/handoff.md) to record the unresolved boundary.
 
-## Optional scratch practice: analysis to methods
+## Optional documentary practice: prepare an evidence transfer
 
-The following continues the synthetic serial exercise. It does not authorize work in either native repository.
+You are the researcher preparing evidence for a receiving methods responsibility. Your purpose is to decide which analysis claim can be carried across and what the recipient must still establish. You will produce a **personal evidence-transfer draft**, using the existing [handoff template](../../templates/handoff.md) as a read-only guide. You need only read access to that template and the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md), plus a place for your own draft. No previous tutorial execution, scratch repository, shell variables, or historical Git objects are required. A saved [Tutorial 6](06_continue_from_existing_evidence.md) draft may help, but is optional.
 
-Continue from [Tutorial 6](06_continue_from_existing_evidence.md) with your `analysis`, `accepted_analysis_head`, `csv_sha256`, and `practice_root`. The [lifecycle fixture](../../examples/research_workflow_lifecycle/README.md) provides a methods seed. Both repositories here are diagnostics-local teaching copies, not real governed project repositories.
+### Select the documented transfer stage
 
-1. Verify the source before transfer:
+Use the scenario's analysis-to-methods stage: **after provenance repair, at the methods evidence record, before the later intentional stop**. Locate the rows “Review finding”, “Provenance repair HEAD”, and “Methods evidence HEAD”, and read the qualification paragraph below the table. Do not import the later dirty analysis state into this earlier transfer.
 
-   ```sh
-   test "$(git -C "$analysis" rev-parse HEAD)" = "$accepted_analysis_head"
-   test "$(sha256sum "$analysis/data/measurements.csv" | cut -d ' ' -f1)" = "$csv_sha256"
-   git -C "$analysis" status --porcelain=v1 -- interpretation.md data/measurements.csv analyze.py
-   cat "$analysis/interpretation.md"
-   ```
+Record the scenario and template paths, the version or file hash available from your reading source, and the selected stage in your personal draft. If source version information is unavailable, record that limit rather than inventing it. Historical commits in the scenario identify its separate teaching histories; you need not possess or interrogate them. They do not identify your present checkout.
 
-   If a test fails or task paths are dirty, stop. The bounded evidence object is the calculation, input hash, source commit, repaired note, review finding, and **simulated teaching acceptance** of synthetic arithmetic.
-2. Create your own separate methods repository only after the analysis record is qualified:
+### Write and justify the transfer
 
-   ```sh
-   cp -R "$checkout/examples/research_workflow_lifecycle/methods_seed" "$practice_root/methods_repository"
-   methods="$practice_root/methods_repository"
-   git -C "$methods" init -q -b main
-   git -C "$methods" config user.name 'Synthetic Researcher'
-   git -C "$methods" config user.email 'synthetic@example.invalid'
-   git -C "$methods" add -- README.md
-   git -C "$methods" commit -m 'docs: establish synthetic methods seed'
-   ```
+Fill the relevant handoff fields in your own words. Make these selections explicit:
 
-3. Under this teaching authorization, write only `methods_note.md`. Carry the qualified quantities and their limits; use your own source identity:
+| Entry in your draft | Selection and explanation to produce |
+| --- | --- |
+| Claim and two roles | Choose the bounded synthetic arithmetic claim the methods record relies on. Explain why analysis supplies evidence and methods receives it for this dependency, and why their responsibilities remain separate. Quote the reported quantities and independent Gaussian assumption with their synthetic limits. |
+| Source and input identities | Extract the analysis seed, first bounded note, provenance repair, methods evidence and CSV identifiers from their named scenario rows. Label each stage separately: a repaired note's commit is not proof that its contents cite that same final commit. Identify what the summary actually reports and what underlying contents you have not inspected. |
+| Review and acceptance | Explain the initial provenance omission and the reported repair without a repeated numerical run. Attribute acceptance to the scenario's simulated teaching owner; no independent human scientific acceptance or real-data qualification is established. |
+| Evidence to reuse | Select the reported arithmetic and repaired provenance record, while keeping source, input, assumption and review limits attached. Explain why unchanged accepted checks need not be replayed simply because methods receives the evidence. |
+| Receiving-side checks | Identify what methods must still establish: the actual selected analysis revision, readable full evidence, suitability for its intended use, affected interface/configuration checks where relevant, and its own review and responsible-human acceptance. The historical methods commit alone proves none of these for a new task. |
+| Missing information and decision | List unavailable original notes, full command receipts or attachments, actual repository paths/branch/HEAD/status, current permissions and responsible humans. Explain which proposed action each gap prevents. Propose the smallest authorized evidence-acquisition step for a real transfer and name the human decision needed before it can proceed. |
 
-   ```sh
-   cat > "$methods/methods_note.md" <<EOF
-   # Synthetic methods evidence
-   Analysis source commit: $accepted_analysis_head
-   Input CSV SHA-256: $csv_sha256
-   Observed local-wrapper result: five rows; weighted mean 10.060000;
-   standard error 0.089443; chi-square 4.300000; four degrees of freedom.
-   Assumption: independent Gaussian uncertainties and one common mean.
-   Review: bounded provenance finding repaired in the analysis note.
-   Acceptance: simulated teaching owner acceptance of synthetic arithmetic only.
-   Limit: no real-data method, interpretation, production, or publication claim.
-   EOF
-   git -C "$methods" status --porcelain=v1
-   git -C "$methods" add -- methods_note.md
-   git -C "$methods" diff --cached -- methods_note.md
-   git -C "$methods" commit -m 'docs: record qualified synthetic methods evidence'
-   methods_evidence_head="$(git -C "$methods" rev-parse HEAD)"
-   ```
+The compact scenario does not supply the full original notes, compatibility results or current repository states. Mark an item unavailable when it is absent; do not reconstruct it as original evidence. Writing this draft changes neither maintained inputs nor a methods repository and grants no permission for the real task it describes. Evidence crosses the boundary; write authority and acceptance do not.
 
-4. Check `git -C "$methods" status --porcelain=v1` and `git -C "$analysis" rev-parse HEAD`. The methods commit must cite `accepted_analysis_head` while the analysis repository stays at its own head. Neither commit authorizes edits in the other repository.
+### Reopen, check and continue
 
-**Verified reference run:** the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) records different analysis and methods commit IDs for one prior run.
+Save your draft with its input locators, selected stage, completed entries and unresolved items. To restart, reopen that draft and the named scenario/template. Compare the recorded source version or hash if available; otherwise retain the unresolved identity limit. Resume at the first incomplete entry. A changed source requires reviewing only the affected claim. To enter directly or start afresh, use the same documented stage and a new personal draft; no prior shell or repository state is needed.
 
-**Checkpoint:** your methods note cites your own analysis source and its qualified evidence. Continue to [the stopped task](08_recover_from_a_stopped_task.md).
+**Checkpoint:** compare every entry with the scenario rows and template. Can you explain why two responsibilities matter, which evidence travels, which authority does not, and which checks and human decision remain with the recipient? Have you kept the later stop separate and identified missing originals rather than inventing them? The output is an assessable documentary draft; it demonstrates no executed Git operation or newly accepted consumer result. For the separate documented stop, continue to [Tutorial 8](08_recover_from_a_stopped_task.md); for a successor handoff, use [Tutorial 9](09_transfer_work_to_a_collaborator.md).

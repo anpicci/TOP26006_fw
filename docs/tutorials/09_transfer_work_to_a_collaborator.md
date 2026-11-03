@@ -12,52 +12,31 @@ For a provider-to-consumer handoff, record both commits and the claim relied upo
 
 **Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
 
-## Optional scratch continuation
+## Optional documentary practice: prepare a successor handoff
 
-The exercise below uses your two scratch repositories and intentionally stopped task; they are not prerequisites for an ordinary one-repository handoff.
+You are the researcher preparing a successor to assess a stopped local task without oral project history. You will write a **personal handoff draft** using the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) and the existing [handoff template](../../templates/handoff.md), both read-only. You need read access and somewhere to save your draft. No previous tutorial execution, scratch repositories, shell variables, historical Git objects or contact with another person is required. A saved [Tutorial 8](08_recover_from_a_stopped_task.md) assessment is optional supporting work.
 
-Continue from [Tutorial 8](08_recover_from_a_stopped_task.md) with your `analysis`, `methods`, `first_result_head`, `accepted_analysis_head`, `methods_evidence_head`, and `csv_sha256`. If variables were lost, recover them from **your** repository logs and notes; never substitute the recorded scenario's IDs.
+### Enter at the documented intentional stop
 
-1. Reopen identities and stopped-state evidence:
+Use the scenario's “Intentional stop” row and qualification paragraph. At this later stage the scenario reports that expected and observed analysis HEAD were both the provenance-repair HEAD, status was ` M interpretation.md`, and the diff added `unexpected local edit after accepted commit`. The earlier repaired record remains prior closure; the later working tree was dirty. Do not describe that stopped state as a clean accepted result or as your current checkout.
 
-   ```sh
-   git -C "$analysis" rev-parse HEAD
-   git -C "$methods" rev-parse HEAD
-   git -C "$analysis" status --porcelain=v1 -- interpretation.md
-   git -C "$analysis" diff -- interpretation.md
-   cat "$methods/methods_note.md"
-   ```
+Record the scenario and template paths, their available version or file hash, and this exact stage in your draft. If version information is unavailable from your reading source, mark it unresolved. The scenario describes an added line; it does **not** provide a complete original stopped-state patch. Do not generate a patch from a nonexistent repository or present a reconstructed line as that original artifact.
 
-2. Fill the [handoff template](../../templates/handoff.md) in a diagnostics-local file. Preserve the uncommitted diff separately, then write your own identities into the handoff:
+### Prepare a handoff someone else could assess
 
-   ```sh
-   git -C "$analysis" diff -- interpretation.md > "$practice_root/stopped_analysis_note.patch"
-   cat > "$practice_root/handoff.md" <<EOF
-   # Synthetic handoff
-   Scientific owner: human teaching role; real authority not acquired.
-   Prompt author: coordinating role. Executor and reviewer: simulated teaching roles.
-   First analysis result: $first_result_head
-   Repaired analysis result: $accepted_analysis_head
-   Methods evidence: $methods_evidence_head
-   Input CSV SHA-256: $csv_sha256
-   Observed: mean 10.060000; standard error 0.089443; chi-square 4.300000; four degrees of freedom.
-   Review: arithmetic reproduced; first note provenance finding repaired.
-   Acceptance: simulated teaching acceptance of synthetic arithmetic only.
-   Superseded: first note without source commit and input hash.
-   Stopped-state evidence: stopped_analysis_note.patch; analysis HEAD $accepted_analysis_head.
-   Residual decision: classify ownership of the uncommitted note edit.
-   Authorization: this handoff grants no edits, reruns, or acceptance.
-   Invalidation: CSV, script, model, source identities, or task-path state drift.
-   Checks not to repeat: accepted numerical run while boundary holds.
-   Next decision: human owner classifies edit before any continuation.
-   Recipient acquisition/comprehension: pending.
-   EOF
-   ```
+Use the template fields to make the following evidence-based selections. For every established claim, cite the scenario row or paragraph that supports it; for every unknown, explain what next action depends on it.
 
-   Check the file against the template and add exact evidence locators from your run. The saved file is a teaching record, not an authorization.
-3. Record the residual question: who owns the uncommitted edit and how should it be handled? Include expected/observed analysis HEAD, the ` M interpretation.md` status, the exact diff, invalidation boundary, checks not to repeat, and the next owner decision. A real handoff can carry both committed identities and an uncommitted stopped-state diff when that diff is material evidence.
-4. Ask a successor to reopen the cited artifacts and confirm understanding. Record “handoff sent” separately from acquisition/comprehension. The handoff itself transfers neither repository permission nor scientific authority.
+1. **Purpose, roles and established claims.** State the successor's decision: how to obtain current evidence and have the responsible human classify the stopped edit before continuation. Identify the analysis and methods histories separately using their recorded commits and CSV hash. Carry the reported synthetic arithmetic, assumption and provenance repair with their qualifications. Identify the owner, executor and reviewer as simulated teaching roles; real ownership and authorization remain unresolved.
+2. **Superseded wording and evidence limits.** Record that the first note omitted source commit and CSV hash and that the scenario reports a later provenance repair. The original wording and complete notes/receipts are unavailable here. Locate the reported finding and repair without inventing their full contents. Preserve the distinction between the reported stopped diff and possession of its original patch; request the full task-scope evidence before any real recovery decision.
+3. **Last observations and unresolved state.** Quote the stop row's equal expected/observed HEAD, modified-note status and added line as historical observations. Explain why HEAD equality does not imply cleanliness. Current paths, branch/HEAD, index, working tree, edit ownership and any interrupted-command effects need fresh authorized readback; the scenario cannot settle them. Treat the methods record as separate prior evidence, not proof of current consumer compatibility.
+4. **Reuse and invalidation.** Choose which reported checks should not be repeated while their inputs, source, method and assumptions remain valid: the numerical run and closed provenance repair. Name which relevant changes or missing/contradictory evidence would reopen each claim. A dirty note line alone does not invalidate the earlier arithmetic; its ownership still blocks adopting or overwriting it.
+5. **Next human decision and permissions.** Propose bounded read-only acquisition of actual HEAD, task-scope staged/unstaged status and full diff, note contents and any command receipt. Preserve the edit while the responsible human classifies it and authorizes an exact continuation. Mark real write, retry, cleanup and acceptance permissions unresolved; this handoff grants none.
+6. **Recipient readback.** Mark acquisition and comprehension **pending** until a real successor locates, reads and confirms the evidence. Preparing or sending a handoff is not that confirmation. This optional exercise ends with your own draft check and requires no contact; a real later handoff needs its own context and authorization.
 
-**Verified reference run:** the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) illustrates one other set of identities and a simulated review/owner decision; it is not your learner state.
+Save your personal draft with exact input locators, the last completed entry and unresolved evidence requests. It must let a reader find the compact source and see both what it supports and which originals remain missing. Writing the draft does not modify the scenario, template or stopped evidence.
 
-**Checkpoint:** a successor can locate your own accepted teaching record, provenance, superseded wording, stop, and next decision without oral context. Return to the [manual index](../index.md).
+### Restart and check your output
+
+Reopen your saved draft and its named scenario/template after interruption. Compare recorded versions or hashes when available, retaining any unresolved identity limit. Resume at the first unanswered field without recreating the stop, querying historical refs or replaying arithmetic. If a source changed, preserve the earlier assessment and revisit only affected claims. To start directly or afresh, use the same intentional-stop stage and a new personal draft.
+
+**Draft checkpoint:** compare your handoff with every template field and the scenario. Can a reader locate prior closure, superseded provenance, last observations, the reported stopped edit, missing full patch, invalidation triggers, protected checks and next human decision without oral history? Have you kept simulated acceptance separate from real acceptance and your self-check separate from recipient confirmation? Record gaps instead of claiming completeness unsupported by the summary. Completion demonstrates a documentary handoff draft, not recovery execution or recipient comprehension. Return to the [manual index](../index.md); for a real continuation, first resolve the identified evidence and owner decisions under its separately authorized task.

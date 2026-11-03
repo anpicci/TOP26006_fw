@@ -7,7 +7,7 @@ Choose a destination by what you need to do. Learning pages and how-to guides ex
 | Location | What to use it for |
 | --- | --- |
 | [README](../../README.md), [manual index](../index.md), [getting started](../getting_started.md) | Enter the manual and choose a short research route. |
-| [Research foundations](../foundations/ai_assisted_research.md), [research workflow](../explanation/research_workflow.md), [roles and authority](../explanation/roles_and_authority.md) | Understand the method and the responsibilities of people and tools. Explanatory documentation. |
+| [Research foundations](../foundations/ai_assisted_research.md), [research workflow](../explanation/research_workflow.md), [roles and authority](../explanation/roles_and_authority.md), [research-oriented writing](../explanation/research_oriented_writing.md) | Understand the method and the responsibilities of people and tools. Explanatory documentation. |
 | [Synthetic measurements](../../examples/repeated_measurements/README.md), [companion notebook](../../examples/repeated_measurements/repeated_measurements.ipynb) | Explore invented teaching data and the maintained calculation; the notebook calls its functions and stores no executed output. |
 | [First read-only task](../tutorials/03_complete_a_first_read_only_task.md) | Complete one small task without a native analysis checkout; use [Tutorial 1](../tutorials/01_prepare_a_research_project.md) when local execution needs setup. |
 
@@ -19,8 +19,11 @@ Choose a destination by what you need to do. Learning pages and how-to guides ex
 | Inspect a scientific repository | [TOPEFT repository lesson](../tutorials/02_add_an_analysis_repository.md), an optional bridge to a separately resolved native checkout |
 | Make, review or continue a change | [Bounded change](../tutorials/04_make_a_bounded_analysis_change.md), [review and acceptance](../tutorials/05_review_and_accept_returned_evidence.md), [continuation](../tutorials/06_continue_from_existing_evidence.md) |
 | Recover or hand off work | [Stopped task](../tutorials/08_recover_from_a_stopped_task.md), [collaborator handoff](../tutorials/09_transfer_work_to_a_collaborator.md) |
+| Adapt an installation | [Paths and remote aliases](../how_to/adapt_paths_and_remotes.md), [workspace and checkout names](../how_to/choose_workspace_and_checkout_names.md): map local installation facts without changing repository identity |
+| Inspect evidence before proposing a change | [Read-only examination](../how_to/perform_a_read_only_examination.md): bound observations and return their limits |
+| Preserve existing work | [Existing local changes](../how_to/handle_existing_local_changes.md), [reuse prior evidence](../how_to/reuse_prior_evidence.md), [prepare a continuation](../how_to/prepare_a_continuation.md): identify ownership, retain valid closure and request only the delta |
 | Check setup or a common stop | [Prerequisites](../how_to/check_prerequisites.md), [diagnose common stops](../how_to/diagnose_common_stops.md) |
-| Find a teaching aid | [Task request](../../templates/research_task_request.md), [bounded change](../../templates/bounded_change_prompt.md), [continuation](../../templates/continuation_prompt.md), [review](../../templates/review_report.md), [handoff](../../templates/handoff.md) templates; they grant no action |
+| Find a teaching aid | [Task request](../../templates/research_task_request.md), [read-only prompt skeleton](../../templates/read_only_prompt.md), [bounded change](../../templates/bounded_change_prompt.md), [continuation](../../templates/continuation_prompt.md), [review](../../templates/review_report.md), [handoff](../../templates/handoff.md) templates; they grant no action |
 | Inspect the lifecycle teaching case | [Lifecycle fixture](../../examples/research_workflow_lifecycle/README.md); scratch Git copies are diagnostic only |
 
 These are explanatory task aids. They do not replace native instructions or the applicable live execution contract.
@@ -29,7 +32,7 @@ These are explanatory task aids. They do not replace native instructions or the 
 
 | Location | When it helps |
 | --- | --- |
-| [Multi-repository lesson](../tutorials/07_coordinate_a_multi_repository_change.md) | A real dependency crosses repository boundaries; ordinary tasks can remain in one repository. |
+| [Multi-repository lesson](../tutorials/07_coordinate_a_multi_repository_change.md), [multi-repository research](../explanation/multi_repository_research.md) | A real dependency crosses repository boundaries; ordinary tasks can remain in one repository. |
 | [Advanced route](../advanced/index.md), [advanced tutorials](../tutorials/advanced/01_coordinate_parallel_research_workstreams.md) | Optional coordination learning after the core route; start with the route's decision about whether to enter. |
 | [Advanced how-tos](../how_to/advanced/define_workstream_responsibilities.md), [advanced reference](advanced/workstream_record.md), [advanced explanations](../explanation/advanced/coordinating_a_research_programme.md) | Workstream procedures, record shapes and rationale. |
 | [Synthetic parallel workstreams](../examples/advanced_parallel_workstreams/README.md) | Four-file teaching case; no live registry or execution. |
