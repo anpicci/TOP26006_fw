@@ -286,8 +286,13 @@ use `prompt_local`. Other patch kinds are unsupported until exact provenance
 semantics are implemented. The maintained prompt validator checks mechanical
 validity and internal consistency only; governance completeness remains unassessed. A
 generated prompt, receipt, or validator PASS is neither execution nor
-acceptance nor normative D8 adoption. Historical H1-H6 comparison belongs to
-D8-F.
+acceptance nor normative D8 adoption. Current D8-F qualification comprises
+35 functional cases: Q01-Q20 (20), H1-H5 (5) and N01-N10 (10). Q01, Q16 and
+Q20 cover simple bounded work, minimum-sufficient execution and the governed
+manual fallback. H1-H5 cover separable work and join, continuation, accepted
+result preservation and lifecycle, dependent repositories, and governed
+multi-action sequences. Historical workflow equivalence is not a completion
+prerequisite.
 
 The compiler trusts the upstream acquisition/binder layer's `acquired` claim.
 Gherkin text never creates acquisition or authority. `source_identity` records
@@ -492,9 +497,9 @@ HEAD and index readback before any retry, with `automatic_retry: false` and
 no new effect before explicit idempotence or recovery authority. Qualification
 of this generated contract does not require manufacturing a Git failure.
 
-These extensions prepare candidates only. Historical H1–H5 equivalence and
-corrected positive qualification require separate full generated-prompt review;
-unit-test success and a mechanical lint pass do not establish them.
+These extensions prepare candidates only. Current functional qualification
+requires review of the generated prompts and affected behavior; unit-test
+success and a mechanical lint pass do not establish execution or acceptance.
 
 
 ### Identity audit and lifecycle policy

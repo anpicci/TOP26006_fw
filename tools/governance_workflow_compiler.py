@@ -105,7 +105,6 @@ HISTORICAL_CASES = {
     "H3": "014 governance adoption and terminal retirement accepted oracle",
     "H4": "016 two-repository candidate and integration accepted oracle",
     "H5": "017 pre-D8 canonicalization accepted workflow oracle",
-    "H6": "one exact current simple non-orchestrated manual prompt oracle",
 }
 
 

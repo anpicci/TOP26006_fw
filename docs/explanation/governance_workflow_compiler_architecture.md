@@ -46,10 +46,12 @@ planner output, policy-source changes and missing result dependencies.
 
 The binder's acquired claims remain trust assertions. The compiler does not
 authenticate arbitrary evidence or infer dispatch authority from a receipt.
-The maintained validator reports mechanical consistency only. Historical
-equivalence requires historical source evidence independently of synthetic
-capability tests. Unsupported compiler behavior retains the manual canonical
-governance fallback.
+The maintained validator reports mechanical consistency only. Current D8-F
+qualification uses 35 functional cases: Q01-Q20, H1-H5 and N01-N10. The five
+complex capabilities are functional requirements; retrospective equivalence
+with historical manual workflows is not a completion prerequisite. Q01, Q16
+and Q20 retain simple bounded execution and the manual canonical governance
+fallback. Functional tests do not establish execution or owner acceptance.
 
 The compiler receipt binds the hashes of the entrypoint and both internal
 modules. Missing canonical validator bytes produce a diagnostic receipt.

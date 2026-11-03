@@ -1,4 +1,4 @@
-"""Focused D8-E implementation checks; retrospective H1-H6 oracle review is D8-F."""
+"""Current D8 functional checks; execution and owner acceptance remain external."""
 
 import hashlib
 from copy import deepcopy
@@ -855,11 +855,11 @@ def test_n10_closed_vocabulary_is_checked_against_live_governance():
     assert run(data=data).compiler_result == "UNSUPPORTED_CANONICAL_CONSTRUCT"
 
 
-def test_historical_h1_h6_inputs_are_declared_but_unevaluated():
+def test_h1_h5_readiness_is_declared_but_unevaluated():
     result = run()
     assert set(result.receipt["historical_case_readiness"]) == set(HISTORICAL_CASES)
     assert all(item["state"] == "NOT_EVALUATED" for item in result.receipt["historical_case_readiness"].values())
-    assert "H6" in result.receipt["historical_case_readiness"]
+    assert set(result.receipt["historical_case_readiness"]) == {"H1", "H2", "H3", "H4", "H5"}
 
 
 def test_f_b01_inert_caller_stages_cannot_force_orchestration():

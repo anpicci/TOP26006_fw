@@ -106,7 +106,7 @@ def test_missing_canonical_validator_returns_diagnostic_receipt(monkeypatch):
 
 
 def qualification_capability_cases():
-    """Complete frozen semantic inputs; no historical mission is executed here."""
+    """Current complex capability inputs; no historical mission is executed here."""
     import test_governance_workflow_compiler as t
     cases={}
     feature,data=t.composed_resource_fixture()
@@ -191,34 +191,11 @@ def qualification_capability_cases():
     cases['H3']=adoption(['AGENTS.md','CPC.md','CONTRIBUTING.md','governance/repositories.md',
                            'governance/contracts/git_lifecycle.md','governance/contracts/orchestration.md'])
     cases['H5']=adoption(['AGENTS.md','CPC.md'],True)
-    # Accepted H6 baseline: exact three TOPEFT docs, not a generic read-only sample.
-    data=t.base_data();repo='topeft';branch='te/datacard_sr_reco'
-    paths=['docs/how_to/sr_reco_pkl_campaign.md','docs/how_to/production.md','docs/explanation/architecture.md']
-    data['repositories']={repo:{'development_branch':branch}}
-    area={repo:{'tracked_paths':paths,'git_index_entries':paths,'local_refs':['refs/heads/'+branch],
-                'git_effects':['create_one_prompt_local_commit']}}
-    data['prompt'].update(prompt_mode='documentation_only',branch_policy='continue_existing_branch',target_branch=branch,
-        repo_locations={repo:'/workspace/topeft'},allowed_to_modify=area,read_only={repo:['established accepted D7 semantics']},
-        heavy_command_permissions={'allowed_to_modify':area},authorized_commit_scope={repo:paths},
-        explicitly_adopted_inherited_changes='none',foreign_dirty_change_policy='preserve_and_exclude',
-        staging_policy='exact_path_only',patch_kind_expected='prompt_local',validation_ceiling='static_inspection_only')
-    feature='Feature: document accepted D7 baseline\nScenario: exact bounded documentation update\n'
-    givens=['current Work Queue staging uses paths only','capacity and headroom replace fixed per-PKL artifact budgets',
-            'repository identity is portable and stage-scoped','durable outputs remain no-clobber with recovery and DD-stage semantics',
-            'foreign work is preserved; source runtime production scheduler and remote effects are excluded']
-    feature+='\n'.join(('Given ' if i==0 else 'And ')+s for i,s in enumerate(givens))+'\n'
-    line=len(feature.splitlines())+1;feature+='When I edit the exact three established documentation pages\nThen the report cites evidence\n'
-    data['requested_effects']=[]
-    for i,(kind,target) in enumerate([*[('tracked_write',path) for path in paths],('local_git_ref_write','refs/heads/'+branch)]):
-        eid='h6_'+str(i);data['bindings'].append({**data['bindings'][0],'binding_id':eid,'validity_scope':repo,
-            'authorizes_effect':True,'effect':kind,'target':target})
-        data['requested_effects'].append({'effect_id':eid,'effect':kind,'target':target,'requested_by_step':line,'positive_authority_binding':eid})
-    cases['H6']=(feature,data)
     return cases
 
 
-@pytest.mark.parametrize('case',['H1','H2','H3','H4','H5','H6'])
-def test_frozen_historical_capability_contracts(case):
+@pytest.mark.parametrize('case',['H1','H2','H3','H4','H5'])
+def test_complex_functional_capability_contracts(case):
     feature,data=qualification_capability_cases()[case]
     result=run(feature,data)
     assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE', result.receipt
@@ -236,10 +213,6 @@ def test_frozen_historical_capability_contracts(case):
         assert 'without repetition' in edit['stage_acceptance_gate']
     elif case=='H5':
         assert [s['stage_id'] for s in stages][:5]==['create_worktree','edit','inspect','commit','prepare_handoff']
-    elif case=='H6':
-        assert not stages and plan['delegation_policy']=='forbidden'
-        assert plan['validation_ceiling']=='static_inspection_only'
-        assert len(plan['authorized_commit_scope']['topeft'])==3
 
 
 @pytest.mark.parametrize('damage', ['digest', 'source', 'path', 'review'])
