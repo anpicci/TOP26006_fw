@@ -55,7 +55,7 @@ Use this gateway when you maintain the framework or translate an authorized task
 | Mechanically check a completed prompt | [Prompt validation](how_to/validate_a_prompt_before_execution.md) |
 | Look up the prompt contract | [Prompt contract reference](reference/prompt_contract.md) |
 
-Manual governed prompt authoring is the current operational route, whether the author is a person or an authorized assistant. The optional governance-workflow compiler in the canonical framework is not adopted as the required/default authoring layer. Its guide is not needed for the routes above; follow any later explicit owner adoption decision.
+Manual governed prompt authoring is the current operational route, whether the author is a person or an authorized assistant. The D8 governance-workflow compiler is present in the repository but is not operationally adopted as the default lane authoring path. Its presence does not make it normative or an optional operational route for newcomers. Normal prompt authoring remains current; later operational adoption requires an explicit project decision and a separate qualification boundary. Its guide is not needed for the routes above.
 
 The guides explain procedures; live [AGENTS.md](../AGENTS.md), [CPC.md](../CPC.md), the [repository registry](../governance/repositories.md) and its applicable modules/contracts remain the authority. Use [governance precedence](reference/governance_precedence.md) and the [file map's authority locators](reference/file_map.md#normative-governance-authority) to find those sources; [CONTRIBUTING.md](../CONTRIBUTING.md) governs contribution and review prose. A prompt-validator PASS establishes supported mechanical checks, not governance completeness, authorization or scientific correctness.
 

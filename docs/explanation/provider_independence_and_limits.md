@@ -4,7 +4,7 @@ The stable sequence is a research question, a bounded task, authority and permis
 
 ## Keep four layers distinct
 
-**Research method** connects the question, assumptions, provenance and checks. **Project governance** determines who may authorize work, where it belongs and which execution/evidence rules apply. **Provider mechanisms** supply product surfaces, configuration, action controls, context and tools. **Local installation** supplies actual paths, versions, effective settings and observed behavior. These layers interact, but a capable tool or a provider permission prompt cannot create an owner grant.
+**Research method** connects the question, assumptions, provenance and checks. **Project governance** determines who may authorize work, where it belongs and which execution/evidence rules apply. **Provider mechanisms** supply product surfaces, configuration, action controls, context and tools. **Local installation** supplies actual paths, versions, effective settings and observed behavior. These layers interact, but a capable tool or a provider permission prompt cannot create a research lead's grant.
 
 The mechanism layer is replaceable, subject to a task's requirements and evidence. Another provider need not expose the same names or split discussion, research and repository execution into separate products. Map the needed responsibility to a documented mechanism, then identify the observation needed before relying on it. Similar names, instruction text or prompts do not establish equal loading, reach, sandboxing, review or restart behavior.
 

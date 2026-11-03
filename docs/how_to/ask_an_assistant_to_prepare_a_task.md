@@ -36,7 +36,7 @@ judge whether the assistant changed the right thing.
 A more useful request is:
 
 > I need to understand why histogram X has this binning before I discuss a
-> possible change with the analysis owner. In the repository revision I have
+> possible change with the analysis scientific lead. In the repository revision I have
 > supplied, inspect only `plot_config.yaml`, `make_histogram.py`, and
 > `plotting_notes.md`. Do not modify anything, run code or tests, access the
 > network, or start jobs. Identify where the bin edges are defined, how the

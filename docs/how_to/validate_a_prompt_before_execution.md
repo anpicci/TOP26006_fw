@@ -18,7 +18,7 @@ Read the live [validator instructions](../../.agents/skills/correction-lib-promp
 
 2. For structured evidence, repeat with `--format json` in the same invocation pattern. Use `--json-out PATH` only for an explicitly chosen absent output path.
 3. Read exit code and each error/warning. Code 0 means the supported mechanical/internal checks passed; 2 is CLI/schema input error, 3 prompt mechanical/consistency error, 4 output collision/write failure. Correct the prompt or local invocation and rerun.
-4. Adversarially reread the exact prompt against owner mandate, branch applicability, repository scope, effects, stop gates, and evidence requirements.
+4. Adversarially reread the exact prompt against the research lead's mandate, branch applicability, repository scope, effects, stop gates, and evidence requirements.
 
 ## Verify the result
 
@@ -30,7 +30,7 @@ Errors remain, required live policy is unreadable, or the mandate and prompt dis
 
 ## Generic example
 
-A completed prompt for one synthetic note is linted in human and JSON modes, then compared with live branch and owner mandate.
+A completed prompt for one synthetic note is linted in human and JSON modes, then compared with live branch and the research lead's mandate.
 
 ## What this does not establish
 

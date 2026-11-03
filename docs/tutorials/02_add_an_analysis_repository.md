@@ -64,7 +64,7 @@ Follow the same dated source route one step further: `analysis/topeft_run2/run_a
 
 Your note should connect the **question -> exact source -> dated observation -> missing execution evidence -> human interpretation**. Record the inspected paths and relevant source locations alongside your branch, commit and any relevant local changes. State whether you read source or captured an actual command transcript; this lesson produces only a reading note.
 
-Before a later task could claim execution or output, it would need separately authorized execution, the actual command and resolved inputs/options, source and environment provenance, completion/log evidence, and the actual artifact with its matching native metadata and checks. Use TOPEFT's current documentation to determine the exact output and receipt contract for the chosen route; a one-block request must not be assumed to have campaign receipts. No output or receipt was acquired in this lesson. Even a valid artifact still requires scientific checks and interpretation by the responsible human scientific owner.
+Before a later task could claim execution or output, it would need separately authorized execution, the actual command and resolved inputs/options, source and environment provenance, completion/log evidence, and the actual artifact with its matching native metadata and checks. Use TOPEFT's current documentation to determine the exact output and receipt contract for the chosen route; a one-block request must not be assumed to have campaign receipts. No output or receipt was acquired in this lesson. Even a valid artifact still requires scientific checks and interpretation by the responsible scientific lead.
 
 | Question or evidence | What TOP26006_fw teaches | Current technical or decision authority |
 | --- | --- | --- |
@@ -72,6 +72,6 @@ Before a later task could claim execution or output, it would need separately au
 | Where is the analysis implementation and manual? | How to locate the separate native repository | TOPEFT |
 | What does an entrypoint or configuration do? | A small dated source-reading example | TOPEFT docs/source at the recorded revision, with relevant local changes identified |
 | Was analysis executed, and what was produced? | How to distinguish a plan from evidence | Actual native output, completion evidence, receipts where applicable, and provenance |
-| Is a later result scientifically acceptable? | How to return evidence for a human decision | Responsible scientific owner |
+| Is a later result scientifically acceptable? | How to return evidence for a human decision | Responsible scientific lead |
 
 **Finish when** you can identify your two repositories, the native files supporting your observation, its branch/commit, what the source proves, what remains unexecuted, where to obtain the current exact command, and who accepts a later scientific result. Continue to [Tutorial 3](03_complete_a_first_read_only_task.md) for the independent synthetic exercise.

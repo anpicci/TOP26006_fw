@@ -12,7 +12,7 @@ Have a narrow decision question, exact readable sources, validation ceiling, and
 2. Name exact read-only repository paths and permitted local checks. Exclude source edits, cleanup, remote writes, production, and acceptance.
 3. Read stable source identity and fresh volatile facts only when material: `git -C "$repo" rev-parse HEAD`, `git -C "$repo" status --porcelain=v1 -- <task-paths>`, and input hashes where provenance matters.
 4. Execute only the authorized lightweight calculation or inspection. Serialize command, input identity, output, errors, and what was not examined in the report.
-5. Separate direct observation from executor qualification. Send any defect to a reviewer/owner for a new bounded decision.
+5. Separate direct observation from executor qualification. Send any defect to a reviewer and responsible researcher for a new bounded decision.
 
 ## Verify the result
 
@@ -20,7 +20,7 @@ A reader can reproduce the observation from cited inputs and command, see uncert
 
 ## Stop instead of proceeding if...
 
-Necessary source/evidence is missing, live state contradicts the declared target, or a new scientific choice is required. A read-only observation does not authorize a fix or establish owner acceptance.
+Necessary source/evidence is missing, live state contradicts the declared target, or a new scientific choice is required. A read-only observation does not authorize a fix or establish task/evidence or scientific acceptance.
 
 ## Generic example
 

@@ -18,9 +18,9 @@ using this teaching fixture.
 | Methods evidence HEAD | `09a97e3ced516e662a8e448f01b9199805c3ea80`; separate scratch Git history, `methods_note.md` only |
 | Intentional stop | expected and observed analysis HEAD were the provenance repair HEAD; status was ` M interpretation.md`; diff added `unexpected local edit after accepted commit`; no retry or cleanup |
 
-The review and owner roles were simulated within this one-executor diagnostic
+The review and responsible researcher roles were simulated within this one-executor diagnostic
 run. The review exercise qualified only the synthetic arithmetic under the
-stated independent Gaussian model; its illustrative owner decision accepted
+stated independent Gaussian model; its illustrative responsible researcher's decision accepted
 that bounded record after provenance repair. No separate human scientific
 review or acceptance was performed. This is a teaching decision in scratch
 repositories; it establishes no real-data result or project child-repository

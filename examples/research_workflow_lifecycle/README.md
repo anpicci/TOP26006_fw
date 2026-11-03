@@ -9,8 +9,8 @@ real governed project repository or a new registry identity.
 The bounded analysis exercise adds an interpretation note reporting the
 existing script's result and its assumptions. It changes no data, code, or
 tests. The methods exercise records only the qualified numerical evidence and
-its limits. A separately tasked reviewer may check the claims; the simulated
-teaching owner acceptance is distinct from real human scientific acceptance.
+its limits. A separately tasked reviewer may check the claims; acceptance by the simulated
+responsible researcher is distinct from real human scientific acceptance.
 
 Scratch Git histories used to demonstrate this workflow are disposable
 diagnostic evidence. A commit in either history authorizes nothing in the

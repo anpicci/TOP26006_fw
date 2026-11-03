@@ -89,7 +89,7 @@ git diff HEAD^ HEAD -- interpretation.md > ../tutorial04_change.patch
 git status --porcelain=v1
 ```
 
-Run these commands in order, stopping on any failure or unexpected path before committing. Write the patch only if its destination is absent; if it already exists, read and compare it rather than overwriting it. Keep the patch, note, seed/result identities, hash comparisons, and command observations in your lesson record. A clean result and a local commit prove neither pedagogical nor scientific acceptance. An independent reviewer advises; the human owner decides whether this bounded record is acceptable.
+Run these commands in order, stopping on any failure or unexpected path before committing. Write the patch only if its destination is absent; if it already exists, read and compare it rather than overwriting it. Keep the patch, note, seed/result identities, hash comparisons, and command observations in your lesson record. A clean result and a local commit prove neither pedagogical nor scientific acceptance. An independent reviewer advises; the responsible researcher decides whether this bounded record is acceptable.
 
 ## Restart or continue
 

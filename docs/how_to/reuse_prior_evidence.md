@@ -4,7 +4,7 @@ Use this guide when a new research task depends on a reviewed result and the rel
 
 ## Before you start
 
-Locate the accepted artifact, exact claim, input/source IDs, review finding, and owner acceptance scope. Read [AGENTS.md](../../AGENTS.md) evidence-reuse rules and [Tutorial 6](../tutorials/06_continue_from_existing_evidence.md).
+Locate the accepted artifact, exact claim, input/source IDs, review finding, and task/evidence or scientific acceptance scope. Read [AGENTS.md](../../AGENTS.md) evidence-reuse rules and [Tutorial 6](../tutorials/06_continue_from_existing_evidence.md).
 
 ## Procedure
 

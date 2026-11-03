@@ -3,7 +3,7 @@
 This is a human-fillable aid, not a dispatchable prompt or a substitute for live [CPC.md](../CPC.md) and [AGENTS.md](../AGENTS.md). Remove placeholders and validate the final prompt before execution.
 
 - Decision question: [one scientific or methodological decision]
-- Owner and scientific interpretation authority: [person or role]
+- Research lead and scientific interpretation authority: [person or role]
 - Prompt author / executor / independent reviewer: [roles]
 - Repository ID, resolved local path, branch role, observed HEAD: [evidence]
 - Allowed changes: [exact paths and effects]

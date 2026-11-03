@@ -22,7 +22,7 @@ cat examples/research_workflow_lifecycle/observed_scenario.md
 
 For this teaching draft, use the scenario's state immediately after provenance repair and before its later intentional stop. The analysis source is first-result commit `eb40d2703e74350e09e00c459459d706bbc8fa74`; the repaired record is `c9f7c6b9e090fdc3ae3c29b34171cf3a7cb88ff4`; the CSV hash is `f6b9311f0ce6e675999c5ef31a14d82589179a9f8e82be917df6695c6893c294`. These historical IDs identify evidence stages, not locally available refs.
 
-**Accepted prior state:** the scenario reports simulated owner acceptance of the bounded synthetic arithmetic record under independent Gaussian assumptions after provenance repair. That is the only closure assumed in this teaching draft. It is neither a real human scientific decision nor proof of the current state of a live repository. Do not import the scenario's later dirty state into this earlier entry point.
+**Accepted prior state:** the scenario reports acceptance by the simulated responsible researcher of the bounded synthetic arithmetic record under independent Gaussian assumptions after provenance repair. That is the only closure assumed in this teaching draft. It is neither a real human scientific decision nor proof of the current state of a live repository. Do not import the scenario's later dirty state into this earlier entry point.
 
 If the documentary input lacks these identities or qualifications, stop drafting the dependent claim and identify the discrepancy. [Review returned evidence](05_review_and_accept_returned_evidence.md) explains the limits of the compact report; you need not repeat that lesson.
 
@@ -36,7 +36,7 @@ Use the existing [continuation template](../../templates/continuation_prompt.md)
 | New delta | Propose adding one source-locator sentence to `interpretation.md` in the same scratch analysis repository, identifying the scenario used to explain its lifecycle. Preserve existing quantities, assumptions, and provenance. |
 | Invalidation boundary | Changed CSV, script, method/assumptions, source identity, relevant governance, or unexpected live task-path state stops the dependent reuse or write. An unrelated change does not erase valid arithmetic evidence. |
 | What must not be repeated | The reported numerical run and already closed provenance repair while their inputs and scope remain valid; no recreation of the first note or append of the old repair. |
-| What remains unresolved | The actual repository path, live branch/HEAD/status, full repaired note contents, whether the proposed sentence already exists, current permission, and real owner authorization. The historical summary cannot establish these. |
+| What remains unresolved | The actual repository path, live branch/HEAD/status, full repaired note contents, whether the proposed sentence already exists, current permission, and real authorization from the research lead. The historical summary cannot establish these. |
 | Next bounded action | Obtain authorized read-only HEAD/status/note readback from the actual scratch repository and compare it with the declared prior state before proposing any write. |
 
 The proposed sentence is a documentation delta, not a new calculation or evidence transfer to another repository. If it is already present, report that no write is needed. If it conflicts with the existing note or needs new scientific interpretation, stop that delta.
@@ -45,7 +45,7 @@ The proposed sentence is a documentation delta, not a new calculation or evidenc
 
 The observable output is your saved continuation draft, including the scenario identity and an explicit unresolved-state list. Compare it with each template field. It must say who owns the next decision, which exact file may change after authorization, which evidence will demonstrate that delta, and what stops the action.
 
-For a real execution prompt, replace unresolved local identities with fresh observations, obtain exact owner grants, and apply live governance. Do not send this illustrative table as an execution-ready prompt. A later executor would return the exact note diff, preserved input identities, validation, and commit evidence; the reviewer advises and the human owner decides acceptance.
+For a real execution prompt, replace unresolved local identities with fresh observations, obtain exact grants from the research lead, and apply live governance. Do not send this illustrative table as an execution-ready prompt. A later executor would return the exact note diff, preserved input identities, validation, and commit evidence; the reviewer advises and the responsible Chat/lane decides task/evidence acceptance and the scientific lead separately decides scientific acceptance.
 
 ## Restart and choose the next step
 

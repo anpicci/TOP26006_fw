@@ -1,5 +1,7 @@
 # Glossary
 
+The responsibility terms below explain the reader-facing roles. They do not create or transfer authority, replace native repository policy, or rename literal governance identifiers such as `owner_authorization`.
+
 | Term | Meaning |
 | --- | --- |
 | Research question | The claim or uncertainty a study seeks to address. |
@@ -8,7 +10,14 @@
 | Reproducibility | Ability to rerun a declared calculation with identified inputs and environment. |
 | Validation evidence | Observations that check a bounded claim, with known limits. |
 | Independent review | A check separate from executor self-report. |
-| Accepted result | A conclusion adopted by the responsible scientific or project authority. |
+| Accepted result | A conclusion adopted for a stated scope; record task/evidence acceptance separately from scientific acceptance. |
+| Task/evidence acceptance | The responsible Chat/lane accepts returned evidence or a bounded task layer after review; this does not confer scientific acceptance. |
+| Scientific acceptance | The responsible scientific lead decides whether evidence supports a scientific claim or interpretation. |
+| Research lead | Responsibility for research/task leadership and authorization within the person's actual remit. |
+| Scientific lead | Responsibility for scientific method, interpretation and scientific acceptance. |
+| Responsible researcher | The human responsible for a concrete bounded decision; no institutional title is implied. |
+| Repository or technical maintainer | Responsibility for repository or tooling maintenance; this alone confers no scientific authority. |
+| Designated integrator | Responsibility for reconciling agreed contributions within an authorized integration scope. |
 | Project identity | The governed project name, here `TOP26006_fw`. |
 | Checkout name | Any local directory name chosen for a copy of the project. |
 | `repository_id` | Stable registry identity for a separate repository. |
@@ -23,7 +32,7 @@
 | Documented compatibility | An official description of a comparable mechanism; it does not show that this project tested that mechanism locally. |
 | Local runtime qualification | Bounded observation of the selected provider version, surface, settings, access paths, and evidence behavior in the intended installation. |
 | Reference deployment | A dated worked example mapping generic method and governance concepts to one project's actual arrangement. |
-| Bounded change | An owner-authorized effect limited by purpose, repository, paths, and validation claim. |
+| Bounded change | An effect authorized by the research lead limited by purpose, repository, paths, and validation claim. |
 | Closure | Prior result accepted for an exact claim with a retrievable evidence locator. |
 | Delta | The new work a continuation asks for after closure. |
 | Invalidation boundary | Changes to inputs, assumptions, identity, or state that require revisiting prior evidence. |

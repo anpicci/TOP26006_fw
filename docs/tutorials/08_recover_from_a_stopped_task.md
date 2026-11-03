@@ -34,7 +34,7 @@ Write a recovery assessment with these distinctions:
 | Known closure | The earlier repaired synthetic arithmetic record had simulated acceptance. The dirty line does not by itself invalidate its reported arithmetic or input identity. |
 | Missing or unknown state | Current filesystem/index/process state, ownership of any real edit, complete diff, and whether an interrupted command produced additional effects. The compact scenario does not establish these. |
 | Safe next readback | For a real task, inspect the exact authorized repository's HEAD, full task-scope status, staged and unstaged diff, note contents, and existing receipt before selecting a recovery action. |
-| Bounded recovery | Preserve the edit and evidence; ask the responsible owner to classify the line and authorize an exact continuation. This exercise makes no repair. |
+| Bounded recovery | Preserve the edit and evidence; ask the responsible researcher to classify the line and authorize an exact continuation. This exercise makes no repair. |
 
 The scenario's separate methods history is outside this local recovery question. No second repository, worktree, parallel agent, scheduler, production job, or distributed service is needed.
 
@@ -52,9 +52,9 @@ git -C /absolute/path/to/your/analysis_repository diff --cached -- interpretatio
 cat /absolute/path/to/your/analysis_repository/interpretation.md
 ```
 
-Save outputs before making a decision. If another path changed, or the original command's outcome is ambiguous, request the additional bounded readback that resolves that state. A missing success message does not prove failure. Readback permits observation, not retry. Retry needs direct proof of safe repetition or exact owner recovery authorization with known consequences.
+Save outputs before making a decision. If another path changed, or the original command's outcome is ambiguous, request the additional bounded readback that resolves that state. A missing success message does not prove failure. Readback permits observation, not retry. Retry needs direct proof of safe repetition or exact recovery authorization from the responsible researcher with known consequences.
 
-A later owner may authorize a bounded edit or adoption after establishing provenance. That would be a new authorized continuation with its own diff and review. Until then, “preserved, unresolved, next readback identified” is a useful recovery result; it is not task completion or acceptance.
+The responsible researcher in a later task may authorize a bounded edit or adoption after establishing provenance. That would be a new authorized continuation with its own diff and review. Until then, “preserved, unresolved, next readback identified” is a useful recovery result; it is not task completion or acceptance.
 
 ## Restart and preserve closure
 

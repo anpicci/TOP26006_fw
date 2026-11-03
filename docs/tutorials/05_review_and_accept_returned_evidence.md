@@ -33,7 +33,7 @@ Use the existing [review report](../../templates/review_report.md) as a read-onl
 | Executor result | The scenario reports completion of a first note, followed by a provenance repair. Completion is a claim to examine. |
 | Observed evidence | You directly read the scenario's recorded identities, CSV hash, quantities, finding, and qualification. You have not directly inspected the historical Git objects or execution log. |
 | Reviewer's interpretation | The reported missing source commit and CSV hash block acceptance of the initial note's provenance. That defect does not by itself invalidate the reported arithmetic. |
-| Human acceptance decision | The historical owner role was simulated. Your recommendation creates no real owner or scientific acceptance; a real decision remains pending. |
+| Human acceptance decision | The historical responsible researcher role was simulated. Your recommendation creates no real task/evidence acceptance or scientific acceptance; a real decision remains pending. |
 
 Read the scenario's output row: five measurements; mean `10.060000`; model-based standard error `0.089443`; chi-square `4.300000`; four degrees of freedom. Keep its independent Gaussian assumption and synthetic descriptive scope attached. The CSV identity is `f6b9311f0ce6e675999c5ef31a14d82589179a9f8e82be917df6695c6893c294`.
 
@@ -41,9 +41,9 @@ Record the initial provenance finding separately from the reported repair. A rep
 
 ## Recommend, qualify, and leave a decision
 
-Your review should contain the artifact path/hash, stage identities, executor claims, direct observations, blocking and nonblocking findings, checks not performed, recommendation, and decision owner. Mark independent checks of the underlying historical note, diff, and runtime receipt as **not performed**. Same-person teaching review is not independent replication.
+Your review should contain the artifact path/hash, stage identities, executor claims, direct observations, blocking and nonblocking findings, checks not performed, recommendation, and researcher responsible for the decision. Mark independent checks of the underlying historical note, diff, and runtime receipt as **not performed**. Same-person teaching review is not independent replication.
 
-For this documentary exercise, recommend that the initial note remain unaccepted until its provenance defect is repaired and checked. Report the scenario's repair and simulated acceptance as historical evidence, not your own verification of the repaired Git contents. A real reviewer would need the returned note, exact parent/result diff, input identities, command/output evidence, and actual owner decision before granting a stronger conclusion. Do not invent missing evidence or silently perform a repair during review.
+For this documentary exercise, recommend that the initial note remain unaccepted until its provenance defect is repaired and checked. Report the scenario's repair and simulated acceptance as historical evidence, not your own verification of the repaired Git contents. A real reviewer would need the returned note, exact parent/result diff, input identities, command/output evidence, and actual decision by the responsible researcher for the stated acceptance layer before granting a stronger conclusion. Do not invent missing evidence or silently perform a repair during review.
 
 ## Preserve the review and restart
 

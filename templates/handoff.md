@@ -3,7 +3,7 @@
 Use one repository when sufficient. Add an entry for each genuinely participating repository, including one that stays read-only.
 
 - Purpose / decision question: [what the recipient needs to decide or continue]
-- Scientific owner and other authority: [who may interpret, authorize, review, or execute in each repository]
+- Scientific lead and other authority: [who may interpret, authorize, review, or execute in each repository]
 - Repositories and exact identities: [repository ID/location, role in this task, branch, exact commit, observation date, relevant local changes; for a dependency, record provider and consumer separately and the selected provider revision]
 - What is being handed off: [bounded claim, result, context, or stopped-state evidence]
 - Evidence and provenance: [exact artifact locators and what each supports; inputs, source identities, methods/commands, observed results, review record; preserve material uncommitted diffs separately]

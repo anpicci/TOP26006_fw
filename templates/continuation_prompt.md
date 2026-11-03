@@ -2,7 +2,7 @@
 
 Fill this against live [CPC.md](../CPC.md) and [AGENTS.md](../AGENTS.md). This file contains placeholders and is not itself a dispatchable prompt.
 
-- Decision question and responsible owner: [bounded next decision]
+- Decision question and responsible researcher: [bounded next decision]
 - Prior closure: [accepted claim, reviewer, artifact locator, source identity]
 - Delta: [exact new change and paths]
 - Invalidation boundary: [inputs, assumptions, Git state, governance identities whose drift stops reuse]
