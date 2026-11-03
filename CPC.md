@@ -19,9 +19,10 @@ branches differ, the candidate copy is never the normative validation source.
 Use exact master Git objects or a checkout whose `HEAD` is freshly verified to
 `refs/heads/master`. A changed master OID alone triggers revalidation but does
 not invalidate a continuation when the decision-material governance
-dependencies are unchanged; material dependency change or inability to verify
-master stops the dependent validation or dispatch. The maintained validator is
-mechanical lint only and does not assess governance completeness.
+dependencies are unchanged. Revalidate affected actions after a material
+dependency change; an unresolved applicable conflict or unreadable required
+master rule stops only the dependent validation or dispatch. The maintained
+validator is mechanical lint only and does not assess governance completeness.
 
 Use one authoritative metadata block, one decision_question and exact scopes.
 A goal is optional only when it adds distinct information. No expected audit
@@ -61,14 +62,23 @@ assumed. A prompt must not confer filesystem capability or promise isolation.
 Branch policies remain create_feature_branch_from_reference (reference_branch,
 feature_branch), continue_existing_branch (target_branch), or
 read_only_current_branch (fresh observed branch; expected
-current_checked_out_branch only if identity is a safety invariant).
-For orchestration, only stage_branch_policy carries one of these values;
-its corresponding branch fields are in that stage, never at the outer level.
-Mutating prompt authors fresh-resolve branch applicability under the Git
-contract before emitting a mutation-ready prompt. If they cannot access live
-state, emit a non-executing draft pending that preflight; do not assert an
-applicable branch or invent zero candidates. Module permanent roles remain
-mandatory. Baseline/comparison fields are conditional on decision materiality.
+current_checked_out_branch only if identity is a safety invariant). For
+orchestration, only stage_branch_policy carries one of these values; its
+corresponding branch fields are in that stage, never at the outer level. The
+author binds mandate, repository/worktree and branch/resource roles, semantic
+target, exact effects, validation and material runtime checks under the Git
+contract. When the target is unambiguous and Codex can safely acquire volatile
+facts before their dependent effect, lack of author-side live access does not
+force a non-executing draft. Codex performs that preflight at runtime; the
+author must not claim unobserved state, invent zero applicable branches or
+invent a target whose ownership or semantic role remains ambiguous. Such
+ambiguity stops the dependent mutation for the required owner choice. Module
+permanent roles remain mandatory. Historical identities are provenance; future
+commit/ref/artifact identities flow through declared stage outputs. Require
+current identity or live readback only at the effect that materially consumes
+it, including destructive old-value guards. The owner need not relay read-only
+facts Codex can acquire within the authorized path. Baseline/comparison fields
+are conditional on decision materiality.
 
 ## Conditional field router
 

@@ -62,13 +62,24 @@ DOCUMENTARY means presentation/context whose absence cannot change the
 decision, authorization, lineage or safety. Record and repair proportionately;
 do not reopen accepted closure solely for it.
 
-Classify from the dependent decision and stricter source contract. An executor
-cannot downgrade an explicit exact-identity gate, production input lineage,
-Git lease/archive identity, scientific input identity or module-required form
-identity by relabeling it. Disputed materiality is at least DECISION_MATERIAL
-until resolved. Observed mismatch remains material even where unavailable
-runtime identity would otherwise be nonblocking. Exact model qualification
-uses model_policy.md; ordinary work does not require unobservable identity.
+Classify from the concrete dependent decision and stricter source contract,
+not the mere presence of a hash, timestamp, HEAD or runtime label. Identity
+metadata is tracking by default; classify it IDENTITY_CRITICAL only when the
+wrong identity can cause the consequence above. Scientific input/configuration
+distinctions (campaign, source, region, masking, observed/expected,
+selections, binning, weights, nuisances and actual consumed package) remain
+protected even when metadata agrees; different serialization alone proves no
+scientific change. A non-applicable check does not block. Unknown evidence is
+not PASS and limits only its dependent claim/effect; a pertinent failure
+remains a failure. An executor cannot downgrade an explicit exact-identity
+gate, production input lineage, Git lease/archive identity, scientific input
+identity or module-required form identity by relabeling it. Disputed
+materiality is at least DECISION_MATERIAL until resolved. An observed
+model-profile mismatch remains material under the immutable-attempt rule even
+where unavailable runtime identity would otherwise be nonblocking; ordinary
+documentary metadata differences do not inherit that model rule. Exact model
+qualification uses model_policy.md; ordinary work does not require
+unobservable identity.
 
 For material findings, use autonomy_and_blocker_classification.md and
 disposition each finding against the **current** decision boundary.
@@ -160,6 +171,13 @@ live_remote_state_is_required
 
 Live remote state must be queried when the decision depends on its current
 value. This is not wasteful repetition.
+
+A new master/HEAD OID, a representational change or retirement of an old
+carrier alone does not invalidate a portable accepted result. Check the
+consumed dependency, not historical carrier equality. Missing material
+evidence still blocks its requested claim. Full-suite repetition requires
+affected central behavior, reachable coupling or an explicit mandate, not
+ceremony.
 
 For a continuation, validate the delta: changed or newly unresolved behavior
 plus directly coupled reachable surfaces. Inherit accepted validation outside

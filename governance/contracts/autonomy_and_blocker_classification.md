@@ -12,8 +12,8 @@ Do not create or preserve a hard blocker unless continuing within current
 authorization can produce or select a wrong result, perform an unauthorized
 effect, irreversibly lose decision-material state, adopt or overwrite foreign
 work, cross a new owner, scientific, or governance decision boundary, act on
-insufficiently bound identity, continue after an unsafe ambiguous outcome, or
-violate an explicit owner boundary.
+an insufficiently bound target or consumed result identity, continue after an
+unsafe ambiguous outcome, or violate an explicit owner boundary.
 
 Before stopping or continuing, answer these questions against current evidence:
 
@@ -30,9 +30,20 @@ Before stopping or continuing, answer these questions against current evidence:
    repaired?
 8. Did an effect have an ambiguous outcome that requires readback before retry?
 
+A blocking check must name the dependent effect/claim, the concrete property
+it protects and the harmful consequence of proceeding without it. Identity and
+similar volatile metadata are tracking by default; a historical mismatch alone
+is not that consequence. Late-bind required current facts before consumption;
+do not demand author/owner readback when Codex can acquire them within scope.
+
 If no concrete authority or safety consequence exists, do not invent a hard
 blocker. A warning alone is not a blocker; it still requires relevance and
-disposition. A finding does not authorize automatic continuation.
+disposition. A genuinely non-applicable check does not gate. Unknown or
+not-observed evidence limits only its dependent claim/effect; a pertinent
+failed check remains failed and cannot be relabeled non-applicable or passed.
+Use existing contract vocabularies, not new status aliases. Continue
+independent preauthorized work only through already-modeled independence or
+repair edges; a finding never authorizes gate skipping or a new effect.
 
 ## Classification vocabulary
 
@@ -69,10 +80,13 @@ publication prohibitions. Applicable scheduler boundaries remain binding.
 Minimum sufficient alternatives include an equivalent maintained or local
 command, a predeclared fallback, continuation that preserves completed state,
 bounded readback after an ambiguous outcome, a bounded safe base rebind, and
-skipping checks_not_to_repeat. Each alternative must retain its own required
-identity, evidence, grants, and objective gate. Readback does not itself
-authorize retry. A changed master OID alone does not invalidate a continuation
-when the declared source and dependency boundary is unchanged.
+skipping checks_not_to_repeat. Prefer an already-maintained authorized
+alternative after a mechanism-only failure; do not create a wrapper, bypass or
+refactor for a routing mistake. Each alternative must retain its own
+materially required target/result binding, evidence, grants, and objective
+gate. Readback does not itself authorize retry. A changed master OID alone
+does not invalidate a continuation when the declared source and dependency
+boundary is unchanged.
 
 Adaptation cannot invent repository or write scope, a refactor, new science, a
 wider claim, remote, production, scheduler, or publication effects, destructive

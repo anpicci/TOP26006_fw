@@ -53,6 +53,33 @@ with historical manual workflows is not a completion prerequisite. Q01, Q16
 and Q20 retain simple bounded execution and the manual canonical governance
 fallback. Functional tests do not establish execution or owner acceptance.
 
+Identity and similar metadata track acquisition by default; only a concrete
+consumed authority, safety, scientific or result property makes them a gate.
+Authors bind unambiguous semantic targets and runtime checks rather than relay
+volatile host facts. A candidate may be dispatchable without generic live
+readback; execution must still preflight current master and the exact effect's
+resource, dirty/index state and material premises. Required conformance
+evidence is not a duplicate owner approval. Unknown blocks its dependent
+claim/effect; non-applicability is not failure, and a pertinent failure cannot
+become PASS. Independent progression requires modeled independence; no gate
+skipping follows. The compiler derives entry roots and static blocked ancestry
+from the existing `Result_graph`; `stage_readiness` is a projection, not a second
+executor. An unsupported Given becomes a `must_pass_before_effects` input on
+its actual consumer. All stage inputs must pass before any local effect, and
+blocked stages publish no outputs. Independent writer roots may therefore
+progress while a later composition consumer and its descendants remain fenced.
+A simple prompt remains atomic. Global owner and conformance bindings remain
+required, and eligible effects alone never make a workflow dispatchable.
+`COMPILED_CONFORMING_CANDIDATE` can describe that partial entry path; excluded
+effects and unresolved evidence remain explicit and execution assertions stay
+NOT_EVALUATED. Git-specific runtime prose is conditional on Git lifecycle effects.
+Portable accepted results survive unrelated carrier/OID
+drift, while consumed artifact bytes, repository-local grants, foreign-work
+isolation, ambiguity readback and destructive compare-and-delete retain their
+existing checks. This describes the intended stable semantics; canonical
+integration, real-task qualification and stable adoption remain separate owner
+boundaries.
+
 The compiler receipt binds the hashes of the entrypoint and both internal
 modules. Missing canonical validator bytes produce a diagnostic receipt.
 Dependent continuations independently compare the remaining integration's

@@ -183,13 +183,27 @@ limitations. The author must inspect the generated Markdown and receipt
 against live governance before any separately
 authorized dispatch.
 
-`dispatch_gate` may name three acquired binding IDs: `owner_authorization_binding`,
-`manual_governance_review_binding`, and `live_applicability_binding`. Without
-them, the receipt marks the candidate prepared while leaving conformance,
-owner authorization, and dispatchability unestablished. A structural or authority
-failure writes only a diagnostic receipt. A material `Given` without evidence
-or a usable preflight may produce a prepared prompt, but its receipt excludes
-the dependent effects, marks it non-dispatchable, and the CLI exits nonzero.
+`dispatch_gate` names `owner_authorization_binding` and
+`manual_governance_review_binding` for acquired owner authority and
+conformance evidence. They are distinct from compiler/linter success; faithful
+translation of already-authorized behavior does not require another owner
+approval. The optional historical `live_applicability_binding` remains
+provenance and is not a universal dispatch gate. Lack of author live-host
+access does not force a draft when the semantic target,
+repository/worktree/branch roles, effects and required runtime checks are
+unambiguous. The generated evidence requirements assign current governance and
+scoped state acquisition to Codex before the dependent effect. Dispatchability
+means readiness to enter that governed preflight, never proof that runtime
+checks passed. Missing owner/conformance evidence still leaves the candidate
+non-dispatchable. A structural or authority failure writes only a diagnostic
+receipt. A material `Given` without evidence or a usable preflight may produce
+a prepared prompt with the dependent effects excluded. A simple prompt is atomic
+and remains non-dispatchable in that case. For a staged workflow the existing
+`Result_graph` must have an unblocked entry root: only then may the CLI return
+`COMPILED_CONFORMING_CANDIDATE` and, with owner/conformance bindings, the receipt
+be dispatchable. This allows independent governed progression, not completion of
+the whole chain. `stage_readiness` projects initial preflight entry roots, local
+blocked effects and blocked predecessors; it supplies no runtime outputs.
 
 Map insertion order is normalized before planning and serialization.
 `candidate_pair_order` remains semantic: it must
@@ -206,7 +220,17 @@ it cannot independently block a valid effect after legitimate ref movement. Ever
 `runtime_preflight_requirement`, `non_material_documentary_premise`, or
 `unsupported_material_premise`. Documentary premises remain traced without gates.
 A linked material premise names its dependent effects; unsupported properties
-exclude only those effects and keep the prepared workflow non-dispatchable.
+exclude those effects and emit an unresolved `must_pass_before_effects` input
+on their actual consumer stage. All stage inputs precede every effect of that
+stage; effect eligibility cannot split or bypass a stage. No blocked stage
+publishes outputs, so its typed descendants cannot run. Already modeled
+independent roots may enter governed preflight and progress under their own
+exact grants. Missing facts never become PASS. An unsupported input has no
+invented executable check: it must be acquired and revalidated before its
+consumer can run. Without any unblocked entry root the workflow remains
+non-dispatchable and the CLI exits nonzero. Runtime Git/index/dirty-state prose
+is emitted only for workflows with Git lifecycle effects; read-only inspection
+retains only the common current-rule, target, material-fact and retry duties.
 
 The bounded Git properties are `the selected commit branch is checked out`
 (also `the current branch is the selected commit target`) and
@@ -239,22 +263,29 @@ Q04 also recognizes `accepted writer writer_b result names commit <oid>` (or
 `writer_a` when that is the protected writer). Link it to the existing exact
 `q04.accepted_writer_result` accepted-evidence relation, with dependencies on
 the consuming exact-union effects. The source must be the continuation's exact
-prior artifact, with the matching result/head/base/review identity and validity
-scope. The accepted writer must remain outside the invalidation boundary.
-This premise consumes the portable result, so movement or retirement of its
-historical carrier triggers no new readback. It does not assert that the old
-branch still has that value. Expired or contradictory portable evidence is
-not reusable; a current repository readback cannot replace the accepted result.
-Exact-plan premises (`isolated worktrees`, `exact bases`) continue to consume
-the existing acquired carrier relations. Unknown unbound prose is documentary;
-authors must bind material premises, and recognized identity assertions cannot
-silently fall back to documentary status when unbound.
-No future HEAD/SHA literal is required. Ordinary historical HEAD/hash drift
-does not create a gate. Exact reviewed-result provenance remains required where
-a downstream operation actually consumes that result; destructive ref actions
-use a fresh local observation. The supported negative assertion `no remote repository is
-modified` rejects contradictory remote effects. Unrecognized negative
-assertions stop with `IMPLEMENTATION_GAP` rather than becoming decorative trace edges.
+prior artifact, with the matching result/head/base/review identity and
+validity scope. The accepted writer must remain outside the invalidation
+boundary. This premise consumes the portable result, so movement or retirement
+of its historical carrier triggers no new readback. It does not assert that
+the old branch still has that value. Expired or contradictory portable
+evidence is not reusable; a current repository readback cannot replace the
+accepted result. Exact-plan premises (`isolated worktrees`, `exact bases`)
+continue to consume the existing acquired carrier relations. Unknown unbound
+prose is documentary; authors must bind material premises, and recognized
+identity assertions cannot silently fall back to documentary status when
+unbound. No future HEAD/SHA literal is required. Ordinary historical HEAD/hash
+drift does not create a gate. Exact runtime model identity is also tracking by
+default: ordinary `not_observable` requires no nonmateriality annotation. An
+explicitly material profile comparison requires observable identity and the
+CPC `required_profile_agreement_evidence` with
+`profile_agreement_failure_policy: fail_closed`; the binder remains
+responsible for the evidence claim. No receipt authenticates it or permits a
+silent switch. Exact reviewed-result provenance remains required where a
+downstream operation actually consumes that result; destructive ref actions
+use a fresh local observation. The supported negative assertion `no remote
+repository is modified` rejects contradictory remote effects. Unrecognized
+negative assertions stop with `IMPLEMENTATION_GAP` rather than becoming
+decorative trace edges.
 
 Every successful receipt binds the SHA-256 of the prompt, raw binding input,
 compiler source, applicable live governance, and maintained validator source.

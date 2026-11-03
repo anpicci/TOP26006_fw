@@ -51,60 +51,71 @@ capability. A later stage repeats every positive grant it needs. This
 repetition is intentional because the envelope is only a ceiling.
 
 stage_inputs names exact immutable context and accepted-evidence references,
-prior-stage observed bindings, and preconditions. This replaces
-stage_inputs_from_prior and stage_preconditions. stage_failure_behavior
-replaces stage_on_failure. Do not emit both old and new names.
-stage_branch_policy is the sole branch-policy authority for every stage
+prior-stage output bindings, and material preconditions. A result produced
+later is a declared output reference, not a literal future OID/hash to acquire
+before the producer runs. The consumer observes and verifies the output when
+needed. This replaces stage_inputs_from_prior and stage_preconditions.
+stage_failure_behavior replaces stage_on_failure. Do not emit both old and new
+names. stage_branch_policy is the sole branch-policy authority for every stage
 whose repository inspection or action depends on branch posture. It uses
 create_feature_branch_from_reference, continue_existing_branch or
 read_only_current_branch. Declare corresponding reference_branch and
 feature_branch, target_branch, or a current-branch safety invariant only
 within that stage. Branch policy and branch fields do not pass to another
-stage. Exact mode/action fields also remain stage-local, once each as
-named fields rather than duplicated inside stage_effect_permissions.
-They may bind by reference to one frozen outer immutable input, which
-constrains the stage but creates no outer branch or effect authority.
-An exact lifecycle action on a detached linked worktree is not branch-relevant
-merely because it is a Git worktree action. If it selects or switches no branch
-and moves or deletes no branch ref, bind its exact path, registration, HEAD and
-action under git_lifecycle.md instead of inventing read_only_current_branch.
-An attached controller or ref action remains branch-relevant when its safety
-or effect depends on that branch or ref. Ordinary branch-aware inspection and
-action still require stage_branch_policy.
-Inherit unchanged non-effect context by explicit reference.
-Every stage includes all necessary mode-specific fields, including
-production bounds and publication identities. Do not copy the whole outer
-prompt into each stage. A stage may read explicit outer read-only evidence
-scope without repeating it; network reads still require a positive local
-grant.
+stage. Exact mode/action fields also remain stage-local, once each as named
+fields rather than duplicated inside stage_effect_permissions. They may bind
+by reference to one frozen outer immutable input, which constrains the stage
+but creates no outer branch or effect authority. An exact lifecycle action on
+a detached linked worktree is not branch-relevant merely because it is a Git
+worktree action. If it selects or switches no branch and moves or deletes no
+branch ref, bind its exact path, registration, HEAD and action under
+git_lifecycle.md instead of inventing read_only_current_branch. An attached
+controller or ref action remains branch-relevant when its safety or effect
+depends on that branch or ref. Ordinary branch-aware inspection and action
+still require stage_branch_policy. Inherit unchanged non-effect context by
+explicit reference. Every stage includes all necessary mode-specific fields,
+including production bounds and publication identities. Do not copy the whole
+outer prompt into each stage. A stage may read explicit outer read-only
+evidence scope without repeating it; network reads still require a positive
+local grant.
 
 ## Objective gates and failure behavior
 
-Start a later stage only after the prior stage serialized evidence, performed
-required readback, reopened and validated it, passed its objective gate and
-introduced no new substantive choice. Bind later inputs to the observed value,
+Start a consuming stage only after its declared prerequisite stages serialized
+and reopened their required evidence/readbacks, passed the pertinent objective
+gates and introduced no new substantive choice. An explicitly modeled independent
+stage does not inherit unrelated downstream requirements. Bind later inputs to the observed value,
 never to a requested success constant. A stage consuming prior semantic work
 must prove semantic completeness as well as isolated intended diff before
-mutating its consumer. Diff isolation alone does not prove semantic completeness.
-Passing a preauthorized objective gate permits its already-authorized next
-stage without a new approval solely for that transition. The gate creates no
-new authority or owner acceptance. An interrupted effect with unresolved
-outcome requires bounded observation of its actual state before retry or
-recovery; an absent success message is not proof that the effect did not occur.
-Use autonomy_and_blocker_classification.md for failure classification,
-adaptation, expected fallback, authoring defects and real stop boundaries.
+mutating its consumer. Diff isolation alone does not prove semantic
+completeness. Passing a preauthorized objective gate permits its
+already-authorized next stage without a new approval solely for that
+transition. The gate creates no new authority or owner acceptance. Faithful
+Gherkin translation and progression through authorized audit, coding,
+validation or commit stages require no second owner approval solely for
+reaching that stage. Added science, scope, effects or another substantive
+owner choice still stop. An interrupted effect with unresolved outcome
+requires bounded observation of its actual state before retry or recovery; an
+absent success message is not proof that the effect did not occur. Use
+autonomy_and_blocker_classification.md for failure classification, adaptation,
+expected fallback, authoring defects and real stop boundaries.
 
-A failed or indeterminate gate stops effects and remaining stages, except an
-explicitly declared repair/revalidation edge within the same authorized
-decision, or a preauthorized terminal read-only completeness-review tail.
-A repair edge must predeclare the failure class, exact owned repair surfaces,
-action/mode/effect grants, objective revalidation gate, maximum iterations and
-resource/time bounds when relevant. Each traversal is a recorded stage
-instance. Do not repair foreign work, change scientific decisions, weaken tests,
-change tolerances or widen targets to obtain a pass. Unclassified failure,
-exhausted bounds, unresolved authority or material drift stops. This permits
-predetermined repair cycles without an owner prompt at every iteration;
-it does not authorize choosing a new solution surface.
+A pertinent failed or indeterminate gate stops its dependent effects/stages.
+It must not become an upstream or global veto for facts needed only
+downstream. Independent preauthorized work may continue only when that
+independence or a repair/revalidation edge was already modeled within the same
+authorized decision. Do not invent an edge, bypass a gate, relabel failure or
+treat unknown evidence as PASS. A genuinely non-applicable check does not
+gate. A preauthorized terminal read-only completeness-review tail remains
+available under its limits. A repair edge must predeclare the failure class,
+exact owned repair surfaces, action/mode/effect grants, objective revalidation
+gate, maximum iterations and resource/time bounds when relevant. Each
+traversal is a recorded stage instance. Do not repair foreign work, change
+scientific decisions, weaken tests, change tolerances or widen targets to
+obtain a pass. Unclassified failure, exhausted bounds, unresolved authority or
+material drift stops the dependent work. This permits predetermined repair cycles without an
+owner prompt at every iteration; it does not authorize choosing a new solution
+surface.
 
 The terminal review tail may inspect only the already-authorized evidence,
 populate review_and_evidence.md's five review buckets and record limits.

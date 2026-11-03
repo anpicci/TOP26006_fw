@@ -3202,6 +3202,22 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                         blocked_given_effects.update(dependencies)
                         prompt.setdefault("evidence_requirements", []).append(
                             f"unsupported material Given {linked}; block only effects {', '.join(dependencies)}")
+                        # An excluded effect must also be fenced in the emitted
+                        # executable contract. Stage inputs precede every effect
+                        # in that stage; absent outputs fence its descendants.
+                        prerequisite = {"binding_id": linked, "source_identity": fact.source_identity,
+                                        "validity_scope": fact.validity_scope, "state": state,
+                                        "failure_behavior": "block_only_dependent_effects"}
+                        if data.get("stages"):
+                            for stage in data["stages"]:
+                                local = [e.effect_id for e in effects if e.effect_id in dependencies and
+                                         e.stage_id == stage["stage_id"]]
+                                if local:
+                                    stage["stage_inputs"].append({"must_pass_before_effects": {
+                                        **prerequisite, "before_effects": local}})
+                        else:
+                            prompt.setdefault("evidence_requirements", []).append({
+                                "must_pass_before_effects": {**prerequisite, "before_effects": list(dependencies)}})
                     else:
                         state = "runtime_preflight_requirement"
                         # stage_inputs are preconditions. Acceptance gates are
@@ -3475,8 +3491,14 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "deterministic edit lacks exact established one-file replacement")
         prompt["deterministic_edit"] = edit
         prompt["static_validation"] = "require exact preimage hash and one literal match before edit; inspect exact one-file diff and git diff --check; no workflow or worker creation"
-    if data.get("runtime_model_observation") == "not_observable":
-        _require(data.get("runtime_model_materiality") == "not_decision_material",
+    # Ordinary unavailable identity is tracking, including when no optional
+    # materiality annotation was supplied. Explicit profile comparisons retain
+    # the CPC evidence boundary; observation text alone cannot satisfy it.
+    if data.get("runtime_model_materiality") not in (None, "not_decision_material"):
+        _require(isinstance(data.get("runtime_model_observation"), str) and
+                 data["runtime_model_observation"] not in {"", "not_observable"} and
+                 bool(prompt.get("required_profile_agreement_evidence")) and
+                 prompt.get("profile_agreement_failure_policy") == "fail_closed",
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "exact runtime identity is decision-material")
     if data.get("multi_repository_state") and shape != "dependent_continuation":
         _require(not data.get("automatic_rollback") and not data.get("global_git_transaction"),
@@ -3669,6 +3691,30 @@ def _rule_routing(data: dict[str, Any], shape: str, effects: tuple[Effect_intent
     return routes
 
 
+def _stage_readiness(graph: Result_graph, effects: tuple[Effect_intent, ...],
+                     blocked_effects: set[str]) -> list[dict[str, Any]]:
+    """Project static blockers and entry roots, never execute or supply outputs.
+
+    Exact effect eligibility does not split a stage. Typed predecessors must
+    actually publish their outputs after passed gates before a consumer enters.
+    Runtime-checkable premises permit preflight entry, not unchecked effects.
+    """
+    rows: list[dict[str, Any]] = []
+    blocked_stages: set[str] = set()
+    for stage in graph.stages:
+        predecessors = graph.predecessors(stage.stage_id)
+        local = sorted(e.effect_id for e in effects if e.stage_id == stage.stage_id and
+                       e.effect_id in blocked_effects)
+        upstream = sorted(predecessors & blocked_stages)
+        if local or upstream:
+            blocked_stages.add(stage.stage_id)
+        rows.append({"stage_id": stage.stage_id,
+                     "required_predecessors": sorted(predecessors),
+                     "blocked_by_effects": local, "blocked_by_stages": upstream,
+                     "eligible_to_enter_preflight": not predecessors and not local})
+    return rows
+
+
 def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline", *,
                      policy_repository: Optional[Path] = None) -> Compile_result:
     """Return a candidate and receipt, or a diagnostic receipt with no prompt."""
@@ -3798,6 +3844,35 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         visualization, workflow_diagram = _workflow_visualization(intent, data, shape, effects)
         receipt["workflow_visualization"] = visualization
         prompt_data = dict(data["prompt"])
+        # Dispatch starts governed runtime preflight; it is not permission to
+        # perform an effect before that effect's material checks have passed.
+        blocked_effects = set(data.get("_blocked_given_effects", []))
+        stage_readiness = _stage_readiness(graph, effects, blocked_effects)
+        can_enter = not blocked_effects or any(row["eligible_to_enter_preflight"]
+                                               for row in stage_readiness)
+        runtime_responsibility = (
+            "Runtime responsibility before dependent effects: read current master rules; "
+            "verify the bound target and acquire material volatile facts only where consumed. ")
+        if "git_lifecycle" in routes:
+            runtime_responsibility += (
+                "Verify repository/worktree/branch role, exact task/shared paths and conflicts, "
+                "and the complete index before commit under the selected dirty-worktree policy. ")
+        runtime_responsibility += (
+            "Stop the dependent effect on ambiguous target/ownership, pertinent failed check "
+            "or unresolved outcome. Do not retry an ambiguous effect without authoritative "
+            "readback and exact idempotence or recovery authority. Author-side live readback "
+            "is not required.")
+        prompt_data["evidence_requirements"] = [*prompt_data.get("evidence_requirements", []),
+                                                 runtime_responsibility]
+        if data.get("stages"):
+            prompt_data["evidence_requirements"].append(
+                "Enter only stages whose typed predecessor outputs are available after passed "
+                "acceptance gates. Every stage input, including material Given prerequisites, is a "
+                "precondition before any effect in that stage. An unsupported material premise "
+                "is unresolved evidence, never PASS or an executable check; acquire and revalidate "
+                "it before its consumer can run. A blocked stage produces no outputs. Independent "
+                "graph branches may progress under their own exact grants; dispatchability and "
+                "authorized_effects do not waive any stage input or runtime check.")
         if data.get("stages"):
             prompt_data["workflow_stages"] = data["stages"]
         if continuation:
@@ -3853,16 +3928,12 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         dispatch_gate = data.get("dispatch_gate", {})
         owner_gate_binding = by_binding_id.get(dispatch_gate.get("owner_authorization_binding"))
         review_binding = by_binding_id.get(dispatch_gate.get("manual_governance_review_binding"))
-        live_binding = by_binding_id.get(dispatch_gate.get("live_applicability_binding"))
         owner_ready = bool(owner_gate_binding and owner_gate_binding.acquisition == "acquired" and
                            owner_gate_binding.source_kind == "owner_decision")
         manual_conformant = bool(review_binding and review_binding.acquisition == "acquired" and
                                  review_binding.source_kind == "accepted_evidence")
-        live_ready = bool(live_binding and live_binding.acquisition == "acquired" and
-                          live_binding.source_kind == "repository_readback")
-        blocked_effects = set(data.get("_blocked_given_effects", []))
-        compiler_result = ("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE" if blocked_effects else
-                           "COMPILED_CONFORMING_CANDIDATE")
+        compiler_result = ("COMPILED_CONFORMING_CANDIDATE" if can_enter else
+                           "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE")
         receipt.update({
             "source_contract": {"identity": source_id, "feature": intent.feature,
                                 "feature_tags": list(intent.feature_tags),
@@ -3872,6 +3943,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             "canonical_governance": {"applicable_sources": identities},
             "input_binding_identity": {"sha256": hashlib.sha256(bindings_yaml.encode()).hexdigest()},
             "given_readiness": data.get("_given_readiness", []),
+            "stage_readiness": stage_readiness,
             "rule_routing": routes,
             "owner_decisions_bound": [b.binding_id for b in bindings if b.source_kind == "owner_decision"],
             "material_bindings": {state: [asdict(b) for b in bindings if b.acquisition == state]
@@ -3886,8 +3958,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                     if b.acquisition in {"pending", "not_acquired"} and
                                     not _historical_protected_carrier(b, continuation)] +
                                    ([] if owner_ready else ["owner_authorization_gate"]) +
-                                   ([] if manual_conformant else ["manual_governance_review"]) +
-                                   ([] if live_ready else ["live_dispatch_applicability"]),
+                                   ([] if manual_conformant else ["manual_governance_review"]),
             "traceability": receipt["traceability"],
             "derived_fields": {"selected_execution_shape": DERIVATION, "prompt_mode": DERIVATION,
                                "canonical_vocabulary": READBACK, "authority_and_runtime_facts": READBACK,
@@ -3897,8 +3968,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             "maintained_validator": lint, "compiler_result": compiler_result,
             "dispatchability": {"prepared": True, "conformant": manual_conformant,
                                 "owner_authorized": owner_ready,
-                                "dispatchable": owner_ready and manual_conformant and live_ready and
-                                                not blocked_effects},
+                                "dispatchable": owner_ready and manual_conformant and can_enter},
             "dispatch_gate_bindings": dispatch_gate,
             "dispatchability_limit": "binding_claims_require_separate_dispatch_and_external_acceptance",
             "generated_prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),

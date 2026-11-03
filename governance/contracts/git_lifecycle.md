@@ -126,10 +126,15 @@ registration, HEAD, attached branch if any, tracked/index/conflict/untracked/
 ignored state, worktree lock state when relevant, portable preservation
 evidence, and allowed command/effect. Observe current ownership and state
 before acting and read back the path, registration, ref and preserved result
-afterward. An unresolved creation or removal outcome is read back before any
-retry. A detached worktree may serialize genuinely
-inapplicable branch-action fields as `none` with a reason; an unresolved
-required identity cannot be called inapplicable.
+afterward. These state requirements are declared when planning, then observed
+just in time before their lifecycle effect; a later removal's future state is
+not an upstream prerequisite. Historical HEAD movement alone is not loss of
+ownership or portable preservation. Current resource identity, foreign
+content, locks, preservation and old-value guards remain binding where
+consumed. An unresolved creation or removal outcome is read back before any
+retry. A detached worktree may serialize genuinely inapplicable branch-action
+fields as `none` with a reason; an unresolved required identity cannot be
+called inapplicable.
 
 An exact removal of a detached worktree that selects or switches no branch and
 moves or deletes no branch ref does not require a synthetic
@@ -403,23 +408,27 @@ observed branch differs.
 
 ### Development branch lifecycle
 
-Before tracked repository work that requires a development feature branch,
-fresh-read the live local Git branch state for the target repository and
-workstream. This branch-selection gate is independent of file category and
-does not apply to pure read-only inspection. Live Git state is the branch-state
-authority; do not create a registry or cache. Determine applicability from
-semantic and dependency continuity with the proposed work, not task names,
-prompt IDs, file names, or campaign labels. Strong evidence includes a
-feature-only dependency absent from the reference, continuity of the accepted
-semantic surface owned by the feature, or a need to replay or duplicate accepted
-feature work if starting from the reference. Sharing only a package, analysis,
-or campaign is insufficient. `NO_APPLICABLE_ACTIVE_FEATURE_BRANCH` requires
-positive bounded evidence; missing or contradictory evidence is
+Before the dependent tracked repository effect that requires a development
+feature branch, Codex fresh-reads the pertinent local Git state for the target
+repository and workstream. The author binds the semantic target, branch role,
+effects and this runtime check; author-side live access is not a prerequisite
+when those choices are unambiguous. Do not invent applicability or ownership.
+An unavailable or ambiguous fact blocks the effect that needs it, not
+unrelated preauthorized work whose independence is already modeled. This
+branch-selection gate is independent of file category and does not apply to
+pure read-only inspection. Live Git state is the branch-state authority; do
+not create a registry or cache. Determine applicability from semantic and
+dependency continuity with the proposed work, not task names, prompt IDs, file
+names, or campaign labels. Strong evidence includes a feature-only dependency
+absent from the reference, continuity of the accepted semantic surface owned
+by the feature, or a need to replay or duplicate accepted feature work if
+starting from the reference. Sharing only a package, analysis, or campaign is
+insufficient. `NO_APPLICABLE_ACTIVE_FEATURE_BRANCH` requires positive bounded
+evidence; missing or contradictory evidence is
 `BRANCH_APPLICABILITY_AMBIGUOUS` and stops branch selection. Uncertainty must
 not be counted as zero applicable features. Exactly one applicable active
 feature branch requires `continue_existing_branch` unless the owner explicitly
-authorizes a named split,
-supersession, or integration exception. With none,
+authorizes a named split, supersession, or integration exception. With none,
 `create_feature_branch_from_reference` may be used. With multiple, stop for
 reconciliation unless the owner authorizes such an exception. A declared
 reference or integration branch is a baseline, not a development surface: do
@@ -785,6 +794,15 @@ staged_paths subset_of authorized_commit_scope
 staged_paths subset_of task_owned_paths union explicitly_adopted_inherited_paths
 staged_diff contains_only task_owned_changes or explicitly_adopted_inherited_changes
 ```
+
+Evaluate cleanliness at the task paths and any shared dependencies/outputs
+that can contaminate the effect, with the complete index checked for a commit.
+Under an explicit dirty-worktree alternative, disjoint foreign work may remain
+only when preserved and excluded from the exact reviewed delta. A conflict or
+inseparable overlap stops the affected mutation/commit; unrelated untracked
+files do not require a census. Destructive worktree removal retains its
+stricter exact-resource state checks above. This does not change the default
+policy.
 
 Stage exact declared paths only. `git add -A` and `git add .` are forbidden
 unless an explicitly authorized whole-worktree task has established that every

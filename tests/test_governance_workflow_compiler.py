@@ -1894,9 +1894,18 @@ def test_f05_receipt_source_and_validator_identities_are_current():
     assert receipt["generated_prompt_sha256"] == hashlib.sha256(result.prompt.encode()).hexdigest()
     assert receipt["compiler_identity"]["sha256"] == hashlib.sha256(Path(
         compiler.__file__).read_bytes()).hexdigest()
-    assert receipt["canonical_governance"]["applicable_sources"]["AGENTS.md"] == \
-        hashlib.sha256((Path(compiler.__file__).resolve().parents[1] / "AGENTS.md").read_bytes()).hexdigest()
-    assert receipt["maintained_validator"]["sha256"] == hashlib.sha256(compiler.VALIDATOR.read_bytes()).hexdigest()
+    # Governance and validator bytes come from the receipt's consumed canonical
+    # snapshot, which may differ legitimately from this development checkout.
+    import subprocess
+    source = receipt["policy_source_binding"]
+    def canonical_bytes(path):
+        return subprocess.check_output([
+            "git", "-C", source["repository"], "show",
+            source["observed_master_oid"] + ":" + path])
+    for path, digest in receipt["canonical_governance"]["applicable_sources"].items():
+        assert digest == hashlib.sha256(canonical_bytes(path)).hexdigest()
+    assert receipt["maintained_validator"]["sha256"] == hashlib.sha256(
+        canonical_bytes(receipt["maintained_validator"]["locator"])).hexdigest()
     assert receipt["maintained_validator"]["locator"] == str(compiler.VALIDATOR.relative_to(compiler.ROOT))
     assert receipt["maintained_validator"]["version"]
     assert receipt["input_binding_identity"]["sha256"] == hashlib.sha256(
@@ -3498,3 +3507,301 @@ def test_aggregate_diagnostic_precedence_matrix(case, expected, tmp_path):
         assert result.receipt['authorized_effects'] == []
     if case == 'F':
         assert 'contradictory typed ownership' in str(result.receipt['diagnostics'])
+
+
+def ab_dispatch_bindings(data):
+    """Conformance/mandate evidence, deliberately no author host readback."""
+    data['bindings'].append({**data['bindings'][0], 'binding_id': 'ab_conformance',
+                             'source_kind': 'accepted_evidence',
+                             'source_identity': 'accepted:prompt_conformance'})
+    data['dispatch_gate'] = {'owner_authorization_binding': data['bindings'][0]['binding_id'],
+                             'manual_governance_review_binding': 'ab_conformance'}
+
+
+def test_ab02_dispatch_without_author_live_readback():
+    feature, data = material_given_data('the selected commit branch is checked out')
+    ab_dispatch_bindings(data)
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['dispatchability']['dispatchable']
+    assert 'live_dispatch_applicability' not in result.receipt['unresolved_evidence']
+    check = result.receipt['given_readiness'][0]['verification']
+    assert check['before_effects'] == ['commit_ref']
+    assert check['expected'] == 'refs/heads/docs/example'
+    assert {'must_pass_before_effects': check} in prompt_yaml(result)['evidence_requirements']
+    assert any(isinstance(row, str) and row.startswith('Runtime responsibility before dependent effects:')
+               for row in prompt_yaml(result)['evidence_requirements'])
+    assert result.receipt['execution_assertions'] == result.receipt['result_assertions'] == 'NOT_EVALUATED'
+    assert result.receipt['maintained_validator']['result'] == 'pass'
+    # A superseded generic readback adds no gate and grants no authority.
+    data['bindings'].append({**data['bindings'][0], 'binding_id': 'old_live',
+                             'source_kind': 'repository_readback', 'acquisition': 'last_observed'})
+    data['dispatch_gate']['live_applicability_binding'] = 'old_live'
+    assert run(feature, data).receipt['dispatchability']['dispatchable']
+
+
+def test_ab02_ambiguous_target_or_missing_authority_stops():
+    feature, data = documentation_data()
+    ab_dispatch_bindings(data)
+    data['prompt'].pop('feature_branch')
+    ambiguous = run(feature, data)
+    assert not ambiguous.prompt and not ambiguous.receipt['dispatchability']['dispatchable']
+    feature, data = documentation_data()
+    ab_dispatch_bindings(data)
+    data['bindings'] = [b for b in data['bindings'] if b['binding_id'] != 'owner_effect']
+    missing = run(feature, data)
+    assert missing.compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
+    assert missing.receipt['authorized_effects'] == []
+    assert not missing.receipt['dispatchability']['dispatchable']
+    # Generic live evidence cannot replace conformance or the mandate.
+    data = base_data()
+    ab_dispatch_bindings(data)
+    data['dispatch_gate'].pop('manual_governance_review_binding')
+    assert not run(data=data).receipt['dispatchability']['dispatchable']
+    data['dispatch_gate']['manual_governance_review_binding'] = 'ab_conformance'
+    data['dispatch_gate'].pop('owner_authorization_binding')
+    assert not run(data=data).receipt['dispatchability']['dispatchable']
+
+
+def test_ab07_nonapplicable_check_and_pertinent_failed_fact():
+    simple = run()
+    assert simple.receipt['isolation_verification']['cross_repository_isolation'] == 'not_applicable'
+    assert simple.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    feature, data = material_given_data('the selected commit branch is checked out')
+    ab_dispatch_bindings(data)
+    fact = next(b for b in data['bindings'] if b['binding_id'] == 'given_ref')
+    check = run(feature, data).receipt['given_readiness'][0]['verification']
+    fact.update(acquisition='acquired', observed_state=given_observation(check, fact))
+    fact['observed_state']['observed_value'] = 'refs/heads/foreign'
+    result = run(feature, data)
+    assert result.receipt['excluded_effects'] == ['commit_ref']
+    assert result.receipt['given_readiness'][0]['state'] == 'unsupported_material_premise'
+    assert not result.receipt['dispatchability']['dispatchable']
+
+
+def test_ab08_unobservable_model_is_tracking_by_default():
+    for materiality in ('omitted', None, 'not_decision_material'):
+        for observed in (False, True):
+            data = base_data()
+            if materiality != 'omitted':
+                data['runtime_model_materiality'] = materiality
+            if observed:
+                data['runtime_model_observation'] = 'not_observable'
+            ab_dispatch_bindings(data)
+            result = run(data=data)
+            assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+            assert result.receipt['dispatchability']['dispatchable']
+            if observed:
+                assert result.receipt['safety_constraints']['runtime_model_observation'] == 'not_observable'
+            assert result.receipt['safety_constraints'].get('runtime_model_materiality') in (None, 'not_decision_material')
+
+
+def test_ab08_material_profile_comparison_requires_evidence():
+    data = base_data()
+    data['runtime_model_materiality'] = 'decision_material'
+    for observation in (None, 'not_observable', 'gpt-6-sol/high'):
+        data['runtime_model_observation'] = observation
+        result = run(data=data)
+        assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+        assert not result.prompt and not result.receipt['dispatchability']['dispatchable']
+    data['prompt']['required_profile_agreement_evidence'] = 'accepted:exact_profile_comparison'
+    data['prompt']['profile_agreement_failure_policy'] = 'fail_closed'
+    assert run(data=data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    data['runtime_model_observation'] = 'not_observable'
+    assert not run(data=data).prompt
+
+
+def test_ab09_unknown_later_fact_excludes_only_declared_consumer(tmp_path):
+    feature, data, fact = staged_given_data(effect_id='commit_controller')
+    feature = feature.replace('the selected commit branch is checked out', 'unsupported later property')
+    ab_dispatch_bindings(data)
+    result = run(feature, data)
+    assert result.receipt['excluded_effects'] == ['commit_controller']
+    assert {'writer_a', 'writer_b'} <= set(result.receipt['authorized_effects'])
+    assert result.receipt['given_readiness'][0]['dependent_effect_ids'] == ['commit_controller']
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert result.receipt['dispatchability']['dispatchable']
+    stages = prompt_yaml(result)['workflow_stages']
+    readiness = {row['stage_id']: row for row in result.receipt['stage_readiness']}
+    assert {sid for sid, row in readiness.items() if row['eligible_to_enter_preflight']} == {
+        'writer_a', 'writer_b'}
+    assert readiness['exact_union']['blocked_by_effects'] == ['commit_controller']
+    assert readiness['common_validation']['blocked_by_stages']
+    consumer = next(s for s in stages if s['stage_id'] == 'exact_union')
+    fence = next(v['must_pass_before_effects'] for v in consumer['stage_inputs']
+                 if isinstance(v, dict) and 'must_pass_before_effects' in v)
+    assert fence['binding_id'] == fact['binding_id']
+    assert fence['state'] == 'unsupported_material_premise'
+    assert fence['before_effects'] == ['commit_controller']
+    assert all('must_pass_before_effects' not in str(s['stage_inputs']) for s in stages[:2])
+
+    # Consume emitted contracts, not receipt eligibility lists. This bounded
+    # empirical fixture publishes real serialized stage results only after
+    # inputs/gates; no project task, parallel executor or Git effect is run.
+    graph = compiler.Result_graph.from_stages(stages)
+    completed = set()
+    trace = []
+    for spec, stage in zip(graph.stages, stages):
+        if not graph.predecessors(spec.stage_id) <= completed:
+            trace.append({'stage': spec.stage_id, 'entered': False, 'reason': 'missing_outputs'})
+            continue
+        unresolved = [v['must_pass_before_effects'] for v in stage['stage_inputs']
+                      if isinstance(v, dict) and 'must_pass_before_effects' in v and
+                      v['must_pass_before_effects'].get('state') == 'unsupported_material_premise']
+        if unresolved:
+            trace.append({'stage': spec.stage_id, 'entered': False, 'reason': 'unresolved_given'})
+            continue
+        # Synthetic acceptance evidence represents the modeled stage's bounded
+        # result. No subsequent input may consume an output that was not made.
+        (tmp_path / (spec.stage_id + '.yaml')).write_text(yaml.safe_dump({
+            'stage_id': spec.stage_id, 'outputs': list(spec.outputs), 'gate': 'PASS'}))
+        completed.add(spec.stage_id)
+        trace.append({'stage': spec.stage_id, 'entered': True, 'outputs': list(spec.outputs)})
+    (tmp_path / 'progression_trace.yaml').write_text(yaml.safe_dump(trace))
+    assert completed == {'writer_a', 'writer_b', 'independent_review'}
+    assert yaml.safe_load((tmp_path / 'writer_a.yaml').read_text())['gate'] == 'PASS'
+    assert yaml.safe_load((tmp_path / 'writer_b.yaml').read_text())['outputs']
+    assert not (tmp_path / 'exact_union.yaml').exists()
+    assert not (tmp_path / 'integration.yaml').exists()
+    assert next(r for r in trace if r['stage'] == 'exact_union')['reason'] == 'unresolved_given'
+    assert all(not row['entered'] for row in trace if row['stage'] not in completed)
+
+
+def test_ab10_storage_gate_only_for_real_write():
+    simple = run()
+    assert simple.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert 'production_action' not in prompt_yaml(simple)
+    assert 'resource_ceiling' not in prompt_yaml(simple)
+    data = base_data()
+    data['prompt'].update(prompt_mode='production_execution', validation_ceiling='production_execution',
+                          allowed_to_modify={'TOP26006_fw': {'storage_paths': ['/scratch/result']}})
+    feature = ('Feature: bounded output\nScenario: real write\nGiven exact output target\n'
+               'When I write production output\nThen the report cites evidence')
+    add_effect(data, 'production_storage_write', '/scratch/result', 4, 'storage_writes')
+    result = run(feature, data)
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', result.receipt
+    assert not result.prompt and result.receipt['authorized_effects'] == []
+    assert 'production action contract incomplete' in result.receipt['diagnostics'][0]['message']
+
+
+def test_ab05_ab15_exact_commit_scope_with_foreign_state(tmp_path):
+    """Exercise exact index comparison; no commit is attempted after contamination."""
+    import subprocess
+    def git(*args):
+        return subprocess.check_output(['git', '-C', str(tmp_path), *args], stderr=subprocess.PIPE)
+    git('init', '--initial-branch=task')
+    task, foreign = tmp_path / 'task.md', tmp_path / 'foreign.md'
+    task.write_text('base task\n'); foreign.write_text('base foreign\n')
+    git('add', '--', 'task.md', 'foreign.md')
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+        'commit', '-m', 'Initialize exact-scope fixture')
+    task.write_text('reviewed task result\n'); foreign.write_text('foreign uncommitted content\n')
+    untracked = tmp_path / 'unrelated.txt'; untracked.write_text('foreign untracked content\n')
+    foreign_before, untracked_before = foreign.read_bytes(), untracked.read_bytes()
+    reviewed = git('diff', '--binary', '--', 'task.md')
+    git('add', '--', 'task.md')
+    assert git('diff', '--cached', '--binary') == reviewed
+    assert git('diff', '--cached', '--name-only').splitlines() == [b'task.md']
+    git('add', '--', 'foreign.md')
+    assert git('diff', '--cached', '--binary') != reviewed
+    assert set(git('diff', '--cached', '--name-only').splitlines()) == {b'task.md', b'foreign.md'}
+    assert foreign.read_bytes() == foreign_before and untracked.read_bytes() == untracked_before
+    # The compiler likewise cannot silently add that foreign path to exact scope.
+    feature, data = documentation_data()
+    data.update(foreign_dirty=True)
+    data['prompt']['dirty_worktree_policy'] = 'work_on_dirty_branch_as_is'
+    assert run(feature, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    data['prompt']['allowed_to_modify']['TOP26006_fw']['tracked_paths'].append('foreign.md')
+    assert not run(feature, data).prompt
+
+
+def test_ab12_ab17_compare_delete_rejects_ref_movement(tmp_path):
+    """Run the generated old-value guard against a real synthetic ref race."""
+    import subprocess
+    def git(*args):
+        return subprocess.run(['git', '-C', str(tmp_path), *args], capture_output=True, text=True)
+    assert git('init', '--initial-branch=controller').returncode == 0
+    commit = ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+              'commit', '--allow-empty', '-m', 'Synthetic ref state']
+    assert git(*commit).returncode == 0
+    old = git('rev-parse', 'HEAD').stdout.strip()
+    assert git('update-ref', 'refs/heads/probe', old).returncode == 0
+    result = run(LIFECYCLE, lifecycle_data())
+    deletion = prompt_yaml(result)['workflow_stages'][-1]
+    readback = deletion['runtime_observations'][0]
+    assert readback['reject_movement_after_readback'] and not deletion['automatic_retry']
+    assert git(*commit).returncode == 0
+    moved = git('rev-parse', 'HEAD').stdout.strip()
+    assert moved != old and git('update-ref', 'refs/heads/probe', moved, old).returncode == 0
+    # Same generated command operands, resolving only the runtime output.
+    command = deletion['safety_critical_argv'][3:-1] + [old]
+    assert command == ['update-ref', '-d', 'refs/heads/probe', old]
+    failed = git(*command)
+    assert failed.returncode != 0
+    assert git('rev-parse', 'refs/heads/probe').stdout.strip() == moved
+
+
+@pytest.mark.parametrize("gate", ["owner_authorization_binding", "manual_governance_review_binding"])
+def test_ab09_partial_progression_requires_global_authority_and_conformance(gate):
+    feature, data, fact = staged_given_data(effect_id='commit_controller')
+    feature = feature.replace('the selected commit branch is checked out', 'unsupported later property')
+    ab_dispatch_bindings(data)
+    data['dispatch_gate'].pop(gate)
+    result = run(feature, data)
+    assert not result.receipt['dispatchability']['dispatchable']
+    assert result.receipt['stage_readiness'][0]['eligible_to_enter_preflight']
+    # No missing effect grant may hide behind the blocked consumer.
+    data['bindings'] = [b for b in data['bindings'] if b['binding_id'] != next(
+        e['positive_authority_binding'] for e in data['requested_effects']
+        if e['effect_id'] == 'commit_controller')]
+    refused = run(feature, data)
+    assert refused.compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
+    assert not refused.prompt and not refused.receipt['dispatchability']['dispatchable']
+
+
+def test_ab09_unsupported_current_stages_have_no_entry_path():
+    feature, data, fact = staged_given_data(effect_id='commit_writer_a')
+    feature = feature.replace('the selected commit branch is checked out', 'unsupported current property')
+    fact['dependent_effect_ids'] = ['commit_writer_a', 'commit_writer_b']
+    ab_dispatch_bindings(data)
+    result = run(feature, data)
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+    assert not result.receipt['dispatchability']['dispatchable']
+    assert not any(row['eligible_to_enter_preflight'] for row in result.receipt['stage_readiness'])
+    stages = prompt_yaml(result)['workflow_stages']
+    for stage in stages[:2]:
+        fence = next(v['must_pass_before_effects'] for v in stage['stage_inputs']
+                     if isinstance(v, dict) and 'must_pass_before_effects' in v)
+        assert fence['state'] == 'unsupported_material_premise'
+        assert fence['before_effects'] == ['commit_' + stage['stage_id']]
+    assert set(result.receipt['excluded_effects']) == {'commit_writer_a', 'commit_writer_b'}
+
+
+def test_ab09_current_runtime_preflight_rejects_wrong_branch(tmp_path):
+    import subprocess
+    feature, data = material_given_data('the selected commit branch is checked out')
+    ab_dispatch_bindings(data)
+    data['prompt']['repo_locations']['TOP26006_fw'] = str(tmp_path)
+    result = run(feature, data)
+    assert result.receipt['dispatchability']['dispatchable']  # enter preflight only
+    check = result.receipt['given_readiness'][0]['verification']
+    assert check['working_directory'] == str(tmp_path)
+    assert {'must_pass_before_effects': check} in prompt_yaml(result)['evidence_requirements']
+    subprocess.run(['git', 'init', '--initial-branch=foreign', str(tmp_path)], check=True,
+                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    observed = subprocess.run(check['argv'], cwd=check['working_directory'], capture_output=True, text=True)
+    passed = observed.returncode == 0 and observed.stdout.strip() == check['expected']
+    assert not passed
+    assert observed.stdout.strip() == 'refs/heads/foreign'
+    assert not (tmp_path / 'current_effect_executed').exists()
+
+
+def test_l05_read_only_runtime_requirements_do_not_demand_git_commit_checks():
+    requirements = prompt_yaml(run())['evidence_requirements']
+    responsibility = next(v for v in requirements if isinstance(v, str) and
+                          v.startswith('Runtime responsibility before dependent effects:'))
+    assert 'current master rules' in responsibility
+    assert 'complete index' not in responsibility
+    assert 'dirty-worktree' not in responsibility
+    assert 'repository/worktree/branch' not in responsibility
+    assert 'must_pass_before_effects' not in str(requirements)

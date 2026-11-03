@@ -39,12 +39,20 @@ otherwise. Expected values describe inputs or safety invariants, never desired
 audit outcomes. Collect evidence, serialize it, reopen and validate it, then
 classify and derive the verdict. Names are not runtime evidence.
 
-Reuse accepted evidence unless relevant source/input/environment changed,
-evidence is missing, unreadable, invalid or contradictory, the owner requests
-revalidation, or current external state is material. Checkpoints are context,
-not authority. Observe current branch, dirty state, permissions, CI, scheduler,
-storage and service state when the decision depends on them. Tree identity
-does not establish history identity.
+Reuse accepted evidence unless a consumed source/input/environment dependency
+changed, required evidence is missing, unreadable, invalid or contradictory,
+the owner requests revalidation, or current external state is material.
+HEAD/OID/hash/digest/runtime identity and similar metadata are tracking by
+default. A difference gates only the concrete effect or claim that needs it
+for authority, target correctness, safety, integrity, isolation, scientific
+correctness, reversibility, idempotency or ambiguity resolution. Name that
+dependency and harmful consequence before treating a check as blocking.
+Scientific distinctions in inputs/configuration and the actual consumed
+package remain material; byte or OID equality alone proves no scientific
+equivalence. Future results are stage outputs, never required future literals.
+Checkpoints are context, not authority. Observe current branch, dirty state,
+permissions, CI, scheduler, storage and service state when the decision
+depends on them. Tree identity does not establish history identity.
 
 ## Required reading router
 
@@ -91,12 +99,13 @@ an exact checkout whose `HEAD` is freshly verified to `refs/heads/master`.
 Record the current master OID and the relevant source identities when they are
 decision-material.
 
-A changed master OID alone does not invalidate a continuation when the declared
-decision-material governance dependencies are unchanged; revalidate against
-the current master and compare the relevant dependency identities. If a
-material governance, contract, scope or validation dependency changes, or the
-current master cannot be read or verified, stop the dependent validation or
-dispatch.
+A changed master OID alone does not invalidate a continuation when the
+declared decision-material governance dependencies are unchanged; revalidate
+against the current master and compare the relevant dependency identities. If
+a material governance, contract, scope or validation dependency changes,
+revalidate the affected action against the current rule; stop it for an
+unresolved conflict or when its required rule cannot be read or verified.
+Unrelated metadata drift does not reopen accepted closure.
 
 The maintained prompt validator remains mechanical lint only; its result does
 not certify governance completeness, authorization or acceptance.
@@ -179,17 +188,22 @@ without explicit configuration-work authorization. Remote Git/gh/glab commands
 follow the direct-command rules in the Git contract.
 
 Default preflight_profile is compact_preflight; default dirty_worktree_policy
-is require_clean_worktree (tracked/index/conflict clean, not physically empty).
-Alternatives are work_on_dirty_branch_as_is, allow_declared_preexisting_changes
-and commit_preparation_existing_changes; declare them explicitly.
-expanded_preflight requires a reason. Inspect exact task paths, branch/HEAD,
-needed references, staged/unstaged task changes and input/output collisions.
-preflight_scope_paths may be derived only when the named exact surfaces
-determine a unique minimum set. Never inventory unrelated untracked files.
-Preserve all foreign changes; path write permission does not adopt them.
-No reset, restore, stash, clean or checkout-discard without exact authority,
-except the narrow foreign-index recovery defined in the Git contract.
-Read back relevant final state.
+is require_clean_worktree (tracked/index/conflict clean, not physically
+empty). Alternatives are work_on_dirty_branch_as_is,
+allow_declared_preexisting_changes and commit_preparation_existing_changes;
+declare them explicitly. expanded_preflight requires a reason. Inspect exact
+task paths, branch/HEAD, needed references, staged/unstaged task changes and
+input/output collisions. preflight_scope_paths may be derived only when the
+named exact surfaces determine a unique minimum set. Check task paths and
+shared/generated inputs or outputs that can contaminate the effect; inspect
+the complete index before a commit. Neither clean-state policy nor preflight
+requires physical workspace emptiness. Disjoint foreign changes may remain
+under an explicitly selected dirty-worktree alternative when the exact delta
+is safely isolated. Never inventory unrelated untracked files. Preserve all
+foreign changes; path write permission does not adopt them. No reset, restore,
+stash, clean or checkout-discard without exact authority, except the narrow
+foreign-index recovery defined in the Git contract. Read back relevant final
+state.
 
 ## Modes and validation ceilings
 
