@@ -8,4 +8,4 @@ It is for researchers and collaborators who want to use AI assistance while keep
 
 ## Repository visibility and licensing
 
-The canonical GitHub repository `anpicci/TOP26006_fw` is public. Resolve live remote/ref/visibility freshly when material; public visibility does not establish remote publication of current local commits. Public visibility does not establish an effective open-source license. Apache-2.0 remains the research lead's intended future repository-wide license; an effective open-source grant is not established pending Notre Dame institutional rights disposition.
+The canonical GitHub repository `anpicci/TOP26006_fw` is public. Resolve live remote/ref/visibility freshly when material; public visibility does not establish remote publication of current local commits. Public visibility does not establish an effective open-source license. Apache-2.0 remains the project's intended future repository-wide license; an effective open-source grant is not established pending Notre Dame institutional rights disposition.

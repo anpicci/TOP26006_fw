@@ -1,6 +1,6 @@
 # Glossary
 
-The responsibility terms below explain the reader-facing roles. They do not create or transfer authority, replace native repository policy, or rename literal governance identifiers such as `owner_authorization`.
+The responsibility terms below explain the reader-facing roles. They do not create or transfer authority, replace native repository policy, or rename literal governance identifiers such as `owner_authorization`. Responsibilities remain distinct even when one person holds several roles in a small project.
 
 | Term | Meaning |
 | --- | --- |
@@ -11,11 +11,12 @@ The responsibility terms below explain the reader-facing roles. They do not crea
 | Validation evidence | Observations that check a bounded claim, with known limits. |
 | Independent review | A check separate from executor self-report. |
 | Accepted result | A conclusion adopted for a stated scope; record task/evidence acceptance separately from scientific acceptance. |
-| Task/evidence acceptance | The responsible Chat/lane accepts returned evidence or a bounded task layer after review; this does not confer scientific acceptance. |
+| Task/evidence acceptance | The research coordinator records acceptance of returned evidence or a bounded task layer after the required review for a stated scope; this neither authorizes new effects nor chooses scientific method or confers scientific acceptance. |
 | Scientific acceptance | The responsible scientific lead decides whether evidence supports a scientific claim or interpretation. |
 | Research lead | Responsibility for research/task leadership and authorization within the person's actual remit. |
-| Scientific lead | Responsibility for scientific method, interpretation and scientific acceptance. |
-| Responsible researcher | The human responsible for a concrete bounded decision; no institutional title is implied. |
+| Research coordinator | Reader-facing responsibility for coordinating a bounded task/evidence layer and recording its acceptance after required review; distinct from task authorization and scientific acceptance, with no new normative governance role implied. |
+| Scientific lead | Responsibility for scientific method, interpretation and scientific acceptance within actual authority. |
+| Responsible researcher | The human responsible for or performing a concrete bounded research task or workstream; not automatically its coordinator, reviewer, research lead or scientific lead. |
 | Repository or technical maintainer | Responsibility for repository or tooling maintenance; this alone confers no scientific authority. |
 | Designated integrator | Responsibility for reconciling agreed contributions within an authorized integration scope. |
 | Project identity | The governed project name, here `TOP26006_fw`. |

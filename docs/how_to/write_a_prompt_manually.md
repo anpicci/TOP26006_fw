@@ -1,6 +1,6 @@
 # Write a prompt manually
 
-Use this expert fallback when a knowledgeable author prepares an exact research-task prompt without the novice [assistant preparation route](ask_an_assistant_to_prepare_a_task.md). Human manual authorship is optional; the coordinating Chat or another authorized prompt author normally translates the research lead's mandate.
+Use this expert fallback when a knowledgeable author prepares an exact research-task prompt without the novice [assistant preparation route](ask_an_assistant_to_prepare_a_task.md). Human manual authorship is optional; an authorized prompt author normally translates the research lead's mandate.
 
 ## Before you start
 
@@ -16,7 +16,7 @@ Obtain the research lead's task mandate, effect boundary and explicit permission
 
 ## Verify the result
 
-Label states precisely: `prepared` means drafted; `conformant` means checked against applicable contract; `authorized/dispatchable` requires a research lead's grant and live preconditions; `dispatched` means issued; `executed` means work/evidence returned; `accepted` requires a separate bounded task/evidence decision by the responsible Chat/lane or, for a scientific claim, a scientific decision by the scientific lead. A mechanical PASS supports only part of conformance.
+Label states precisely: `prepared` means drafted; `conformant` means checked against applicable contract; `authorized/dispatchable` requires a research lead's grant and live preconditions; `dispatched` means issued; `executed` means work/evidence returned; `accepted` requires a separate bounded task/evidence decision by the research coordinator or, for a scientific claim, a scientific decision by the scientific lead. The research lead authorizes the task; neither that authorization nor a reviewer recommendation is acceptance. In the TOP-26-006 reference deployment, the coordinating Chat performs the project-specific task/evidence acceptance function only under live governance and explicit project decisions. A mechanical PASS supports only part of conformance.
 
 ## Stop instead of proceeding if...
 
