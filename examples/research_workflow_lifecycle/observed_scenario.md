@@ -1,5 +1,19 @@
 # Observed synthetic lifecycle (one local diagnostic run)
 
+This page is the factual source for this simulated lifecycle event, including
+its acceptance actor/function, layer and scope. Generic meanings come from
+[decision layers](../../docs/explanation/evidence_reproducibility_and_acceptance.md);
+this record creates no live authority. When an event field changes, compare
+actual consumers of that field, not every page linking here. The acceptance
+fact is repeated in the [fixture overview](README.md), the
+[evidence explanation](../../docs/explanation/evidence_reproducibility_and_acceptance.md),
+[review lesson](../../docs/tutorials/05_review_and_accept_returned_evidence.md),
+[continuation lesson](../../docs/tutorials/06_continue_from_existing_evidence.md)
+and [evidence-transfer lesson](../../docs/tutorials/07_coordinate_a_multi_repository_change.md).
+The change lesson uses quantities/provenance and recovery/handoff lessons use
+stop and closure facts; inspect the fields they actually consume before marking
+them stale. An actor correction alone does not invalidate the arithmetic.
+
 This is a compact, human-readable record of one diagnostics-local run. New
 scratch Git histories will have different commit IDs. The full command and
 output receipt is in the local Prompt-003 diagnostics package, not required for

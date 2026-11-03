@@ -13,4 +13,4 @@ The [synthetic workstreams table](../../examples/advanced_parallel_workstreams/w
 | `current_responsibility_source` | Effective authority reference, including transfer if applicable. |
 | `coordination_record_ref` | Events that change state or assign follow-up. |
 
-Record a stop boundary with the scope or its linked coordination event. The responsible researcher must confirm any assignment, permission, or acceptance outside this illustrative file.
+Record a stop boundary with the scope or its linked coordination event. Actual authority outside this illustrative file must support each assignment or permission and each acceptance for its stated layer and scope. Identify the relevant decision maker and authority reference separately: task assignment/authorization, independent review, bounded task/evidence acceptance and scientific acceptance are distinct functions. One person may hold several functions without merging the decisions; see [responsibilities](../../explanation/roles_and_authority.md) and [decision layers](../../explanation/evidence_reproducibility_and_acceptance.md).

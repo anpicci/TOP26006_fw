@@ -44,7 +44,7 @@ sha256sum README.md analyze.py test_analysis.py data/measurements.csv ../source_
 
 The four copied files form the clean seed; `interpretation.md` is absent. Preserve the displayed seed HEAD and hashes in your own lesson record outside the scratch repository. The scenario copy is a fixed documentary input, not a second repository. Compare its CSV hash (`f6b9311f0ce6e675999c5ef31a14d82589179a9f8e82be917df6695c6893c294`) with your copied input. If they differ, stop: the recorded result is not bound to this input.
 
-The [bounded-change template](../../templates/bounded_change_prompt.md) helps state the task: the researcher owns interpretation and acceptance; the prompt author bounds effects; the executor returns evidence. Fill it against live governance before an assistant dispatch. It grants no effects on its own. For this practice, the sole post-seed write is the scratch note plus its exact local commit and evidence outside that repository; no runtime, network, production, or publication is needed.
+The [bounded-change template](../../templates/bounded_change_prompt.md) helps state the task: the person with actual scientific remit decides interpretation; the prompt author bounds authorized effects; the executor returns evidence. Review and acceptance are separate functions with their own scope. Fill it against live governance before an assistant dispatch. It grants no effects on its own. For this practice, the sole post-seed write is the scratch note plus its exact local commit and evidence outside that repository; no runtime, network, production, or publication is needed.
 
 ## Make the bounded change
 
@@ -89,7 +89,7 @@ git diff HEAD^ HEAD -- interpretation.md > ../tutorial04_change.patch
 git status --porcelain=v1
 ```
 
-Run these commands in order, stopping on any failure or unexpected path before committing. Write the patch only if its destination is absent; if it already exists, read and compare it rather than overwriting it. Keep the patch, note, seed/result identities, hash comparisons, and command observations in your lesson record. A clean result and a local commit prove neither pedagogical nor scientific acceptance. An independent reviewer advises; the responsible researcher decides whether this bounded record is acceptable.
+Run these commands in order, stopping on any failure or unexpected path before committing. Write the patch only if its destination is absent; if it already exists, read and compare it rather than overwriting it. Keep the patch, note, seed/result identities, hash comparisons, and command observations in your lesson record. A clean result and a local commit prove neither pedagogical nor scientific acceptance. An independent reviewer advises; the person assigned actual task/evidence acceptance remit decides whether this bounded record is acceptable for its stated scope. Scientific acceptance of an interpretation remains a separate decision within scientific remit. A researcher may hold both functions, but neither the title nor this practice commit grants them; see [decision layers](../explanation/evidence_reproducibility_and_acceptance.md).
 
 ## Restart or continue
 

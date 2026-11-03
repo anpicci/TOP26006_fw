@@ -1,12 +1,22 @@
 # Coordination history — synthetic teaching record
 
+This record supplies the concrete event history and event-specific actors and
+decision references, using the routes in [workstreams](workstreams.md).
+[Evidence dependencies](evidence-dependencies.md) projects the corresponding
+acceptance facts; it does not decide them independently. For ACC_CHECK_R1 at
+C02, compare W_CHECK and E_CHECK_R1, the [overview](README.md) and
+[reconciliation lesson](../../tutorials/advanced/02_reconcile_a_shared_dependency_change.md)
+where they repeat actor/layer/scope. The [coordination lesson](../../tutorials/advanced/01_coordinate_parallel_research_workstreams.md)
+also consumes the check's scope and C03 sequence. A linked passage consuming
+only C10 transfer facts is not an ACC_CHECK_R1 actor dependency.
+
 Sequence is logical order, not a claim of simultaneous execution. `AUTH_CASE_1` and `AUTH_TRANSFER_1` are hypothetical explicit authorization references from the simulated research lead inside this example. Receipt, acknowledgment, recipient readback, and effective transfer are separate facts. Empty effects are written `none known`; they are not assumed away.
 
 | event_id | time_or_sequence | workstream_refs | actor | event_type | decision_or_issue | before_responsibility_ref | after_responsibility_ref | sender_ack | receiver_ack | receiver_readback_or_comprehension_ref | unresolved_effects_or_blockers | continuation_checkpoint | next_permitted_action | effective_transfer_authority_ref |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | C01 | 1 | W_METHODS | methods researcher | task/result | Produce E_METHODS_R1 using D_SHARED_R1; deliver for separate review. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | none known | E_METHODS_R1 delivered, review pending | reviewer checks exact revision | n/a |
 | C02 | 2 | W_CHECK | checking researcher, checking reviewer, then research coordinator | task/result | Check D_RAW_R1 listing completeness only; E_CHECK_R1 delivered, reviewed REV_CHECK_R1; research coordinator records ACC_CHECK_R1 as bounded task/evidence acceptance of listing completeness only, with no scientific acceptance. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | does not test estimate | E_CHECK_R1 accepted for narrow scope | preserve narrow check | n/a |
-| C03 | 3 | W_METHODS, W_NOTE | scientific lead | review/accept/dependency gate | REV_METHODS_R1 reviewed, then ACC_METHODS_R1 accepted exact E_METHODS_R1; W_NOTE produced E_NOTE_R1 only afterward; REV_NOTE_R1 and ACC_NOTE_R1 followed. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | none known | E_NOTE_R1 accepted under R1 | monitor shared assumption | n/a |
+| C03 | 3 | W_METHODS, W_NOTE | methods reviewer then scientific lead; note researcher then note reviewer then scientific lead | review/accept/dependency gate | The methods reviewer records REV_METHODS_R1; the scientific lead then records ACC_METHODS_R1 for scientific acceptance of exact E_METHODS_R1 under D_SHARED_R1. W_NOTE produces E_NOTE_R1 only afterward; the note reviewer records REV_NOTE_R1, then the scientific lead records ACC_NOTE_R1 for scientific acceptance of that exact explanation. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | none known | E_NOTE_R1 accepted under R1 | monitor shared assumption | n/a |
 | C04 | 4 | W_METHODS, W_NOTE | scientific lead | dependency change/invalidation | D_SHARED_R2 supersedes D_SHARED_R1; mark E_METHODS_R1 and E_NOTE_R1 stale for current use by direct/transitive paths. Preserve both rows. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | current estimate and note blocked | R1 history retained; R2 review pending | W_METHODS reconciles; W_NOTE waits | n/a |
 | C05 | 5 | W_CHECK | checking reviewer | selective validity | E_CHECK_R1 remains valid: it consumes D_RAW_R1 only, which did not change; its scope excludes exclusion rule and estimate. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | none for listing claim; estimate still blocked | ACC_CHECK_R1 retained for narrow scope | no rerun of narrow check required | n/a |
 | C06 | 6 | W_METHODS | methods researcher | reconciliation | Produce E_METHODS_R2 from D_RAW_R1 and D_SHARED_R2. | AUTH_CASE_1 | AUTH_CASE_1 | n/a | n/a | n/a | review and acceptance pending | E_METHODS_R2 drafted | deliver exact revision | n/a |

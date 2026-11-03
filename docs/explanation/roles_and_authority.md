@@ -1,5 +1,13 @@
 # Roles and authority
 
+This page is the explanatory source for reader-facing responsibilities and
+their authority boundaries. Lookup tables and procedures summarize these
+distinctions; live project governance and explicit decisions determine actual
+remit. A title alone grants nothing. In particular, “research coordinator”
+names a bounded task/evidence acceptance function only where a project assigns
+that remit; it is not a universal academic title. For the decision layers, use
+[evidence and acceptance](evidence_reproducibility_and_acceptance.md).
+
 A researcher notices unexpected histogram bins. An assistant can suggest a
 cause, inspect a setting, or prepare a change. Someone still has to decide
 which question matters, whether the inspected material describes that figure,

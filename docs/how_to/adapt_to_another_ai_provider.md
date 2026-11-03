@@ -27,6 +27,6 @@ Record each applicable row in the task's existing evidence record. Label its evi
 | Persistent or project context | What context is available, its source revision and how current material state is refreshed |
 | Delegated or parallel workers | Authorized responsibilities, write boundaries and review independence; separate contexts alone establish none of these |
 | Evidence capture and restartability | Source identities, actual actions/results, artifacts, preserved unknown outcomes and safe readback before retry |
-| Human review and acceptance | Responsible researcher, reviewer evidence, accepted claim and residual limits; provider agreement cannot accept it |
+| Human review and acceptance | Separate reviewer and acceptance decision maker with actual remit for the stated layer and scope: bounded task/evidence or scientific acceptance; preserve the reviewed claim and residual limits as explained in [decision layers](../explanation/evidence_reproducibility_and_acceptance.md). Provider agreement cannot accept it |
 
 For each row add the official locator/date, exact target surface/version, local observation or missing check, and claim ceiling. Recheck any decision-material mechanism at use time, especially after a product, configuration or surface change. A mechanism rename reopens that mapping, not the research method or unrelated accepted work.
