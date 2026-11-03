@@ -12,7 +12,7 @@ Know the intended task paths and read the [dirty-state policy](../../AGENTS.md).
 2. Identify unstaged tracked edits: `git -C "$repo" diff --name-status -- <task-paths>`; inspect their exact diff.
 3. Identify conflicts: `git -C "$repo" diff --name-only --diff-filter=U -- <task-paths>`.
 4. Identify untracked task-path collisions with `git -C "$repo" status --porcelain=v1 -- <task-paths>` and inspect the exact target path before writing. Classify unrelated state separately without adopting or changing it.
-5. Record path, staged/unstaged/conflict/untracked class, evidence, known owner, and whether exact continuation adoption was authorized. For example, ` M interpretation.md` in the path to be edited is a stop until its origin is decided.
+5. Record path, staged/unstaged/conflict/untracked class, evidence, known author or responsible person, and whether exact continuation adoption was authorized. For example, ` M interpretation.md` in the path to be edited is a stop until its origin is decided.
 
 ## Verify the result
 
@@ -20,11 +20,11 @@ The task has a collision-free writable surface or an explicitly declared, proven
 
 ## Stop instead of proceeding if...
 
-A relevant change has uncertain owner or mixed task/foreign content, a conflict exists, or an untracked file would be overwritten. Preserve unrelated user state. Do not reset, clean, stash, restore, or broad-stage to make the gate pass. See [Tutorial 8](../tutorials/08_recover_from_a_stopped_task.md).
+A relevant change has uncertain provenance or responsibility or mixed task/foreign content, a conflict exists, or an untracked file would be overwritten. Preserve unrelated user state. Do not reset, clean, stash, restore, or broad-stage to make the gate pass. See [Tutorial 8](../tutorials/08_recover_from_a_stopped_task.md).
 
 ## Generic example
 
-A new task would edit `interpretation.md`, but status shows ` M interpretation.md`; record the diff and owner before proceeding.
+A new task would edit `interpretation.md`, but status shows ` M interpretation.md`; record the diff and its author or responsible person before proceeding.
 
 ## What this does not establish
 

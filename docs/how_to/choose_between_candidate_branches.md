@@ -11,7 +11,7 @@ Know the task's semantic surface, accepted prior commits, declared reference bra
 1. Enumerate local candidates without network: `git -C "$repo" branch --list`, `git -C "$repo" branch --show-current`, and `git -C "$repo" show-ref --heads`.
 2. For each candidate, record `git -C "$repo" rev-parse <candidate>`, `git -C "$repo" merge-base <reference> <candidate>`, and `git -C "$repo" diff --stat <reference>...<candidate>`. Inspect the relevant actual diff where a stat is insufficient.
 3. Compare semantic and dependency continuity: would starting elsewhere replay accepted feature work or omit a feature-only dependency? Record positive evidence for applicability or non-applicability. Similar names or shared general topic are insufficient.
-4. With exactly one applicable active feature, select `continue_existing_branch`. With none, creation from reference is possible only after the prompt author proves the live policy and owner authorization support it.
+4. With exactly one applicable active feature, select `continue_existing_branch`. With none, creation from reference is possible only after the prompt author proves the live policy and the research lead's authorization support it.
 
 ## Verify the result
 

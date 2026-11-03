@@ -10,7 +10,7 @@ Before choosing parallel work:
 
 1. Identify the question each output answers and who would use it. Keep one stream if the split produces no independently useful output.
 2. Draw the dependencies. If a question needs an accepted upstream result, give it a readiness criterion and wait; speculation is not completed evidence.
-3. Fix input revisions and inspect effects. Shared read-only inputs can be consumed at the same pinned revision. A shared mutable target has one writer by default; use explicit nonoverlapping edits and a reconciliation owner only when justified. Two tasks editing the same file without that agreement stay serial. Include caches, services, and external outputs, not just source files.
+3. Fix input revisions and inspect effects. Shared read-only inputs can be consumed at the same pinned revision. A shared mutable target has one writer by default; use explicit nonoverlapping edits and a designated integrator only when justified. Two tasks editing the same file without that agreement stay serial. Include caches, services, and external outputs, not just source files.
 4. Compare the evidence benefit with coordination, review, and contention costs. Choose serial work if these costs remove the benefit, even when more workers are available.
 
 Distinguish the reason for concurrent work:
@@ -37,7 +37,7 @@ If a real dependency crosses repositories, use the [serial evidence-transfer les
 
 ## 4. Record a bounded result
 
-Read events C01–C03 in [coordination](../../examples/advanced_parallel_workstreams/coordination.md). C01 records production and delivery of `E_METHODS_R1`, with exact inputs and a pending review. The separate `REV_METHODS_R1` review and `ACC_METHODS_R1` owner acceptance occur in C03. Only then does `W_NOTE` consume that revision. A completed task, delivered file, favorable review, accepted result, and downstream readiness are different states, even if one person records them all. Agent or harness completion supplies none of the later decisions automatically.
+Read events C01–C03 in [coordination](../../examples/advanced_parallel_workstreams/coordination.md). C01 records production and delivery of `E_METHODS_R1`, with exact inputs and a pending review. The separate `REV_METHODS_R1` review and `ACC_METHODS_R1` acceptance by the simulated scientific lead occur in C03. Only then does `W_NOTE` consume that revision. A completed task, delivered file, favorable review, accepted result, and downstream readiness are different states, even if one person records them all. Agent or harness completion supplies none of the later decisions automatically.
 
 ## 5. Test the checking claim
 

@@ -1,5 +1,13 @@
 # Roles and authority
 
+This page is the explanatory source for reader-facing responsibilities and
+their authority boundaries. Lookup tables and procedures summarize these
+distinctions; live project governance and explicit decisions determine actual
+remit. A title alone grants nothing. In particular, “research coordinator”
+names a bounded task/evidence acceptance function only where a project assigns
+that remit; it is not a universal academic title. For the decision layers, use
+[evidence and acceptance](evidence_reproducibility_and_acceptance.md).
+
 A researcher notices unexpected histogram bins. An assistant can suggest a
 cause, inspect a setting, or prepare a change. Someone still has to decide
 which question matters, whether the inspected material describes that figure,
@@ -12,6 +20,27 @@ ChatGPT Chat, ChatGPT Work, Codex, and Git/GitHub. It follows the
 generated output needs support before you rely on it. The examples below are
 illustrative, not findings about an existing analysis.
 
+## Separate the research responsibilities
+
+These are reader-facing responsibilities, not new normative governance roles.
+Actual authority comes from live project governance and explicit decisions.
+
+| Role | Responsibility and boundary |
+|---|---|
+| Research lead | Sets research/task priorities and authorizes bounded tasks and effects within the person's actual authority. This role is not by definition the task/evidence or scientific acceptor. |
+| Research coordinator | Coordinates a bounded task/evidence layer and records its acceptance after the required review for the stated scope. This does not authorize new effects, choose scientific method or interpretation, or confer scientific acceptance. |
+| Scientific lead | Decides scientific method and interpretation within actual authority and records scientific acceptance for scientific claims. Task/evidence acceptance does not confer this decision. |
+| Responsible researcher | Takes responsibility for or performs a concrete bounded research task or workstream; is not automatically its coordinator, reviewer, research lead or scientific lead. |
+| Reviewer | Independently challenges the relevant evidence and recommends a disposition; does not self-create task/evidence or scientific acceptance. |
+| Executor | Performs the authorized work and returns actions, results and limits; completion does not accept its own result. A validator's PASS is likewise evidence, not acceptance. |
+| Repository or technical maintainer | Maintains the repository or tooling within a bounded technical remit; gains no scientific authority from this role. |
+| Designated integrator | Reconciles agreed contributions within an authorized integration scope; gains no scientific authority from this role. |
+
+One person may hold several roles in a small project. State the responsibilities
+separately, then record which roles that person holds and which decision they
+are making. A research lead may authorize work while a different coordinator
+accepts its evidence and a different scientific lead judges its scientific use.
+
 ## One reference workflow, with a human at each handoff
 
 A substantial task might follow this path:
@@ -23,7 +52,8 @@ Human researcher sets the question and limits
   → Codex inspects or changes repository material, when needed
   → Git records the change; GitHub can support collaboration
   → a reviewer challenges the returned work
-  → the responsible human accepts, requests a repair, or rejects the result
+  → the research coordinator records bounded task/evidence acceptance or requests repair
+  → the scientific lead separately decides scientific acceptance when needed
 ```
 
 The arrows are handoffs of a question, sources, and evidence. They do not imply
@@ -41,7 +71,8 @@ review requirements that apply to your project and the consequence of the claim.
 | Codex | Handles authorized repository inspection or technical changes | Exact files, a diff when changed, and relevant validation evidence |
 | Git / GitHub | Records versions and supports review of changes | An identifiable revision and a discussion attached to the actual change |
 | Reviewer | Challenges the work against the original request | Findings supported by evidence, including unresolved objections |
-| Responsible human | Judges evidence and scientific meaning | An explicit decision with its scope and remaining limits |
+| Research coordinator | Judges the bounded task/evidence layer after required review | An explicit task/evidence decision with its scope and remaining limits |
+| Scientific lead | Judges scientific method, interpretation and use | A separate scientific acceptance decision where needed |
 
 The product descriptions are a dated reference: OpenAI describes distinct
 uses for [Chat, Work, and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex).
@@ -148,12 +179,13 @@ it does not make that decision.
 
 ## Human acceptance names what is supported
 
-At the end, the responsible researcher reads the evidence and objections,
-judges the assumptions, and records what is accepted and what remains open.
-“The current source defines these bin edges” may be supported while “those
-edges produced this historical figure” remains unresolved. Accepting the
-first statement need not accept the second. Domain or collaboration approval
-may also be needed for the intended scientific use.
+At the end, the research coordinator reads the evidence and review objections
+and records what is accepted at the bounded task/evidence layer and what remains
+open. “The current source defines these bin edges” may be supported while
+“those edges produced this historical figure” remains unresolved. Accepting the
+first statement need not accept the second. The scientific lead separately
+judges assumptions, interpretation and scientific use; domain or collaboration
+approval may also be needed. Neither decision supplies new task/effect authority.
 
 Retain the question, source identities, returned work, relevant checks, review
 findings, and your decision together. You do not need to manually repeat every
@@ -165,9 +197,9 @@ develops that distinction further.
 
 This is one concrete reference implementation. The lasting responsibilities
 are discussion and continuity, substantial research, technical repository
-work, durable source history, independent challenge when required, and human
-scientific acceptance. They may be carried out with different tools or directly
-by people. Product capabilities can overlap; a more capable tool still receives
+work, durable source history, independent challenge when required, bounded
+task/evidence acceptance, and human scientific acceptance. They may be carried
+out with different tools or directly by people. Product capabilities can overlap; a more capable tool still receives
 only the task you authorized.
 
 Next, use [the tool-choice scenarios](../how_to/choose_an_ai_tool_for_a_research_task.md)

@@ -7,7 +7,7 @@ Concurrency is a property of dependency and effect boundaries. It does not follo
 | Independent parallel work | Separate outputs consume pinned, stable inputs. | Exact inputs and reviewers. |
 | Parallel checking | A checker tests a declared property independently along a named dimension. | Shared inputs, shared code or method, prior-result exposure, and executor or model commonality. |
 | Shared-dependency work | Outputs consume one mutable assumption or source. | Revision identity and downstream dependency edges. |
-| Shared-write work | Contributors need the same mutable target. | Single writer by default, or explicit nonoverlapping partitions and integration owner. |
+| Shared-write work | Contributors need the same mutable target. | Single writer by default, or explicit nonoverlapping partitions and designated integrator. |
 | Deliberate duplicate work | Independent methods are compared for a stated reason. | Independence dimensions, comparison rule, and separate acceptance. |
 | Serial prerequisites | A downstream claim needs an accepted upstream result. | Acceptance gate before consumption. |
 

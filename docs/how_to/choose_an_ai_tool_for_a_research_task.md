@@ -44,7 +44,7 @@ version. A missing note must remain a gap, not a reconstructed quotation. Work
 cannot decide which prescription is scientifically correct or whether it was
 implemented in a particular run. Retain source identities, supporting passages,
 the comparison, and unresolved questions. Then decide whether a native-source
-inspection or consultation with the scientific owner is needed.
+inspection or consultation with the scientific lead is needed.
 
 Work is not automatically better because a task is important. If one passage
 and a short exchange suffice, discussion may be enough. If repository state
@@ -131,7 +131,7 @@ repair the analysis, and approve a source comparison.
 **You → Work, if the source comparison needs it:** provide the identified notes
 and review comment. Request a report linking each binning rationale to its
 source. Check the return for unsupported agreement or missing versions. Suppose
-the notes disagree: keep both accounts and ask the scientific owner to resolve
+the notes disagree: keep both accounts and ask the scientific lead to resolve
 the prescription; the report itself cannot choose one.
 
 **You → Codex, if repository evidence is needed:** pass the question, the

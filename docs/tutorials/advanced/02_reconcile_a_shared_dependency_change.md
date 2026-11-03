@@ -10,7 +10,7 @@ Pause current use of these affected claims. Do not stop every workstream or rest
 
 ## 2. Preserve unaffected evidence
 
-`E_CHECK_R1` consumes `D_RAW_R1` only. That raw listing did not change, so there is no dependency path from the changed rule to this check. C05 preserves its accepted listing-completeness claim. Do not promote it into a check of the estimate. Selective invalidation means revisiting only evidence reachable from the changed assumption, subject to its declared claim and any newly discovered dependencies. If the raw listing itself changed, this reason for preserving the check would no longer hold.
+`E_CHECK_R1` consumes `D_RAW_R1` only. That raw listing did not change, so there is no dependency path from the changed rule to this check. C05 preserves its listing-completeness claim, accepted by the simulated research coordinator at C02 as bounded task/evidence only, without scientific acceptance. Do not promote it into a check of the estimate. Selective invalidation means revisiting only evidence reachable from the changed assumption, subject to its declared claim and any newly discovered dependencies. If the raw listing itself changed, this reason for preserving the check would no longer hold.
 
 ## 3. Detect the stale-input trap
 
@@ -18,13 +18,13 @@ Deliberately propose reusing `E_NOTE_R1` as the current explanation after C04 be
 
 ## 4. Repair and reopen the gate
 
-C06 produces `E_METHODS_R2` using `D_RAW_R1` and `D_SHARED_R2`; C07 delivers it. At that point its execution and delivery are complete, while review and acceptance remain pending. At C08, a separate reviewer records `REV_METHODS_R2` and the scientific owner then records `ACC_METHODS_R2` for the estimate under R2. Only this accepted revision is ready for `W_NOTE` to consume. C09 updates `E_NOTE_R2`, obtains `REV_NOTE_R2`, and records `ACC_NOTE_R2`. The new rows supersede current use of R1 rows without erasing history.
+C06 produces `E_METHODS_R2` using `D_RAW_R1` and `D_SHARED_R2`; C07 delivers it. At that point its execution and delivery are complete, while review and acceptance remain pending. At C08, a separate reviewer records `REV_METHODS_R2` and the scientific lead then records `ACC_METHODS_R2` for the estimate under R2. Only this accepted revision is ready for `W_NOTE` to consume. C09 updates `E_NOTE_R2`, obtains `REV_NOTE_R2`, and the simulated scientific lead records `ACC_NOTE_R2` for the scientific interpretation in that exact explanation. The new rows supersede current use of R1 rows without erasing history.
 
 Reconciliation therefore covers the affected methods-to-explanation path, with its review and acceptance gates. The listing check is retained for its unchanged narrow claim. A later blocked explanation does not erase valid methods evidence or trigger an automatic rollback.
 
 ## 5. Transfer responsibility and continue
 
-At C10, sender A prepares accepted references, stale history, the last verified state, and unresolved effects. Receiver B acknowledges receipt and scope, then reopens the accepted R2 references and reads back which R1 revisions are stale, the last verified checkpoint, and the next dependency check. The hypothetical scientific owner separately makes `AUTH_TRANSFER_1` effective for future `W_METHODS` work. Receipt or acknowledgment alone does not prove comprehension or transfer responsibility. The handoff carries evidence; only the separate owner decision changes responsibility, and any next action still needs its own authority.
+At C10, sender A prepares accepted references, stale history, the last verified state, and unresolved effects. Receiver B acknowledges receipt and scope, then reopens the accepted R2 references and reads back which R1 revisions are stale, the last verified checkpoint, and the next dependency check. The hypothetical research lead separately makes `AUTH_TRANSFER_1` effective for future `W_METHODS` work. Receipt or acknowledgment alone does not prove comprehension or transfer responsibility. The handoff carries evidence; only the separate research lead's decision changes responsibility, and any next action still needs its own authority.
 
 Before any next task, B checks the current dependency identity and the authority for that bounded action. No interrupted external effect exists in this simulation. In real work, a paused conversation is not evidence that an external process stopped; inspect its actual state under the applicable authorization before considering a retry. See [stop or resume one workstream](../../how_to/advanced/stop_or_resume_one_workstream.md).
 

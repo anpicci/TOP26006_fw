@@ -13,6 +13,6 @@ The [synthetic coordination history](../../examples/advanced_parallel_workstream
 | `receiver_readback_or_comprehension_ref` | Evidence of the cited artifacts the receiver reopened and the accepted/stale revisions, checkpoint, and continuation boundary they restated. |
 | `unresolved_effects_or_blockers` | Known uncertainty, including external effects. |
 | `continuation_checkpoint`, `next_permitted_action` | Last verified state and bounded next step. |
-| `effective_transfer_authority_ref` | Owner-authorized reference that makes a transfer effective. |
+| `effective_transfer_authority_ref` | Reference authorized by the responsible research lead or scientific lead within their remit that makes a transfer effective. |
 
 Link each affected evidence revision to its actual inputs and review and acceptance records. Historical invalidation and supersession events stay visible; the latest row alone does not prove current validity.
