@@ -36,6 +36,16 @@ permanent live line.
 Neither is a development surface. Generic baseline or integrated-state prose
 cannot redefine these roles.
 
+Apply the persistent development worktree isolation rule in
+[`../contracts/git_lifecycle.md`](../contracts/git_lifecycle.md): reuse the
+applicable persistent worktree for `te/datacard_sr_reco`, with at most one by
+default per repository/workstream, and isolate reference, integration and
+production-serving checkouts from ongoing development. Additional persistent
+worktrees require the explicit split/isolation exception; bounded task-owned
+ephemeral fixtures retain their separate evidence-preservation and terminal
+retirement gates. This placement rule changes neither the branch roles nor
+the TOPEFT promotion and convergence requirements below.
+
 For a TOPEFT promotion wave, select an exact committed `source_cut` from
 `te/datacard_sr_reco`. PR1/reviewer publication uses a temporary carrier based
 on the appropriate personal/reference state rather than publishing the moving

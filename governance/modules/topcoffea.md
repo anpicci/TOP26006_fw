@@ -35,6 +35,16 @@ the normal path for ordinary project work. Creating one requires the root
 owner-authorized exception contract with a concrete isolation need,
 relationship to `tc/dev-live`, and retirement condition.
 
+Apply the persistent development worktree isolation rule in
+[`../contracts/git_lifecycle.md`](../contracts/git_lifecycle.md): reuse the
+applicable persistent worktree for `tc/dev-live`, with at most one by default
+per repository/workstream, and isolate reference, integration and
+production-serving checkouts from ongoing development. Additional persistent
+worktrees require the explicit split/isolation exception; bounded task-owned
+ephemeral fixtures retain their separate evidence-preservation and terminal
+retirement gates. This placement rule changes no branch role and adds no
+TOPEFT convergence requirement.
+
 For promotion from `tc/dev-live`, use an exact immutable source cut and
 temporary carriers when required by the governing promotion round. Do not
 publish a later-moving live HEAD as though it were the same promotion cut.

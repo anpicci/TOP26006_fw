@@ -470,6 +470,36 @@ reuse-first eligibility of an applicable active feature.
 Remote branch commits are live state. Query them when current values matter;
 do not reuse an old remote SHA as current-state evidence.
 
+### Persistent development worktree isolation
+
+The default is at most one persistent active development worktree per
+repository/workstream. Reuse the applicable development worktree after fresh
+branch, HEAD, index and worktree readback. Keep canonical/master, reference,
+integration and production-serving checkouts isolated from ongoing development;
+do not develop in place in those checkouts merely by switching their branch.
+This constrains worktree placement without changing repository-specific branch
+roles or requiring a duplicate development worktree.
+
+An additional persistent development worktree requires an explicit
+owner-authorized split or isolation exception identifying the concrete need,
+its relationship to the existing development worktree and branch, and its
+retirement condition. The exception does not itself authorize creation,
+mutation, integration or deletion; exact path/ref actions and stage-local
+grants remain required.
+
+Bounded task-owned ephemeral validation fixtures are distinct from persistent
+development worktrees. They may be used under exact authorized path/ref and
+lifecycle grants and must be terminally retired after portable evidence is
+preserved and fresh safety readback passes. A failed retirement gate preserves
+the residual state and reports incomplete lifecycle closure; it never grants
+cleanup or deletion authority.
+
+Temporary promotion/release carriers retain their repository-specific source
+cut, accepted-result, convergence and retirement semantics. They do not become
+additional persistent development worktrees by role or name. This isolation
+rule grants no effect and does not change the exact linked-worktree lifecycle
+or the applicable repository module.
+
 ### Permanent live development and promotion cuts
 
 A repository module may declare one
