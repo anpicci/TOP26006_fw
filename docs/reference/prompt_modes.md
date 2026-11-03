@@ -1,6 +1,6 @@
 # Prompt modes
 
-[AGENTS.md section 6](../../AGENTS.md) and [CPC.md section 6](../../CPC.md) are authoritative. The current literal vocabulary is:
+[AGENTS.md — Modes and validation ceilings](../../AGENTS.md#modes-and-validation-ceilings) and [CPC.md — Construction](../../CPC.md#construction) are authoritative. The current literal vocabulary is:
 
 | Value | Primary activity |
 | --- | --- |

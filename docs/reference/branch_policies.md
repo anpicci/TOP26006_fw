@@ -1,6 +1,6 @@
 # Branch policies
 
-[AGENTS.md section 7](../../AGENTS.md) and [CPC.md section 7](../../CPC.md) govern branch behavior. The current literal policies are:
+[Git lifecycle — Branch policy](../../governance/contracts/git_lifecycle.md#branch-policy) and [CPC.md — Construction](../../CPC.md#construction) govern branch behavior. The current literal policies are:
 
 | Value | Required meaning |
 | --- | --- |

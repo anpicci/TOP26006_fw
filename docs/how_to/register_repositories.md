@@ -21,7 +21,7 @@ The reviewed row retains the same ID across checkout renames, names its owner an
 
 ## Stop instead of proceeding if...
 
-Ownership, class, native policy, or authorization is unclear, or the proposed ID duplicates an existing role. Do not register the [Tutorial 2](../tutorials/02_add_an_analysis_repository.md) scratch repository as a real project repository. A row cannot grant writes, scientific acceptance, or remote access.
+Ownership, class, native policy, or authorization is unclear, or the proposed ID duplicates an existing role. Do not register a synthetic teaching copy, such as the [lifecycle fixture](../../examples/research_workflow_lifecycle/README.md), as a real project repository. [Tutorial 2](../tutorials/02_add_an_analysis_repository.md) instead connects an existing native analysis checkout to its own documentation and authority; it does not register a new repository. A row cannot grant writes, scientific acceptance, or remote access.
 
 ## Generic example
 

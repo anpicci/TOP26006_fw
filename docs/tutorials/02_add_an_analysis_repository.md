@@ -1,61 +1,77 @@
 # Tutorial 2: connect an analysis repository
 
-**Learning goal:** follow a research repository from its project identity to a separate local checkout, then inspect a maintained analysis entry point without running the analysis. This lesson uses TOPEFT, an existing TOP-26-006 repository. It does not register a new repository or qualify TOPEFT runtime behavior.
+**You are** a physicist with a local TOPEFT checkout, starting from the TOP26006_fw coordination manual. **You want** to understand what one signal-region request would ask the analysis software to do before treating it as an executed analysis.
 
-The example installation below uses `/home/alice/work/TOP26006_fw` for the coordination checkout, `/home/alice/work/topeft` for the separate TOPEFT checkout, and `/home/alice/work/topeft-tutorial-output` as a named output location in a printed command. Replace these paths with your own. They are examples, not observed project paths.
+**You will use** the project repository map, local Git observations, and TOPEFT's own documentation and source. **You will change** only your reading notes and, if needed, your ignored local profile's checkout mapping. **You will not change** TOPEFT or run an analysis, including a native dry-run command. **You should finish with** a dated source observation, its branch and commit, and a clear account of the execution evidence still missing.
 
-1. From the coordination checkout, read the [project repository map](../../governance/repositories.md). Its `topeft` row identifies the analysis repository and says that the local profile resolves `repositories.topeft.path`. The map owns the stable role; it does not prove that a checkout exists or grant permission to run it. The [TOPEFT module](../../governance/modules/topeft.md) adds project branch roles, while TOPEFT's own documentation index at `docs/README.md` and native policy own the technical workflow. Open that repository-relative path in the profile-resolved TOPEFT checkout.
+**Prerequisites:** the coordination checkout, an existing local TOPEFT checkout, basic Git familiarity, and the prepared wrapper/interpreter and YAML profile from [Tutorial 1](01_prepare_a_research_project.md). No event data or analysis output is needed. This lesson does not register a new repository or qualify its runtime. [Tutorial 3](03_complete_a_first_read_only_task.md) is a self-contained synthetic route and does not require this TOPEFT lesson.
 
-2. Make sure your ignored `.top26006/local_profile.yml` maps `topeft` to the actual separate checkout. For this example, the relevant YAML is:
+## 1. Turn the physics question into a reading task
 
-   ```yaml
-   repositories:
-     TOP26006_fw:
-       path: .
-     topeft:
-       path: /home/alice/work/topeft
-   ```
+Ask: *For one 2022 signal-region (SR) request, where does the native software select the request, where would event processing begin, and what evidence would distinguish that plan from a produced result?*
 
-   Add the `topeft` key only if your profile does not already have it. Resolve the profile from your coordination checkout using the wrapper and prepared interpreter chosen in [Tutorial 1](01_prepare_a_research_project.md):
+TOP26006_fw helps frame and bound this question. TOPEFT owns the analysis implementation and native instructions. From the coordination checkout, read the [project repository map](../../governance/repositories.md) and find `topeft`. It identifies the analysis repository and the profile key `repositories.topeft.path`; a map entry alone proves neither a local checkout nor permission to execute it. The [TOPEFT project module](../../governance/modules/topeft.md) supplies applicable project constraints. Obtain current branch roles from that live policy and applicable native policy, then observe Git; this tutorial is not a branch manual.
 
-   ```sh
-   checkout=/home/alice/work/TOP26006_fw
-   repo=/home/alice/work/topeft
-   cd "$checkout"
-   "$wrap" "$python_env" tools/resolve_local_profile.py \
-     --profile .top26006/local_profile.yml --execution-ready --format yaml
-   git -C "$repo" rev-parse --show-toplevel
-   git -C "$repo" branch --show-current
-   git -C "$repo" rev-parse HEAD
-   git -C "$repo" status --short --untracked-files=no
-   ```
+## 2. Bind the separate checkout to local evidence
 
-   **Representative checkpoint:** the resolver's `repositories.topeft.path` and Git's top level both identify `/home/alice/work/topeft`. The branch, commit hash, and status are live values that vary. If the path is absent, belongs to a different Git root, or has unexpected changes, stop and resolve that discrepancy before planning work there. Path agreement alone gives no write or scientific authority.
+The following installation paths are illustrative. Replace them with your own; do not copy paths from the [dated project case study](../examples/top26006_reference_deployment.md) as current setup instructions.
 
-3. In the profile-resolved TOPEFT checkout, read its analysis workflow tutorial at `docs/tutorials/analysis_workflow.md` and entry-point reference at `docs/reference/entrypoints.md`. For one 2022 signal-region block, the maintained entry point is `analysis/topeft_run2/fullR3_run.sh`. From that directory, this **example command** asks the wrapper to resolve its request and print it:
+```yaml
+repositories:
+  TOP26006_fw:
+    path: .
+  topeft:
+    path: /home/alice/work/topeft
+```
 
-   ```sh
-   cd "$repo/analysis/topeft_run2"
-   ./fullR3_run.sh -y 2022 -t tutorial_2022 --sr \
-     -p /home/alice/work/topeft-tutorial-output --dry-run
-   ```
+Check that your ignored `.top26006/local_profile.yml` already maps TOPEFT correctly before adding or changing a key. Resolve it with the prepared wrapper and interpreter from Tutorial 1, then inspect the checkout read-only:
 
-   The shell script's current source selects three 2022 SR cfg files: `NDSkim_2022_background_samples.cfg`, `NDSkim_2022_data_samples.cfg`, and `NDSkim_2022_mc_signal_samples_sr.cfg`, all under `input_samples/cfgs/`. The `_sr` suffix is used for the signal cfg, not the background cfg. It derives `2022SRs_tutorial_2022`, the `ana` histogram list, and a delegated `run_analysis.py` request. A **source-derived representative excerpt**, not a transcript from this documentation round, is:
+```sh
+checkout=/home/alice/work/TOP26006_fw
+repo=/home/alice/work/topeft
+cd "$checkout"
+"$wrap" "$python_env" tools/resolve_local_profile.py \
+  --profile .top26006/local_profile.yml --execution-ready --format yaml
+git -C "$repo" rev-parse --show-toplevel
+git -C "$repo" branch --show-current
+git -C "$repo" rev-parse HEAD
+git -C "$repo" status --short --untracked-files=no
+```
 
-   ```text
-   OUT_NAME: 2022SRs_tutorial_2022
-   Resolved years: 2022
-   Resolved CFGS: ../../input_samples/cfgs/NDSkim_2022_background_samples.cfg,../../input_samples/cfgs/NDSkim_2022_data_samples.cfg,../../input_samples/cfgs/NDSkim_2022_mc_signal_samples_sr.cfg
-   Resolved region: SR
-   Resolved histogram list: ana
-   Running the following command:
-   python run_analysis.py ... --years 2022 --hist-list ana --skip-cr ... -p /home/alice/work/topeft-tutorial-output
-   ```
+Record the date, repository root, branch, full commit hash, and changes affecting the files you inspect. If the path belongs to another Git root, resolve that discrepancy before continuing. Unrelated dirty files need not prevent reading; preserve them. If an evidence file differs from HEAD, retain its exact bytes or diff and describe the observation as modified local content rather than attributing those bytes to the commit. A branch name is context, not proof of scientific validity or authority to change anything.
 
-   The ellipses abbreviate options; inspect the full command your checkout prints before any separate execution decision. `fullR3_run.sh` prints the assembled request and returns at its `--dry-run` check before calling Python. Its output path is a string in that request; this lesson does not create or inspect an analysis artifact. TOPEFT's production how-to at `docs/how_to/production.md` (section “Run one block with `fullR3_run.sh`”) explains the wrapper's scope and why a one-block command has no campaign resume state. Open it in the profile-resolved TOPEFT checkout.
+## 3. Follow one native route without invoking it
 
-4. Trace the ownership boundary: `fullR3_run.sh` selects cfgs, years, region, histogram family, and output naming; `run_analysis.py` owns active input loading, executor and processor construction, and artifact publication when separately run. The analysis processor at `analysis/topeft_run2/analysis_processor.py` in the profile-resolved TOPEFT checkout owns analysis behavior. A printed request is not a scientific result or a production qualification. Keep TOPEFT commands subject to its native policy and a separately authorized task.
+Open `docs/README.md` **inside the TOPEFT checkout**, then its analysis workflow tutorial, entrypoint reference, and production how-to. For the dated example below, those paths are `docs/tutorials/analysis_workflow.md` (Route B), `docs/reference/entrypoints.md`, and `docs/how_to/production.md` (“Run one block with `fullR3_run.sh`”). These are native repository paths, not files beneath this coordination manual. Start at the current native index if they move. Reading a production guide does not authorize running its commands.
 
-For branch roles, TOPEFT's permanent live development line is `te/datacard_sr_reco`; `run3_test_mmerged_anpicci` is its personal/reference line and `run3_test_mmerged` its integration line. `te/dev-live` is not part of the adopted TOPEFT model. TOPCOFFEA has the distinct canonical `tc/dev-live` development role, with `run3_test_mmerged_anpicci` as personal/reference and `run3_test_mmerged` as integration. Operational creation and migration of `tc/dev-live` remain pending; do not infer that the ref exists from the role. A profile path or current branch name does not replace fresh Git evidence or authorize a mutation. TOPEFT-specific accepted-result convergence rules do not automatically apply to TOPCOFFEA.
+> **Dated source observation — 2026-11-02, repository TOPEFT.** The local branch was `te/datacard_sr_reco`, HEAD `22f1ff174c10eb5cd4900ba08b1943b85e24b8a4`. The documentation and source files used below matched that commit. Other local edits were outside this evidence set. This is an example to compare with your own checkout, not a required branch or HEAD.
 
-**Checkpoint:** you can identify the repository, the actual checkout, and the maintained one-block dry-run chain while keeping execution and acceptance separate. Continue to [Tutorial 3](03_complete_a_first_read_only_task.md) for a self-contained synthetic calculation you can inspect without TOPEFT.
+At that revision, inspect `analysis/topeft_run2/fullR3_run.sh`, especially `get_run3_cfgs_for_region_and_year`, `HIST_LIST_ARGS`, `OPTIONS`, and `RUN_CMD`. Consider a request for year **2022**, **SR**, tag **`tutorial_2022`**, with no input or histogram override. The source selects its per-year SR sample bundle and derives the following small request shape:
+
+```text
+output name: 2022SRs_tutorial_2022
+histogram shorthand: ana
+forwarded region option: --skip-cr
+```
+
+These are source-derived observations at the dated commit, **not terminal output**. For exact cfg names and a complete current command, return to the native docs and script in your checkout. Do not turn this excerpt into a launch command.
+
+In the same script, find the print of `RUN_CMD`, followed by the `FLAG_DRY_RUN` return before `time "${RUN_CMD[@]}"`. If resolution succeeds, this wrapper's dry-run route prints the resolved years, cfgs, region, histogram list, output path, sample-role policy and assembled `run_analysis.py` command, then returns before calling Python. We have only read this control flow; we have not invoked even that route. The printed heading “Running the following command” would not, by itself, establish execution. This observation concerns this wrapper at this commit; inspect other entrypoints separately before assuming what their dry-run flags do.
+
+Follow the same dated source route one step further: `analysis/topeft_run2/run_analysis.py` constructs `analysis_processor.AnalysisProcessor`, later calls `runner(flist, treename, processor_instance)`, and passes the resulting histograms to `write_histogram_artifact`. `analysis/topeft_run2/analysis_processor.py` contains the processor class and its `process(self, events)` method. These are pointers to the native execution and analysis owners, not a review of their physics or a promise that a request will succeed. The native entrypoint reference describes the source histogram PKL and metadata sidecar that a successful run would publish.
+
+## 4. Write the evidence checkpoint and hand back to native authority
+
+Your note should connect the **question -> exact source -> dated observation -> missing execution evidence -> human interpretation**. Record the inspected paths and relevant source locations alongside your branch, commit and any relevant local changes. State whether you read source or captured an actual command transcript; this lesson produces only a reading note.
+
+Before a later task could claim execution or output, it would need separately authorized execution, the actual command and resolved inputs/options, source and environment provenance, completion/log evidence, and the actual artifact with its matching native metadata and checks. Use TOPEFT's current documentation to determine the exact output and receipt contract for the chosen route; a one-block request must not be assumed to have campaign receipts. No output or receipt was acquired in this lesson. Even a valid artifact still requires scientific checks and interpretation by the responsible human scientific owner.
+
+| Question or evidence | What TOP26006_fw teaches | Current technical or decision authority |
+| --- | --- | --- |
+| How do I frame a bounded AI-assisted research task? | Question, scope and evidence discipline | TOP26006_fw |
+| Where is the analysis implementation and manual? | How to locate the separate native repository | TOPEFT |
+| What does an entrypoint or configuration do? | A small dated source-reading example | TOPEFT docs/source at the recorded revision, with relevant local changes identified |
+| Was analysis executed, and what was produced? | How to distinguish a plan from evidence | Actual native output, completion evidence, receipts where applicable, and provenance |
+| Is a later result scientifically acceptable? | How to return evidence for a human decision | Responsible scientific owner |
+
+**Finish when** you can identify your two repositories, the native files supporting your observation, its branch/commit, what the source proves, what remains unexecuted, where to obtain the current exact command, and who accepts a later scientific result. Continue to [Tutorial 3](03_complete_a_first_read_only_task.md) for the independent synthetic exercise.

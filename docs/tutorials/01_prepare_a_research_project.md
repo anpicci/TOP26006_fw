@@ -4,7 +4,7 @@
 
 Start with a research question you might later investigate, such as whether five synthetic calibration measurements are consistent with one common value. Keep scientific interpretation separate from installing the tools.
 
-1. Obtain the private TOP26006_fw coordination repository through an approved project access route. For the commands in these first tutorials, suppose you placed it at `/home/alice/work/TOP26006_fw` and have a separate TOPEFT checkout at `/home/alice/work/topeft`. These are example installation paths, not observed or required locations. Set `checkout` to **your actual TOP26006_fw checkout**, whatever its directory name:
+1. Obtain the TOP26006_fw coordination repository through the project access route documented in the [README](../../README.md#repository-visibility-and-licensing). Read access alone grants no permission to execute or modify project files. For the commands in these first tutorials, suppose you placed it at `/home/alice/work/TOP26006_fw` and have a separate TOPEFT checkout at `/home/alice/work/topeft`. These are example installation paths, not observed or required locations. Set `checkout` to **your actual TOP26006_fw checkout**, whatever its directory name:
 
    ```sh
    checkout=/home/alice/work/TOP26006_fw
