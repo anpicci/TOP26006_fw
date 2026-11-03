@@ -13,6 +13,23 @@ Use the Python wrapper and interpreter resolved from the local YAML profile:
   --prompt-out generated_prompt.md --receipt-out compilation_receipt.yml
 ```
 
+Policy and the maintained validator are acquired from one frozen
+`refs/heads/master` Git snapshot, including repository modules. Checkout edits
+cannot change those inputs. By default the selected repository is the compiler's
+Git repository, including its shared refs when invoked in a linked worktree.
+Use `--policy-repository /exact/trusted/repository` to select a separately
+acquired policy repository. That selection remains a trusted binder input;
+the compiler does not authenticate ownership of an arbitrary repository.
+The receipt records the observed master OID and consumed blob identities.
+No expected master OID must be authored. Before returning a candidate, the
+compiler compares all consumed policy dependencies with current master and
+stops if any changed. An unrelated master commit does not itself invalidate
+the snapshot. Validator bytes come from the same snapshot and retain their
+mechanical-only claim ceiling.
+
+See the [architecture explanation](../explanation/governance_workflow_compiler_architecture.md)
+for the typed result graph and independent safety verification.
+
 Standard Gherkin is the human semantic contract: the feature and scenarios
 describe premises, requested actions, observable results, and negative
 boundaries. This implementation supports `Feature`, documentary `Rule` grouping, `Scenario`, `Given`,
@@ -36,10 +53,10 @@ shape and mode from the behavior and bound context. For the bounded two-writer
 and two-repository provider/consumer patterns, it constructs stage roles,
 ordering, bodies, gates, commit closure, local grants and provenance. Any
 supplied `stages` are an inert historical reference; their goals, modes, grants,
-gates and ordering do not become the executable plan. Supply exact worker
-branch/worktree/base identities in `worker_contract`, repository base and branch
-identities in `repositories`, and exact deletion/preservation identities in
-`retirement`. The planner binds later stages to prior observed outputs rather
+gates and ordering do not become the executable plan. Supply stable worker
+branch/worktree bindings in `worker_contract`, repository and branch roles in
+`repositories`, and exact deletion/preservation resource bindings in `retirement`.
+Git observations are optional tracking evidence; future results are stage outputs. The planner binds later stages to prior observed outputs rather
 than assuming requested candidate heads are observed facts. An independent
 review stage requires compatible delegation. A supported tracked writer needs
 an exact owner-bound local ref effect and index/ref scope for commit closure.
@@ -49,28 +66,31 @@ governance mechanic even when the `When` does not say `commit`. Every generated
 stage records its semantic role and whether it comes from requested behavior
 or a necessary governance mechanic.
 
-For every exact identity consumed by a generated Q03/Q05 plan, add an acquired
-`repository_readback` or `accepted_evidence` binding with the repository in
-`validity_scope` and an `observed_state` mapping of the exact form
-`{identity_path: <field path>, value: <exact value>}`. For example, the worker
-base field uses `worker_contract.writers.writer_a.base_oid`; a repository base
-uses `repositories.topcoffea.base`. Identity-critical Git facts also need one
-acquired relation binding: Q03 worker and controller carriers bind repository,
-worktree, attached branch, head and base together; Q05 binds the permanent live
-branch/head and candidate branch/worktree/head/base together. Individually
-matching scalar bindings cannot replace that relation. An ancestry claim needs
-an acquired exact relation result; two OIDs alone do not prove ancestry. Git
-OIDs need 40 or 64 lowercase hexadecimal characters. Generic owner, review,
-applicability or `source_identity` text does not bind a runtime literal. A prior
-generated stage output such as `stage:provider_candidate:observed_commit_head`
-remains a valid derived input.
-Retirement readbacks bind the owned ref and its old OID together under
-`retirement.owned_ref`; accepted preservation evidence binds the preservation
-ref and expected head together under `retirement.preserved_ref`.
-The compiler checks a bounded local-branch ref grammar before inserting a
-temporary ref in its compare-and-delete command. The retired ref cannot be a
-writer, controller, permanent target, or preservation ref. The preservation
-ref may name the permanent target. Exact ref/OID bindings remain necessary.
+Git HEADs, commit OIDs and ref OIDs are runtime evidence by default. They do
+not establish authority and need not be authored before an effect produces them.
+Carrier relations bind repository, exact worktree path and attached branch;
+scalar or composite historical HEAD/base fields are recorded without gating
+that resource binding. A wrong repository/path/ref/owner still fails closed.
+
+The existing `stage:<producer>:<output>` convention transports a produced
+reviewed result to its actual consumer. A typed `Result_ref` decodes this
+transport at the IR boundary. `Stage_spec` and `Result_graph` establish unique
+output identities and require every input to name an available earlier output.
+Dependency trace and visualization consume this same graph.
+Exact reviewed-result and exact-union
+base provenance remains necessary when those bytes are consumed. It is not a
+requirement that a historical carrier still has its old HEAD. Integration binds
+the reviewed source result, freshly reads its target, and requires clean state,
+fast-forward ancestry and no movement after that local readback.
+
+Retirement separates portable preservation, ordinary worktree removal, absence
+readback and ref deletion. A deletion stage reads its exact current ref OID
+immediately before compare-and-delete and uses that observation as the command
+operand. The generated `stage:<delete-stage>:pre_delete_ref_oid` operand is a
+runtime value to resolve from the emitted observation, not literal shell text.
+A failed comparison stops: never refresh the operand or retry blindly. Earlier
+commit results may be cross-checked against the fresh value where the exact
+preserved result is consumed. No persistent OID registry is used.
 
 For every bounded parallel-writer composition followed by integration, supply an
 exact `common_validation_contract` with a named `tests/...py` `test_target` and
@@ -171,7 +191,8 @@ failure writes only a diagnostic receipt. A material `Given` without evidence
 or a usable preflight may produce a prepared prompt, but its receipt excludes
 the dependent effects, marks it non-dispatchable, and the CLI exits nonzero.
 
-Map insertion order is inert. `candidate_pair_order` remains semantic: it must
+Map insertion order is normalized before planning and serialization.
+`candidate_pair_order` remains semantic: it must
 name provider then consumer. Writer path unions are set-like and normalized in
 the plan. A simple prompt's positive executable path/ref scope is checked in
 reverse against the exact requested effect and repository-local authority
@@ -180,7 +201,8 @@ binding; an extra path or lifecycle category is rejected.
 For effect-local readiness, `given_bindings` maps a `Given` source line to a
 binding. The binding may name `dependent_effect_ids`, `material_reason`, and
 `runtime_preflight`. Preflight prose is inert, including a string starting with
-`verify`. Every premise is classified as `already_acquired_material_fact`,
+`verify`. A historical ref-value premise is tracking-only for ordinary commits;
+it cannot independently block a valid effect after legitimate ref movement. Every premise is classified as `already_acquired_material_fact`,
 `runtime_preflight_requirement`, `non_material_documentary_premise`, or
 `unsupported_material_premise`. Documentary premises remain traced without gates.
 A linked material premise names its dependent effects; unsupported properties
@@ -205,7 +227,7 @@ An acquired material fact, from `repository_readback` or `accepted_evidence`,
 must carry the exact `observed_state`: `property`, `repository_id`,
 `working_directory`, `target`, `observed_value`, `argv`, `comparison`,
 `source_identity`, `validity_scope`, and sorted `dependent_effect_ids`.
-The observed value must equal the required value; mechanism and evidence context
+For a consumed branch/resource premise, the observed value must equal the required value; mechanism and evidence context
 must also match. Changing a locator without rebinding its observation is not
 silent evidence equivalence. The emitted stage consumes this exact acquired
 record without adding a redundant preflight. Contradictory acquired records,
@@ -227,11 +249,12 @@ Exact-plan premises (`isolated worktrees`, `exact bases`) continue to consume
 the existing acquired carrier relations. Unknown unbound prose is documentary;
 authors must bind material premises, and recognized identity assertions cannot
 silently fall back to documentary status when unbound.
-Generic HEAD/SHA placeholders are insufficient. Ordinary unrelated HEAD/hash
-drift does not create a gate. Exact identity readbacks remain mandatory where a
-plan consumes that identity. The supported negative assertion `no remote repository is
+No future HEAD/SHA literal is required. Ordinary historical HEAD/hash drift
+does not create a gate. Exact reviewed-result provenance remains required where
+a downstream operation actually consumes that result; destructive ref actions
+use a fresh local observation. The supported negative assertion `no remote repository is
 modified` rejects contradictory remote effects. Unrecognized negative
-assertions stop at an unresolved semantic/architecture boundary rather than becoming decorative trace edges.
+assertions stop with `IMPLEMENTATION_GAP` rather than becoming decorative trace edges.
 
 Every successful receipt binds the SHA-256 of the prompt, raw binding input,
 compiler source, applicable live governance, and maintained validator source.
@@ -283,8 +306,9 @@ limitation does not revoke an independently valid manual workflow.
 Behavior selects the execution shape before effect authority is checked. An
 inventory of authorized effects cannot request an additional stage. Parallel
 writers may end after independent review, after reviewed composition, or after
-requested integration and terminal retirement. The first two shapes do not
-invent common validation or integration. Composition followed by integration
+requested integration and terminal retirement. Common validation without
+integration is emitted when explicitly requested by the observable contract.
+Other partial shapes do not invent it. Composition followed by integration
 requires common validation before the permanent target advances. The supported
 assertion for independent results is `writer results are reviewed`.
 
@@ -323,9 +347,10 @@ this relation. Conflicting observations exclude only dependent effects, even
 when the old observation is acquired accepted evidence. Both accepted evidence
 and repository readbacks can establish a premise within their validity scope.
 
-For example, an accepted local-ref value A is stale when the same bound writer
-carrier now has value B. Conversely, HEAD movement does not invalidate a premise
-about the checked-out branch when that branch is unchanged. Movement in another
+For example, a historical local-ref value A is tracking evidence when the
+same bound writer now has value B. It does not gate an ordinary new commit.
+A changed branch attachment still invalidates a premise about the selected
+commit resource. HEAD movement does not invalidate that branch premise. Movement in another
 writer carrier is irrelevant. For a simple prompt an optional exact relation
 `repositories.<repository_id>.current_carrier` carries `repository`, `worktree`,
 `attached_branch` and `head`; it is compared only where the effect consumes the
@@ -417,3 +442,159 @@ writer effect. The generated drawing is parsed again and compared against the
 semantic/execution graph before a conforming candidate is returned. The receipt
 retains the compiler, input, prompt and governance digests so that the graph and
 its plan can be reviewed together.
+
+
+## Bounded lifecycle and result extensions
+
+An exact linked-worktree lifecycle is represented separately from local-ref
+creation/deletion. `worktree_create` and `worktree_remove` are effect inventory
+kinds using the existing `allowed_to_modify` grant; they add no permission key.
+`lifecycle_contract` binds repository, repository path, worktree path, ref,
+reference ref, ownership, clean/index/conflict/untracked/ignored/lock requirements,
+portable preservation evidence and controller branch. Its future state is a
+must-pass runtime condition, never an observation of successful creation.
+The ordered planner derives preservation, ordinary worktree removal, absence
+readback and exact old-OID ref deletion as distinct actions. Every path/ref
+operation needs its own owner effect and stage scope. Cleanup failure cannot
+erase a preserved semantic result. Force removal, prune and recursive filesystem
+removal have no lowering. Attached creation additionally requires its separate
+local-ref effect; detached creation does not confer ref authority.
+
+A bounded ordered action sequence uses source-derived action kinds and exact
+bindings, not caller-supplied stage prose or commands. Unsupported action kinds
+and missing action bindings remain local failures. `ordered_action_bindings`
+may bind exact reviewed edit paths/postimages and existing validation or
+prepared-only handoff evidence. This is not an arbitrary workflow executor.
+A one-file `deterministic_edit` followed by ordinary static validation stays
+non-orchestrated. Its preimage hash, unique literal replacement and established
+semantic source become explicit evidence requirements.
+
+A writer without a requested local-ref effect can freeze uncommitted full
+postimages and hashes only when an exact controller commit closes the result.
+Its stage receives no index/ref commit grant. The accepted-result input still
+requires an exact result identity; a commit OID must not be relabeled a
+postimage digest. This extension does not automatically repair incomplete
+historical carriers.
+
+A dependent continuation can consume `accepted_effect_state`: exact candidate
+and target heads for the provider/consumer pair, completed stage identities,
+review/validation evidence, consumer outcome and readback authority. One exact
+accepted-evidence relation binds that whole state to the continuation artifact.
+Protected candidate preparation, validation and provider advancement are not
+replayed. An unknown consumer outcome emits readback only; a certain pre-effect
+failure can permit the separately authorized remaining consumer advancement.
+No automatic retry or rollback is generated. Partial-state strings alone do
+not establish that relation.
+
+`commit_contract` binds an ambiguous local commit to its exact repository,
+carrier, ref and index scope. An optional recorded base is evidence only. The output requires authoritative ref,
+HEAD and index readback before any retry, with `automatic_retry: false` and
+no new effect before explicit idempotence or recovery authority. Qualification
+of this generated contract does not require manufacturing a Git failure.
+
+These extensions prepare candidates only. Historical H1–H5 equivalence and
+corrected positive qualification require separate full generated-prompt review;
+unit-test success and a mechanical lint pass do not establish them.
+
+
+### Identity audit and lifecycle policy
+
+Worktree creation derives its branch policy and argv from one typed resource:
+a new attached ref uses `create_feature_branch_from_reference`, while existing
+resource actions retain their declared controller branch. Creation checks an
+absent destination; it never requires a clean existing worktree at that path.
+After creation, record the actual base/ref/HEAD. Before removal, check exact
+registration, attachment, task ownership, clean/unlocked state, preservation
+and absence of foreign content. No historical HEAD equality is a generic gate.
+
+Receipt digests remain useful tracking evidence. They cannot grant an effect,
+replace owner bindings, prove semantic equivalence or establish acceptance.
+The one-file deterministic-edit preimage guard remains tied to that concrete
+literal replacement; it is not a workflow-wide hash prerequisite. All emitted
+readback commands and runtime operands are unexecuted specifications. Compiler
+unit tests qualify generation, not actual lifecycle execution.
+
+## Composing temporary resources and task stages
+
+Ordered actions may bind a named resource through `ordered_action_bindings`
+using `resource`, with resource identities in `lifecycle_resources`. Each
+resource uses the existing lifecycle contract. Creation, modification, removal
+and ref deletion still require separate exact positive owner bindings and
+stage-local effects. Resource identity alone grants nothing. Ordered actions
+follow the semantic source sequence; repository or provider/consumer labels
+do not determine advancement order, and permanent anchors are never advanced
+implicitly. Resource-local preservation and runtime result outputs survive
+interleaved actions on other resources.
+
+An ordered creation prelude may feed the existing parallel writer/review/join
+body, expressed as either one aggregate clause or separate writer and join
+steps. Every active writer depends on completed prelude readback; an ordered
+epilogue depends on the completed body. Created carriers must belong to that
+body. Existing carriers need no create effect. Grants remain separate at every
+stage.
+
+The compiler normalizes action ownership once, before planning. Its internal
+partition binds source lines and semantic IDs to ordered resource actions or
+parallel worker/join roles, with source-local effects, resource identity,
+dependency edges and assignment provenance. Planning, trace verification,
+stage serialization and graph projection consume that partition. The receipt's
+`semantic_partition` records these assignments; it is evidence, not a new
+authoring field or permission surface.
+
+Existing worker-role clauses and `worker_contract` identify parallel behavior;
+`effect.stage_id` and `requested_by_step` must agree with its source ownership.
+`ordered_action_bindings` retain explicitly ordered resource edits even when
+their wording resembles a worker clause. A line carrying both an ordered
+binding and parallel-stage effects is rejected as contradictory typed ownership.
+An English action verb alone never moves a worker into the ordered plan.
+Unknown action behavior and lifecycle actions interleaved inside the parallel
+body remain unsupported. The source diagram must show the prelude, independent
+writer branches, join and optional epilogue; diagram geometry cannot supply
+missing semantics or effect authority.
+
+A prepared edit can name a later `deferred_commit_stage`. Its frozen postimages
+and independent review feed that exact local commit. An explicitly ambiguous
+commit records `OUTCOME_UNKNOWN`; a following exact Git readback resolves its
+parent, tree, blobs, ref and index before dependent effects. No automatic retry
+or global rollback is generated. Validation may consume only earlier stage
+outputs. Accepted portable writer results may use `frozen_postimages` entries
+with exact content hashes and locators plus base/review provenance, without an
+invented writer commit.
+
+Ordered validation contracts carry typed exact `cases`, each naming `provider`
+and `consumer` produced-result operands and a frozen `expected` outcome of
+`PASS` or `FAIL_EXPECTED`. Their `matrix` must agree with those case outcomes.
+The supported predicate is `contract equality and protocol membership`.
+Every operand must also be a declared earlier stage input. A matrix without
+exact operands cannot qualify a tuple relation. The H4 empirical fixture
+resolves and evaluates the generated cases, including the producer's
+authoritative result after ambiguous-effect readback. It preserves the frozen
+four outcomes and does not reconstruct a private tuple list.
+
+Ordered safety verification checks action coverage/order, resource lifecycle,
+fresh compare-and-delete commands and ambiguous-result readback directly from
+semantic assignments and resource contracts. It does not call the planner to
+confirm its own output. Authority, grant, repository and carrier checks remain
+separate obligations; result-graph consistency alone proves none of them.
+
+An ordered edit may reuse an exact acquired accepted-review relation through
+`reuse_review_binding`. That relation binds the source action, exact paths,
+reviewed postimages and review evidence. The generated stage preserves that
+evidence and requires unchanged staged bytes; a changed result stops for
+invalidation and review. This does not grant a write or adopt foreign work.
+
+
+Reviewed artifacts have one internal `Artifact_spec`: repository-relative path,
+SHA-256, review evidence and exactly one source. Bounded synthetic fixtures carry
+UTF-8 literal content (at most 64 KiB); the digest must match those exact bytes.
+Acquired artifacts carry a safe inert filesystem locator and digest, without
+invented literal content. Legacy frozen locator/digest records normalize to the
+same identity. Bare reviewed digests without a materialization source fail closed.
+Locators are not fetched by compilation; an authorized executor must verify the
+acquired bytes against the digest. Locator syntax excludes traversal and URLs.
+
+Ordered stage declarations and the result graph project this relation. The
+independent verifier compares source artifact evidence with generated records.
+The empirical fixture obtains literal bytes from the generated contract, checks
+exact Git blob readbacks for all four results, then evaluates the generated
+validation tuples. Artifact identity proves no authority or historical equivalence.

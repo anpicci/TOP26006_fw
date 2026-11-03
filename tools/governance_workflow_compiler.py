@@ -7,16 +7,25 @@ The binding YAML is a task instance, not a policy registry or an authority sourc
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 import hashlib
 import importlib.util
 from pathlib import Path
 import posixpath
 import re
 import sys
+import subprocess
+import types
 from typing import Any, Optional
 
 import yaml
+
+if __package__:
+    from .governance_workflow_ir import Policy_source_binding, Result_graph, canonical_mapping, artifact_specs, canonical_artifact_relation
+    from .governance_workflow_semantics import verify_ordered_invariants
+else:
+    from governance_workflow_ir import Policy_source_binding, Result_graph, canonical_mapping, artifact_specs, canonical_artifact_relation
+    from governance_workflow_semantics import verify_ordered_invariants
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,6 +74,7 @@ PROMPT_CORE = {"prompt_id", "short_title", "prompt_mode", "preferred_codex_model
 ACQUISITION = {"acquired", "not_acquired", "pending", "superseded", "last_observed"}
 EFFECT_KEYS = {
     "tracked_write": "allowed_to_modify", "local_git_ref_write": "allowed_to_modify",
+    "worktree_create": "allowed_to_modify", "worktree_remove": "allowed_to_modify",
     "remote_git_write": "remote_git_write", "network_read": "network_access",
     "scheduler_query": "scheduler_query", "scheduler_submit_condor": "condor_submission",
     "scheduler_submit_work_queue": "work_queue_or_lobster_submission",
@@ -73,6 +83,8 @@ EFFECT_KEYS = {
     "delete_remote_branch": "remote_branch_deletion", "unblind": "unblind",
 }
 EFFECT_ACTION_WORDS = {
+    "worktree_create": r"\b(create|add)\b",
+    "worktree_remove": r"\b(remove|retire)\b",
     "tracked_write": r"\b(edit|write|modify|change|prepare|compose)\b",
     "local_git_ref_write": r"\b(commit|integrate|advance|create|move|update|rename)\b",
     "remote_git_write": r"\b(push|publish|remote)\b",
@@ -120,6 +132,7 @@ class Semantic_intent:
     feature_tags: tuple[str, ...] = ()
     scenario_tags: tuple[tuple[str, ...], ...] = ()
     workflow_diagram: str = ""
+    partition: Optional[Semantic_partition] = None
 
 
 @dataclass(frozen=True)
@@ -148,6 +161,85 @@ class Effect_intent:
     requested_by_step: int
     positive_authority_binding: str
     stage_id: str = ""
+
+
+@dataclass(frozen=True)
+class Action_intent:
+    """A closed semantic operation, independent of supplied grants/stage prose."""
+    kind: str
+    source_line: int
+    source_id: str
+    stage_id: str
+
+
+@dataclass(frozen=True)
+class Semantic_assignment:
+    source_line: int
+    semantic_id: str
+    domain: str
+    owners: tuple[str, ...]
+    effects: tuple[Effect_intent, ...]
+    resource: str
+    ordered_action: Optional[Action_intent]
+    provenance: tuple[str, ...]
+    predecessors: tuple[int, ...] = ()
+    successors: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class Semantic_partition:
+    assignments: tuple[Semantic_assignment, ...]
+    parallel_roles: tuple[str, ...]
+    separate_parallel: bool
+
+
+@dataclass(frozen=True)
+class Git_resource:
+    """Stable task-owned lifecycle resource; Git observations are not inputs."""
+    repository: str
+    repository_path: str
+    worktree: str
+    ref: str
+    controller_branch: str
+    reference_ref: str
+    state_required: dict[str, bool]
+    state_source: str
+    preservation: list[str]
+    detached: bool = False
+
+    def creation(self) -> tuple[dict[str, str], list[str]]:
+        if self.detached:
+            policy = {"stage_branch_policy": "read_only_current_branch"}
+            options = ["--detach"]
+        else:
+            policy = {"stage_branch_policy": "create_feature_branch_from_reference",
+                      "reference_branch": self.reference_ref.removeprefix("refs/heads/"),
+                      "feature_branch": self.ref.removeprefix("refs/heads/")}
+            options = ["-b", policy["feature_branch"]]
+        return policy, ["git", "-C", self.repository_path, "worktree", "add",
+                        *options, self.worktree, self.reference_ref]
+
+
+def _fresh_ref_check(repository_path: str, ref: str, stage_id: str) -> dict[str, Any]:
+    """Describe one effect-local readback, not an acquired observation."""
+    return {"output": f"stage:{stage_id}:pre_delete_ref_oid",
+            "argv": ["git", "-C", repository_path, "rev-parse", "--verify", ref],
+            "before_effect": True, "require_exit_zero": True,
+            "require_full_oid": True, "require_no_attached_worktree": ref,
+            "reject_movement_after_readback": True,
+            "on_mismatch": "stop; no refreshed lease, alternate OID or retry"}
+
+
+def _resource_values(path: str, values: Any) -> Any:
+    """Project only carrier relations; exact reviewed result relations stay exact."""
+    resource = (path.endswith((".carrier", ".composition_carrier", ".candidate_carrier",
+                               ".permanent_target", ".integration_target_carrier")) or
+                path in {"retirement.owned_ref", "retirement.preserved_ref"})
+    if resource and isinstance(values, dict):
+        observations = {"head", "base_oid", "permanent_live_head", "candidate_head",
+                        "candidate_base_oid", "exact_old_oid", "expected_preserved_head"}
+        return {key: value for key, value in values.items() if key not in observations}
+    return values
 
 
 @dataclass(frozen=True)
@@ -251,13 +343,15 @@ def _safe_local_branch_ref(value: Any) -> bool:
                for part in name.split("/")) and ".." not in name
 
 
-def _canonical_sources() -> tuple[dict[str, str], dict[str, str]]:
+def _canonical_sources(policy: Optional[Policy_source_binding] = None) -> tuple[dict[str, str], dict[str, str]]:
     _require(set(ENCODED_RULE_OWNERS.values()) <= GOVERNANCE.keys(), "COMPILER_DEFECT",
              "encoded rule family lacks its live canonical owner")
     try:
-        contents = {name: path.read_text(encoding="utf-8") for name, path in GOVERNANCE.items()}
-        identities = {name: _source_hash(path) for name, path in GOVERNANCE.items()}
-    except (OSError, UnicodeError) as exc:
+        policy = policy or Policy_source_binding(ROOT)
+        bodies = {name: policy.read(name) for name in GOVERNANCE}
+        contents = {name: body.decode('utf-8') for name, body in bodies.items()}
+        identities = {name: hashlib.sha256(body).hexdigest() for name, body in bodies.items()}
+    except (OSError, UnicodeError, ValueError, subprocess.CalledProcessError) as exc:
         _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f"live governance source unreadable: {exc}")
     return contents, identities
 
@@ -287,14 +381,13 @@ def _repository_modules(data: dict[str, Any], contents: dict[str, str],
         module = _canonical_repository(repo_id, contents)
         if not module:
             continue
-        path = ROOT / module
-        _require(path.is_file(), 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f"selected module missing: {module}")
         try:
-            body = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeError) as exc:
+            raw = data['_policy_source'].read(module)
+            body = raw.decode('utf-8')
+        except (OSError, UnicodeError, ValueError, subprocess.CalledProcessError) as exc:
             _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f"selected module unreadable: {exc}")
         contents[module] = body
-        identities[module] = _source_hash(path)
+        identities[module] = hashlib.sha256(raw).hexdigest()
         fields = ("permanent_live_development_branch", "permanent_personal_reference_branch",
                   "permanent_integration_branch", "feature_development_namespace")
         parsed = {}
@@ -618,30 +711,9 @@ def _semantic_graph(intent: Semantic_intent) -> tuple[set[str], set[tuple[str, s
     ids = [s.semantic_id for s in intent.steps]
     _require(all(ids) and len(set(ids)) == len(ids) and not any(i.startswith("derived_") for i in ids),
              "WORKFLOW_GRAPH_INCONSISTENT", "steps need unique explicit IDs; derived_ is compiler-owned")
-    edges: set[tuple[str, str]] = set()
-    parallel_steps = _parallel_action_steps(intent)
-    if parallel_steps:
-        _require(len(intent.scenarios) == 1, "IMPLEMENTATION_GAP",
-                 "parallel scenarios require separate repository-local stage expansion")
-        first = [parallel_steps[role].semantic_id for role in ("writer_a", "writer_b")]
-        rest = [parallel_steps[role].semantic_id for role in ("exact_union", "integration", "retirement")
-                if role in parallel_steps]
-        edges.update((s.semantic_id, w) for s in intent.steps if s.keyword == "Given" for w in first)
-        if rest:
-            edges.update((w, rest[0]) for w in first)
-            edges.update(zip(rest, rest[1:]))
-        edges.update((w, s.semantic_id) for s in intent.steps if s.keyword == "Then"
-                     for w in ([rest[-1]] if rest else first))
-        return set(ids), edges
-    for scenario in range(len(intent.scenarios)):
-        steps = [s for s in intent.steps if s.scenario_index == scenario]
-        givens = [s.semantic_id for s in steps if s.keyword == "Given"]
-        actions = [s.semantic_id for s in steps if s.keyword == "When"]
-        assertions = [s.semantic_id for s in steps if s.keyword == "Then"]
-        edges.update((g, actions[0]) for g in givens)
-        edges.update(zip(actions, actions[1:]))
-        edges.update((actions[-1], t) for t in assertions)
-    return set(ids), edges
+    by_line = {s.line: s.semantic_id for s in intent.steps}
+    return set(ids), {(by_line[row.source_line], by_line[target])
+                     for row in _partition_rows(intent) for target in row.successors if target in by_line}
 
 
 def _draw_ascii(nodes: set[str], edges: set[tuple[str, str]]) -> str:
@@ -715,33 +787,76 @@ def _workflow_visualization(intent: Semantic_intent, data: dict[str, Any], shape
     stages = data.get("stages", [])
     execution_nodes, execution_edges = set(nodes), set(edges)
     failure_edges: set[tuple[str, str]] = set()
-    if stages:
+    if stages and shape == "orchestrated_workflow":
+        # Stage dependencies are already lowered from the normalized ownership
+        # partition. Geometry projects that plan; it never assigns ownership.
+        action_rows = {row.source_line: row for row in _partition_rows(intent)
+                       if row.domain != "non_action"}
+        explicit_nodes = {owner: row.semantic_id for row in action_rows.values()
+                          if row.domain == "ordered_lifecycle" or intent.partition.separate_parallel
+                          for owner in row.owners}
+        stage_nodes = {stage["stage_id"]: explicit_nodes.get(stage["stage_id"], "derived_" + stage["stage_id"])
+                       for stage in stages}
+        protected = data.get("continuation", {}).get("checks_not_to_repeat", [])
+        for owner in protected:
+            node = explicit_nodes.get(owner, "derived_" + owner)
+            execution_nodes.add(node)
+            execution_mapping = [m for m in execution_mapping if m["node"] != node]
+            execution_mapping.append({"node": node, "semantic_steps": [row.semantic_id
+                                      for row in action_rows.values() if owner in row.owners],
+                                      "role": "reused_portable_result", "effect": False})
+        action_ids = {row.semantic_id for row in action_rows.values()}
+        aggregate_ids = {row.semantic_id for row in action_rows.values()
+                         if row.domain == "parallel_worker_or_join" and not intent.partition.separate_parallel}
+        execution_edges = {(a, b) for a, b in edges if a not in action_ids or b in aggregate_ids}
+        execution_nodes.update(stage_nodes.values())
+        consumed = set()
+        for stage in stages:
+            node = stage_nodes[stage["stage_id"]]
+            provenance = stage["generation_provenance"]
+            predecessors = data['_result_graph'].predecessors(stage['stage_id'])
+            _require(predecessors <= stage_nodes.keys(), "WORKFLOW_GRAPH_INCONSISTENT",
+                     "execution graph consumes an unavailable stage")
+            execution_edges.update((stage_nodes[parent], node) for parent in predecessors)
+            consumed.update(predecessors)
+            row = action_rows.get(provenance["semantic_line"])
+            if row and row.semantic_id in aggregate_ids:
+                execution_edges.add((row.semantic_id, node))
+            for owner in protected:
+                if any(isinstance(value, str) and value.startswith("prior:") and
+                       ":" + owner + "@" in value for value in stage["stage_inputs"]):
+                    execution_edges.add((explicit_nodes.get(owner, "derived_" + owner), node))
+            execution_mapping = [m for m in execution_mapping if m["node"] != node]
+            execution_mapping.append({"node": node, "stage_id": stage["stage_id"],
+                                      "semantic_steps": [s.semantic_id for s in intent.steps
+                                                         if s.line == provenance["semantic_line"]],
+                                      "role": provenance["provenance_class"],
+                                      "rule_source": provenance["rule_source"]})
+            failure_edges.add((node, "derived_stop"))
+        execution_edges.update((stage_nodes[sid], step.semantic_id) for sid in stage_nodes.keys() - consumed
+                               for step in intent.steps if step.keyword == "Then")
+    elif stages:
         actions = [s for s in intent.steps if s.keyword == "When"]
-        parallel_steps = _parallel_action_steps(intent)
-        _require(len(actions) == 1 or bool(parallel_steps), "IMPLEMENTATION_GAP",
+        _require(len(actions) == 1 or shape == "ordered_workflow", "IMPLEMENTATION_GAP",
                  "staged visualization needs action-to-stage expansion")
         action = actions[0].semantic_id
-        stage_nodes = {s["stage_id"]: parallel_steps[s["stage_id"]].semantic_id
-                       if s["stage_id"] in parallel_steps else "derived_" + s["stage_id"] for s in stages}
+        stage_nodes = {s["stage_id"]: "derived_" + s["stage_id"] for s in stages}
+        if shape == "ordered_workflow":
+            stage_nodes = {a.stage_id: a.source_id for a in _ordered_actions(intent)}
         then_ids = {s.semantic_id for s in intent.steps if s.keyword == "Then"}
         action_ids = {s.semantic_id for s in actions}
         execution_edges -= {(a, b) for a, b in execution_edges if a in action_ids}
-        if shape == "orchestrated_workflow":
-            first = [stage_nodes.get(w["stage_id"], "derived_" + w["stage_id"])
-                     for w in data["worker_contract"]["writers"]]
-            protected = data.get("continuation", {}).get("checks_not_to_repeat", [])
-            for writer in protected:
-                execution_mapping.append({"node": "derived_" + writer, "semantic_steps": [action],
-                                          "role": "reused_portable_result", "effect": False})
-            rest = [stage_nodes[s["stage_id"]] for s in stages if s["stage_id"] not in {"writer_a", "writer_b"}]
+        if shape == "ordered_workflow":
+            first, rest = [stage_nodes[stages[0]["stage_id"]]], [stage_nodes[s["stage_id"]] for s in stages[1:]]
         else:
             first, rest = ["derived_" + stages[0]["stage_id"]], ["derived_" + s["stage_id"] for s in stages[1:]]
         execution_nodes.update(first + rest)
-        if not parallel_steps:
+        if shape != "ordered_workflow":
             execution_edges.update((action, n) for n in first)
-        execution_edges.update((n, rest[0]) for n in first)
+        if rest:
+            execution_edges.update((n, rest[0]) for n in first)
         execution_edges.update(zip(rest, rest[1:]))
-        execution_edges.update((rest[-1], t) for t in then_ids)
+        execution_edges.update(((rest[-1] if rest else first[-1]), t) for t in then_ids)
         for stage in stages:
             node = stage_nodes[stage["stage_id"]]
             provenance = stage["generation_provenance"]
@@ -835,9 +950,18 @@ def _exact_identity(bindings: tuple[Binding, ...], identity_path: str, value: st
     return matches[0].binding_id
 
 
+def _related_values(identity_path: str, values: Any) -> Any:
+    """One symmetric canonical boundary for exact acquired related values."""
+    try:
+        return canonical_artifact_relation(_resource_values(identity_path, values))
+    except ValueError as exc:
+        _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', str(exc))
+
+
 def _exact_related_identity(bindings: tuple[Binding, ...], identity_path: str,
                             values: dict[str, Any], repo_id: str,
                             source_kind: str) -> str:
+    values = _related_values(identity_path, values)
     _require(all(value not in (None, "", []) for value in values.values()),
              "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
              f"{identity_path} has an incomplete exact relation")
@@ -846,7 +970,9 @@ def _exact_related_identity(bindings: tuple[Binding, ...], identity_path: str,
                binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
                binding.source_kind == source_kind and
                _scope_names_repo(binding.validity_scope, repo_id) and
-               binding.observed_state == {"identity_path": identity_path, "value": values}]
+               isinstance(binding.observed_state, dict) and
+               binding.observed_state.get("identity_path") == identity_path and
+               _related_values(identity_path, binding.observed_state.get("value")) == values]
     _require(len(matches) == 1, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
              f"{identity_path} lacks one exact acquired related readback")
     return matches[0].binding_id
@@ -856,6 +982,7 @@ def _relation_edge(bindings: tuple[Binding, ...], edges: list[Trace_edge],
                    identity_path: str, values: dict[str, Any], repo_id: str,
                    stage_id: str, source_kind: str = "repository_readback") -> None:
     binding_id = _exact_related_identity(bindings, identity_path, values, repo_id, source_kind)
+    values = _related_values(identity_path, values)
     identity = f"identity:{identity_path}={values}"
     edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_relation"))
     edges.append(Trace_edge(identity, f"stage:{stage_id}", "consumed_by"))
@@ -979,12 +1106,102 @@ def _historical_protected_carrier(binding: Binding,
                for writer_id in continuation.checks_not_to_repeat)
 
 
+def _action_kind(text: str) -> str:
+    words = text.lower().strip()
+    if re.search(r"\b(do not|never|unless|except)\b", words):
+        return ""
+    if re.match(r"(?:i )?(?:remove|retire)\b", words) and re.search(r"\b(worktree|controller)\b", words):
+        return "worktree_remove"
+    if re.match(r"(?:i )?(?:create|add)\b", words) and re.search(r"\b(worktrees?|controller)\b", words):
+        return "worktree_create"
+    if re.match(r"(?:i )?delete\b", words) and re.search(r"\bref\b", words):
+        return "delete_ref"
+    if re.match(r"(?:i )?preserve\b", words) and "evidence" in words:
+        return "preserve"
+    if re.match(r"(?:i )?prepare\b", words) and "handoff" in words:
+        return "prepare_handoff"
+    if re.match(r"(?:i )?(?:inspect|read|review|check|compare)\b", words):
+        return "inspect"
+    if re.match(r"(?:i )?(?:run|perform)\b", words) and "static validation" in words:
+        return "static_validation"
+    if re.match(r"(?:i )?(?:edit|write|modify|change)\b", words):
+        return "edit"
+    if re.match(r"(?:i )?(?:create|make|record)\b", words) and "commit" in words:
+        return "commit"
+    if "commit command" in words and "ambiguous terminal outcome" in words:
+        return "outcome_unknown"
+    return ""
+
+
+def _ordered_actions(intent: Semantic_intent) -> tuple[Action_intent, ...]:
+    rows = _partition_rows(intent)
+    actions = tuple(row.ordered_action for row in rows if row.ordered_action is not None)
+    _require(len(intent.scenarios) == 1 and 1 <= len(actions) <= 64 and
+             len(actions) == len(intent.actions),
+             "IMPLEMENTATION_GAP", "ordered plan needs a bounded single-scenario action sequence")
+    return actions
+
+
+def _lifecycle_identity(data: dict[str, Any]) -> Git_resource:
+    """Bind the stable resource; observe Git values at the consuming stage."""
+    life = data.get("lifecycle_contract", {})
+    required = {"repository", "repository_path", "worktree", "ref",
+                "ownership", "state_required", "state_source", "preservation", "controller_branch",
+                "automatic_retry"}
+    _require(isinstance(life, dict) and required <= life.keys(),
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "exact lifecycle identity/requirements missing")
+    _require(life["repository"] in data["repositories"] and life["ownership"] == "task_owned" and
+             life["automatic_retry"] is False and _safe_local_branch_ref(life["ref"]) and
+             _safe_local_branch_ref("refs/heads/" + str(life["controller_branch"])) and
+             life["ref"] != "refs/heads/" + life["controller_branch"],
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "unsafe or aliased lifecycle ownership/ref")
+    for key in ("repository_path", "worktree"):
+        value = life[key]
+        _require(isinstance(value, str) and value.startswith("/") and
+                 posixpath.normpath(value) == value and
+                 bool(re.fullmatch(r"/[A-Za-z0-9_./-]+", value)),
+                 "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "unsafe lifecycle path")
+    _require(life["worktree"] != life["repository_path"] and
+             not life["repository_path"].startswith(life["worktree"] + "/"),
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "lifecycle carrier aliases repository")
+    clean = {"tracked_clean": True, "index_clean": True, "conflict_free": True,
+             "untracked_empty": True, "ignored_empty": True, "unlocked": True}
+    _require(life["state_required"] == clean and isinstance(life["preservation"], list) and
+             bool(life["preservation"]) and all(isinstance(x, str) and x for x in life["preservation"]) and
+             isinstance(life["state_source"], str) and bool(life["state_source"]),
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "lifecycle needs clean/unlocked state and portable preservation")
+    reference_ref = life.get("reference_ref", "refs/heads/" + life["controller_branch"])
+    _require(_safe_local_branch_ref(reference_ref) and reference_ref != life["ref"],
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "lifecycle reference role is unsafe")
+    return Git_resource(life["repository"], life["repository_path"], life["worktree"],
+                        life["ref"], life["controller_branch"], reference_ref,
+                        life["state_required"], life["state_source"], life["preservation"],
+                        bool(life.get("detached")))
+
+
+def _accepted_result_identity(accepted: dict[str, Any]) -> dict[str, Any]:
+    common = {key: accepted.get(key) for key in ("writer_id", "reviewed_evidence", "base_oid")}
+    _require(all(common.values()), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+             "accepted result lacks base or review provenance")
+    if "observed_commit_head" in accepted:
+        _require(bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(accepted["observed_commit_head"]))),
+                 "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "invalid accepted commit")
+        return {**common, "observed_commit_head": accepted["observed_commit_head"]}
+    return _related_values('', {**common, "frozen_postimages": accepted.get("frozen_postimages")})
+
+
+
 def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_intent, ...],
            bindings: tuple[Binding, ...], continuation: Optional[Continuation]) -> str:
+    if data.get("lifecycle_resources") and not data.get("worker_contract"):
+        _ordered_actions(intent)
+        return "ordered_workflow"
     if continuation:
+        if data.get("multi_repository_state") and data.get("accepted_effect_state"):
+            return "dependent_continuation"
         _require(not data.get("multi_repository_state"),
-                 'IMPLEMENTATION_GAP',
-                 "dependent Q03/Q05 continuation needs an exact delta planner; protected work cannot be replayed")
+                 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE',
+                 "dependent continuation needs exact accepted effect-state/tuple bindings; protected work cannot be replayed")
         if not data.get("worker_contract"):
             return "continuation"
         invalidated = list(continuation.invalidation_boundary)
@@ -1007,10 +1224,9 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
         accepted = continuation.accepted_prior_evidence
         _require(len(accepted) == 1 and isinstance(accepted[0], dict) and
                  accepted[0].get("writer_id") == protected[0] and
-                 bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
-                                   str(accepted[0].get("observed_commit_head", "")))) and
+                 bool(_accepted_result_identity(accepted[0])) and
                  accepted[0].get("reviewed_evidence") and
-                 accepted[0].get("base_oid") == data["worker_contract"].get("composition_base_oid") and
+                 bool(accepted[0].get("base_oid")) and
                  protected[0] in continuation.accepted_closure_layers,
                  'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', "Q04 accepted writer identity or common base missing")
         return "orchestrated_workflow"
@@ -1034,11 +1250,19 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
         _require("provider" in action_text and "consumer" in action_text,
                  'IMPLEMENTATION_GAP', "multi-repository dependency is outside bounded planner")
         return "multi_repository_coordination"
-    if _parallel_action_steps(intent) or (re.search(r"\bwriters?\b", action_text) and
-                                        re.search(r"\b(edit|write)\b", action_text)):
+    if intent.partition.parallel_roles:
         _require(bool(data.get("worker_contract")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                  "parallel writers need bound isolation and review constraints")
         return "orchestrated_workflow"
+    kinds = [_action_kind(action) for action in intent.actions]
+    if data.get("lifecycle_contract") or (len(kinds) > 1 and
+            any(kind in {"worktree_create", "worktree_remove", "prepare_handoff"} for kind in kinds)):
+        _ordered_actions(intent)
+        return "ordered_workflow"
+    if kinds and all(kind in {"edit", "static_validation"} for kind in kinds) and kinds.count("edit") == 1:
+        return "simple_non_orchestrated"
+    if kinds == ["commit", "outcome_unknown"]:
+        return "simple_non_orchestrated"
     if len(intent.actions) > 1:
         _require(all(re.search(r"\b(inspect|read|compare|review|check|validate|report)\b", action, re.I)
                      for action in intent.actions), 'IMPLEMENTATION_GAP',
@@ -1049,7 +1273,7 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
 
 def _planned_mode(shape: str, intent: Semantic_intent,
                   effects: tuple[Effect_intent, ...]) -> str:
-    if shape in {"orchestrated_workflow", "multi_repository_coordination"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
         return "orchestrated_workflow"
     kinds = {effect.effect for effect in effects}
     if kinds & {"scheduler_submit_condor", "scheduler_submit_work_queue", "production_storage_write"}:
@@ -1059,6 +1283,8 @@ def _planned_mode(shape: str, intent: Semantic_intent,
     if "delete_local_branch" in kinds:
         return "branch_maintenance_only"
     if "local_git_ref_write" in kinds and "tracked_write" not in kinds:
+        if any(_action_kind(action) == "commit" for action in intent.actions):
+            return "commit_preparation"
         return "integration_only" if "integrat" in " ".join(intent.actions).lower() else "branch_maintenance_only"
     if "tracked_write" in kinds:
         if all(effect.target.startswith("docs/") for effect in effects if effect.effect == "tracked_write") and \
@@ -1068,12 +1294,16 @@ def _planned_mode(shape: str, intent: Semantic_intent,
     return "investigation_only"
 
 
-def _parallel_action_steps(intent: Semantic_intent) -> dict[str, Source_line]:
-    """Separate ordinary When/And steps can expose the semantic fork and join.
+def _normalize_semantics(intent: Semantic_intent, data: dict[str, Any],
+                         effects: tuple[Effect_intent, ...]) -> Semantic_intent:
+    """Bind ownership once. Grammar requests behavior; typed bindings never grant it.
 
-    These clauses name behavior, not stage policy or permissions. A diagram
-    never fills a missing action or chooses an ordering.
+    Explicit ordered ownership supersedes a lexical resemblance, but cannot
+    coexist with a worker/join effect assignment on the same source line.
+    Operation kinds are interpreted only after ordered ownership is established.
     """
+    if intent.partition is not None:
+        return intent
     patterns = {
         "writer_a": r"I (?:edit|write) writer_a disjoint files",
         "writer_b": r"I (?:edit|write) writer_b disjoint files",
@@ -1081,48 +1311,162 @@ def _parallel_action_steps(intent: Semantic_intent) -> dict[str, Source_line]:
         "integration": r"I integrate the composed candidate",
         "retirement": r"I retire temporary branches",
     }
-    actions = [s for s in intent.steps if s.keyword == "When"]
-    if len(actions) <= 1:
-        return {}
-    roles = {}
-    for step in actions:
-        matches = [role for role, pattern in patterns.items() if re.fullmatch(pattern, step.text, re.I)]
-        if len(matches) != 1 or matches[0] in roles:
-            return {}
-        roles[matches[0]] = step
-    if not {"writer_a", "writer_b"} <= roles.keys():
-        return {}
-    return roles
-
-
-def _parallel_roles(intent: Semantic_intent) -> tuple[str, ...]:
-    """Normalize the parallel behavior before consulting any effect inventory."""
-    separate = _parallel_action_steps(intent)
-    action = ("writers edit" + (", integrate" if "integration" in separate else "") +
-              (", and retire branches" if "retirement" in separate else "")) if separate else \
-        " ".join(intent.actions).lower().strip()
-    match = re.fullmatch(
+    aggregate_pattern = (
         r"(?:two )?writers (?:edit|write)(?: disjoint files)?"
         r"(?P<integrate>[, ]+(?:and )?(?:integrate|advance (?:the )?(?:integration )?(?:branch|ref|target)))?"
-        r"(?P<retire>[, ]+(?:and )?(?:retire|remove) (?:temporary )?branches)?", action)
-    _require(match is not None, "IMPLEMENTATION_GAP",
-             "parallel action is outside the implemented coordination grammar")
+        r"(?P<retire>[, ]+(?:and )?(?:retire|remove) (?:temporary )?branches)?")
     composition = any(re.fullmatch(
         r"(?:the )?(?:exact union|composed candidate|combined worker results) (?:is|are) reviewed",
         clause.strip(), re.I)
         for assertion in intent.assertions for clause in re.split(r"\s+and\s+", assertion, flags=re.I))
-    _require(not match.group("integrate") or composition, "NOT_READY_NEW_DECISION_BOUNDARY",
-             "integration needs an identified composed result")
-    _require(not separate or composition == ("exact_union" in separate),
-             "NOT_READY_NEW_DECISION_BOUNDARY", "composition action and observable assertion disagree")
-    roles = ["writer_a", "writer_b", "independent_review"]
-    if composition:
-        roles += ["exact_union", "reconciled_review"]
-    if match.group("integrate"):
-        roles += ["common_validation", "integration"]
-    if match.group("retire"):
-        roles += ["retirement"]
-    return tuple(roles)
+    ordered_bindings = data.get("ordered_action_bindings", {})
+    _require(isinstance(ordered_bindings, dict), "COMPILER_INVARIANT_FAILURE",
+             "ordered action bindings must be a mapping")
+    worker_roles = {w.get("stage_id") for w in data.get("worker_contract", {}).get("writers", [])}
+    parallel_owners = worker_roles | {"exact_union", "integration", "retirement"}
+    lifecycle = bool(data.get("lifecycle_contract") or data.get("lifecycle_resources"))
+    rows = []
+    counts: dict[str, int] = {}
+    separate: dict[str, int] = {}
+    aggregate = []
+    for step in intent.steps:
+        local = tuple(e for e in effects if e.requested_by_step == step.line)
+        context = ordered_bindings.get(step.semantic_id)
+        bound_parallel = {e.stage_id for e in local if e.stage_id in parallel_owners}
+        lexical = tuple(role for role, pattern in patterns.items() if re.fullmatch(pattern, step.text, re.I))
+        compound = re.fullmatch(aggregate_pattern, step.text, re.I) if step.keyword == "When" else None
+        if step.keyword != "When":
+            _require(not local and context is None, "NOT_READY_MISSING_AUTHORITY_BINDING",
+                     "effect or ordered action bound to a non-action", step.line)
+            rows.append(Semantic_assignment(step.line, step.semantic_id, "non_action", (), (), "", None,
+                                            ("source:" + step.keyword,)))
+            continue
+        _require(not (context is not None and bound_parallel), "NOT_READY_MISSING_AUTHORITY_BINDING",
+                 "contradictory typed ownership: ordered action and parallel stage", step.line)
+        if context is not None or (lifecycle and not lexical and not compound and not bound_parallel):
+            _require(context is None or isinstance(context, dict), "COMPILER_INVARIANT_FAILURE",
+                     "ordered action context must be a mapping", step.line)
+            resource = (context or {}).get("resource", "default")
+            kind = _action_kind(step.text)
+            _require(bool(kind), "IMPLEMENTATION_GAP", "unclassified ordered action", step.line)
+            counts[kind] = counts.get(kind, 0) + 1
+            name = {"worktree_remove": "remove_worktree", "worktree_create": "create_worktree"}.get(kind, kind)
+            owner = name + ("_" + str(counts[kind]) if counts[kind] > 1 else "")
+            action = Action_intent(kind, step.line, step.semantic_id, owner)
+            rows.append(Semantic_assignment(step.line, step.semantic_id, "ordered_lifecycle", (owner,),
+                local, resource, action, ("ordered_action_bindings:" + step.semantic_id if context is not None
+                                         else "lifecycle_contract:default",)))
+        elif lexical or compound:
+            owners = lexical or tuple(["writer_a", "writer_b"] + (["exact_union"] if composition else []) +
+                                      (["integration"] if compound.group("integrate") else []) +
+                                      (["retirement"] if compound.group("retire") else []))
+            if lexical:
+                _require(not local or {e.stage_id for e in local} <= set(owners),
+                         "NOT_READY_MISSING_AUTHORITY_BINDING",
+                         "parallel source and typed effect owner disagree", step.line)
+                _require(lexical[0] not in separate, "NOT_READY_MISSING_AUTHORITY_BINDING",
+                         "duplicate parallel semantic owner", step.line)
+                separate[lexical[0]] = step.line
+            else:
+                # Aggregate effects remain inventory, never semantic owners.
+                # Let task contracts classify absent composition dependencies
+                # before downstream validation rejects unsupported stage effects.
+                aggregate.append(step.line)
+            rows.append(Semantic_assignment(step.line, step.semantic_id, "parallel_worker_or_join", owners,
+                local, "", None, ("separate_parallel_grammar" if lexical else "aggregate_parallel_grammar",
+                                   "worker_contract", "source_local_effect_owners")))
+        else:
+            _require(not bound_parallel and not lifecycle and not data.get("worker_contract"),
+                     "IMPLEMENTATION_GAP", "unclassified action in typed workflow", step.line)
+            rows.append(Semantic_assignment(step.line, step.semantic_id, "other_action", (), local,
+                                            "", None, ("other_execution_shape",)))
+    roles = []
+    parallel_rows = [r for r in rows if r.domain == "parallel_worker_or_join"]
+    if parallel_rows:
+        _require(not (aggregate and separate) and len(aggregate) <= 1 and
+                 (bool(aggregate) or {"writer_a", "writer_b"} <= separate.keys()),
+                 "IMPLEMENTATION_GAP", "parallel body needs one aggregate or distinct writer actions")
+        requested = {owner for row in parallel_rows for owner in row.owners}
+        _require("integration" not in requested or composition, "NOT_READY_NEW_DECISION_BOUNDARY",
+                 "integration needs an identified composed result")
+        _require(not separate or composition == ("exact_union" in separate),
+                 "NOT_READY_NEW_DECISION_BOUNDARY", "composition action and observable assertion disagree")
+        roles = ["writer_a", "writer_b", "independent_review"]
+        if composition:
+            roles += ["exact_union", "reconciled_review"]
+        common_requested = any(re.search(r'\bcommon validation passes\b', text, re.I)
+                               for text in intent.assertions)
+        if "integration" in requested or (composition and common_requested):
+            roles += ["common_validation"]
+        if "integration" in requested:
+            roles += ["integration"]
+        if "retirement" in requested:
+            roles += ["retirement"]
+        first, last = min(r.source_line for r in parallel_rows), max(r.source_line for r in parallel_rows)
+        _require(len(intent.scenarios) == 1 and all(
+            row.domain != "other_action" and (row.domain != "ordered_lifecycle" or
+            row.source_line < first or row.source_line > last) for row in rows),
+            "IMPLEMENTATION_GAP", "unclassified or interleaved action in parallel body")
+        if separate:
+            tail = [separate[r] for r in ("exact_union", "integration", "retirement") if r in separate]
+            _require(not tail or max(separate[w] for w in ("writer_a", "writer_b")) < min(tail),
+                     "NOT_READY_NEW_DECISION_BOUNDARY", "join must follow both writer actions")
+            _require(tail == sorted(tail), "NOT_READY_NEW_DECISION_BOUNDARY", "parallel tail dependencies reversed")
+    # This normalized dependency graph is the source for geometry validation.
+    dependencies: set[tuple[int, int]] = set()
+    for index in range(len(intent.scenarios)):
+        steps = [s for s in intent.steps if s.scenario_index == index]
+        actions = [s.line for s in steps if s.keyword == "When"]
+        groups = [[line] for line in actions]
+        if separate:
+            writers = {separate[w] for w in ("writer_a", "writer_b")}
+            groups = []
+            for line in actions:
+                if line in writers:
+                    if line == min(writers):
+                        groups.append(sorted(writers))
+                else:
+                    groups.append([line])
+        dependencies.update((s.line, a) for s in steps if s.keyword == "Given" for a in groups[0])
+        dependencies.update((a, b) for left, right in zip(groups, groups[1:]) for a in left for b in right)
+        dependencies.update((a, s.line) for a in groups[-1] for s in steps if s.keyword == "Then")
+    rows = [replace(row, predecessors=tuple(sorted(a for a, b in dependencies if b == row.source_line)),
+                    successors=tuple(sorted(b for a, b in dependencies if a == row.source_line))) for row in rows]
+    return replace(intent, partition=Semantic_partition(tuple(rows), tuple(roles), bool(separate)))
+
+
+def _partition_rows(intent: Semantic_intent) -> tuple[Semantic_assignment, ...]:
+    _require(intent.partition is not None, "COMPILER_DEFECT", "semantic partition was not normalized")
+    lines = {s.line for s in intent.steps}
+    return tuple(row for row in intent.partition.assignments if row.source_line in lines)
+
+
+def _parallel_action_steps(intent: Semantic_intent) -> dict[str, Source_line]:
+    if not intent.partition.separate_parallel:
+        return {}
+    steps = {step.line: step for step in intent.steps}
+    return {owner: steps[row.source_line] for row in _partition_rows(intent)
+            if row.domain == "parallel_worker_or_join" for owner in row.owners}
+
+
+def _parallel_body(intent: Semantic_intent) -> Semantic_intent:
+    return _partition_projection(intent, "parallel_worker_or_join")
+
+
+def _ordered_part(intent: Semantic_intent) -> Semantic_intent:
+    return _partition_projection(intent, "ordered_lifecycle")
+
+
+def _partition_projection(intent: Semantic_intent, domain: str) -> Semantic_intent:
+    lines = {row.source_line for row in _partition_rows(intent) if row.domain == domain}
+    return replace(intent, steps=tuple(step for step in intent.steps
+                   if step.keyword != "When" or step.line in lines),
+                   actions=tuple(step.text for step in intent.steps
+                                 if step.keyword == "When" and step.line in lines))
+
+
+def _parallel_roles(intent: Semantic_intent) -> tuple[str, ...]:
+    return intent.partition.parallel_roles
 
 
 def _composition_dependencies(intent: Semantic_intent) -> tuple[Trace_edge, ...]:
@@ -1131,19 +1475,18 @@ def _composition_dependencies(intent: Semantic_intent) -> tuple[Trace_edge, ...]
     Whole action clauses are recognized, not the occurrence of an integration
     word inside an arbitrary sentence. Unfamiliar behavior stays unsupported.
     """
-    if not _parallel_action_steps(intent) and not any(
-            re.match(r"(?:two )?writers (?:edit|write)", action, re.I) for action in intent.actions):
-        return ()
     if "common_validation" not in _parallel_roles(intent):
         return ()
     when = _parallel_action_steps(intent).get("integration") or next(
-        step for step in intent.steps if step.keyword == "When")
+        step for step in _parallel_body(intent).steps if step.keyword == "When")
     then = next(step for step in intent.steps if step.keyword == "Then" and
                 re.search(r"exact union|composed candidate|combined worker results", step.text, re.I))
-    return (Trace_edge(f"line:{when.line}", "semantic:integration", "requests"),
-            Trace_edge(f"line:{then.line}", "semantic:exact_union", "requires"),
-            Trace_edge("semantic:exact_union", "gate:common_validation", "requires_candidate_validation"),
-            Trace_edge("gate:common_validation", "stage:integration", "required_predecessor"))
+    edges = [Trace_edge(f"line:{then.line}", "semantic:exact_union", "requires"),
+             Trace_edge("semantic:exact_union", "gate:common_validation", "requires_candidate_validation")]
+    if 'integration' in _parallel_roles(intent):
+        edges += [Trace_edge(f"line:{when.line}", "semantic:integration", "requests"),
+                  Trace_edge("gate:common_validation", "stage:integration", "required_predecessor")]
+    return tuple(edges)
 
 
 def _multi_repository_roles(intent: Semantic_intent) -> tuple[str, ...]:
@@ -1176,9 +1519,23 @@ def _assertion_paths(intent: Semantic_intent, shape: str,
     for step in intent.steps:
         if step.keyword != "Then":
             continue
-        for index, raw in enumerate(re.split(r"\s+and\s+", step.text, flags=re.I), 1):
+        clauses = ([step.text] if data.get("lifecycle_contract") or data.get("commit_contract") or
+                   data.get("deterministic_edit") else re.split(r"\s+and\s+", step.text, flags=re.I))
+        for index, raw in enumerate(clauses, 1):
             clause = raw.strip().lower()
-            if shape == "orchestrated_workflow":
+            if shape == "ordered_workflow" and data.get("lifecycle_contract"):
+                _require(bool(re.fullmatch(r"(?:the )?worktree and ref are absent and canonical master is unchanged", clause)),
+                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "unbound lifecycle assertion", step.line)
+                gate = "gate:" + _ordered_actions(intent)[-1].stage_id
+            elif data.get("commit_contract") and data.get("outcome_unknown"):
+                _require(bool(re.search(r"read back|branch ref|head|index|retry|no new effect|idempotence|recovery authority", clause)),
+                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "unbound commit outcome assertion", step.line)
+                gate = "prompt:validation_ceiling"
+            elif data.get("deterministic_edit"):
+                _require(bool(re.search(r"minimum-sufficient|non-orchestrated|no worker|workflow is invented", clause)),
+                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "unbound deterministic-edit assertion", step.line)
+                gate = "prompt:validation_ceiling"
+            elif shape == "orchestrated_workflow":
                 if re.fullmatch(r"(?:the )?writer results are reviewed", clause):
                     gate = "gate:independent_review"
                 elif re.fullmatch(r"(?:the )?(?:exact union|composed candidate|combined worker results) "
@@ -1195,11 +1552,11 @@ def _assertion_paths(intent: Semantic_intent, shape: str,
                 else:
                     _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE',
                            f"material Then clause has no bound evaluable evidence contract: {raw}", step.line)
-            elif shape == "multi_repository_coordination":
+            elif shape in {"multi_repository_coordination", "dependent_continuation"}:
                 _require(bool(re.fullmatch(r"(?:the )?pair is validated", clause)),
                          'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE',
                          f"material Then clause has no bound evaluable evidence contract: {raw}", step.line)
-                gate = "gate:pair_validation"
+                gate = "gate:readback" if shape == "dependent_continuation" else "gate:pair_validation"
             else:
                 simple = (r"(?:the )?report cites evidence|docs/[\w.-]+ is validated|"
                           r"(?:the )?branch appears|"
@@ -1215,6 +1572,373 @@ def _assertion_paths(intent: Semantic_intent, shape: str,
     return paths
 
 
+def _plan_ordered(data: dict[str, Any], intent: Semantic_intent,
+                  effects: tuple[Effect_intent, ...]) -> list[dict[str, Any]]:
+    intent = _normalize_semantics(intent, data, effects)
+    actions = _ordered_actions(intent)
+    _require(not data.get("automatic_rollback") and not data.get("global_git_transaction") and
+             not data.get("automatic_retry"), "COMPILER_INVARIANT_FAILURE", "ordered workflow cannot invent retry or atomic rollback")
+    contracts = data.get("lifecycle_resources") or {"default": data.get("lifecycle_contract", {})}
+    _require(isinstance(contracts, dict) and contracts,
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "ordered resources missing")
+    resources = {name: _lifecycle_identity({**data, "lifecycle_contract": value})
+                 for name, value in contracts.items()}
+    seen_paths, seen_refs = set(), set()
+    for resource in resources.values():
+        _require(resource.worktree not in seen_paths and
+                 (resource.repository, resource.ref) not in seen_refs,
+                 "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "duplicate lifecycle carrier")
+        _require(not any(resource.worktree.startswith(path + "/") or path.startswith(resource.worktree + "/")
+                         for path in seen_paths), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                 "nested mutable lifecycle carriers are not isolated")
+        if data.get("lifecycle_resources"):
+            _require(resource.repository_path == data["prompt"]["repo_locations"].get(resource.repository) and
+                     resource.worktree not in data["prompt"]["repo_locations"].values(),
+                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "resource repository/carrier identity mismatch")
+        seen_paths.add(resource.worktree); seen_refs.add((resource.repository, resource.ref))
+    states = {name: {"preserved": False, "removed": False, "absence": False,
+                     "result_head": None, "unknown": None} for name in resources}
+    stages = []
+    for action in actions:
+        context = data.get("ordered_action_bindings", {}).get(action.source_id, {})
+        name = context.get("resource", "default")
+        _require(name in resources, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                 "ordered action needs an exact resource binding", action.source_line)
+        life = resources[name]
+        repo = life.repository
+        state = states[name]
+        preserved, removed, absence, result_head = (state[k] for k in
+            ("preserved", "removed", "absence", "result_head"))
+        kind = action.kind
+        _require(not removed or kind in {"inspect", "delete_ref"},
+                 "COMPILER_INVARIANT_FAILURE", "removed resource cannot be reused")
+        _require(not any(v["unknown"] for v in states.values()) or (state["unknown"] and kind == "inspect"),
+                 "COMPILER_INVARIANT_FAILURE", "ambiguous resource requires readback before dependent effects")
+        local = [effect for effect in effects if effect.requested_by_step == action.source_line]
+        _require(all(effect.stage_id == action.stage_id for effect in local),
+                 "COMPILER_INVARIANT_FAILURE", "effect stage differs from its semantic action")
+        item = {"stage_id": action.stage_id, "stage_mode": "validation_only",
+                "stage_goal": kind, "stage_effect_permissions": {},
+                "stage_inputs": ([f"stage:{stages[-1]['stage_id']}:{stages[-1]['stage_outputs'][0]}"] if stages else []),
+                "stage_acceptance_gate": "reopen and validate exact evidence before dependent action",
+                "stage_outputs": ["readback"],
+                "stage_failure_behavior": "stop and preserve completed effects; OUTCOME_UNKNOWN requires exact readback before any retry",
+                "generation_provenance": {"role": action.stage_id, "semantic_line": action.source_line,
+                    "rule_source": "governance/contracts/git_lifecycle.md",
+                    "evidence_gate": "gate:" + action.stage_id, "provenance_class": "requested_behavior"}}
+        item["repository_id"] = repo
+        item["working_directory"] = life.worktree
+        if context.get("independent_review"):
+            _require(kind == "inspect" and data["prompt"].get("delegation_policy") in {"allowed", "required"},
+                     "NOT_READY_MISSING_AUTHORITY_BINDING", "independent review requires a read-only review lane")
+            item["review_requirement"] = "reviewer authored/executed none of the reviewed work; dispose material findings before dependent effects"
+            item["stage_acceptance_gate"] = "independent exact-result review has no unresolved blocking finding"
+        if kind == "preserve":
+            _require(not local, "COMPILER_INVARIANT_FAILURE", "preservation review cannot acquire an unrelated effect")
+            item["stage_inputs"].append({"portable_preservation": life.preservation})
+            item["stage_acceptance_gate"] = "reopen all portable result, compiler, semantic review and carrier identity evidence"
+            preserved = True
+        elif kind == "inspect":
+            _require(not local, "COMPILER_INVARIANT_FAILURE", "readback cannot acquire an effect")
+            if state["unknown"]:
+                item["stage_inputs"].append("stage:" + state["unknown"] + ":effect_state")
+                item["required_readback"] = {
+                    "argv": [["git", "-C", life.worktree, *args] for args in
+                             (["rev-parse", "HEAD"], ["rev-parse", "HEAD^"],
+                              ["rev-parse", "HEAD^{tree}"], ["diff", "--cached", "--raw"],
+                              ["status", "--porcelain"], ["rev-parse", "--verify", life.ref])],
+                    "compare_to": "stage:" + state["unknown"] + ":staged_effect_identity",
+                    "classifications": ["effect_happened", "proven_not_occurred", "OUTCOME_UNKNOWN"],
+                    "unknown_blocks_downstream": True, "automatic_retry": False,
+                    "retry_requires": "exact bounded recovery grant and proof effect did not occur"}
+                item["stage_outputs"] += ["observed_commit_head", "effect_state"]
+                item["stage_acceptance_gate"] = "require effect_happened and exact parent/tree/blob/ref/index agreement with staged effect before downstream success; proven_not_occurred or OUTCOME_UNKNOWN stops for separately authorized recovery; no blind retry"
+                result_head = "stage:" + action.stage_id + ":observed_commit_head"
+                state["unknown"] = None
+            if removed:
+                item["required_readback"] = {"path_absent": life.worktree,
+                    "registration_absent": life.worktree, "no_worktree_attached_to": life.ref}
+                absence = True
+        elif kind in {"edit", "static_validation", "prepare_handoff"}:
+            _require(isinstance(context, dict) and context, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+                     "ordered action lacks exact bound inputs", action.source_line)
+            if kind == "edit":
+                paths = context.get("paths", [])
+                branch = context.get("branch", "")
+                _require(paths and len(set(paths)) == len(paths) and
+                         "refs/heads/" + branch == life.ref and
+                         _safe_local_branch_ref("refs/heads/" + branch) and
+                         {e.target for e in local if e.effect == "tracked_write"} == set(paths) and
+                         len([e for e in local if e.effect == "local_git_ref_write" and
+                              e.target == "refs/heads/" + branch]) == (0 if context.get("deferred_commit_stage") else 1) and
+                         all(e.effect in {"tracked_write", "local_git_ref_write"} for e in local),
+                         "NOT_READY_MISSING_AUTHORITY_BINDING", "ordered edit needs exact paths and commit effect")
+                item.update(stage_mode="coding", stage_branch_policy="continue_existing_branch",
+                            target_branch=branch, authorized_commit_scope={repo: paths},
+                            explicitly_adopted_inherited_changes="none", foreign_dirty_change_policy="preserve_and_exclude",
+                            staging_policy="exact_path_only")
+                item["stage_effect_permissions"] = {"allowed_to_modify": {repo: {
+                    "tracked_paths": paths, "git_index_entries": paths,
+                    "local_refs": ["refs/heads/" + branch], "git_effects": ["create_one_prompt_local_commit"]}}}
+                try:
+                    artifacts = artifact_specs(context.get('reviewed_postimages'), paths, context.get('review_evidence'))
+                except ValueError as exc:
+                    _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', str(exc))
+                item["stage_inputs"].append({"exact_reviewed_postimages": {a.path: a.projection() for a in artifacts}})
+                _require(context.get("reviewed_postimages") and context.get("review_evidence"),
+                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "ordered edit lacks reviewed exact result")
+                item['stage_inputs'].append({'reviewed_result_evidence': context['review_evidence']})
+                if context.get('reuse_review_binding'):
+                    bindings = _bindings(data)
+                    binding_id = _exact_related_identity(bindings,
+                        'ordered_action_bindings.' + action.source_id + '.reviewed_result',
+                        {'paths': paths, 'postimages': context['reviewed_postimages'],
+                         'review_evidence': context['review_evidence']}, repo, 'accepted_evidence')
+                    _require(binding_id == context['reuse_review_binding'],
+                             'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', 'accepted review relation differs')
+                    accepted_review = asdict(next(b for b in bindings if b.binding_id == binding_id))
+                    observation = accepted_review['observed_state']
+                    observation['value'] = _related_values(observation['identity_path'], observation['value'])
+                    item['stage_inputs'].append({'accepted_review': accepted_review,
+                                                'require_exact_postimage_equality': True})
+                item["stage_acceptance_gate"] = "independent staged candidate review, exact-path diff and static validation before one local commit; read back parent/tree/paths"
+                if context.get('reuse_review_binding'):
+                    item['stage_acceptance_gate'] = 'reopen accepted review; compare exact staged postimages and scope; reuse valid acquisition/review without repetition; changed result stops for invalidation and review; read back commit parent/tree/paths'
+                item["stage_outputs"] = ["readback", "observed_commit_head", "frozen_postimages"]
+                if context.get("deferred_commit_stage"):
+                    target = context["deferred_commit_stage"]
+                    _require(any(a.stage_id == target and a.kind == "commit" and
+                                 a.source_line > action.source_line for a in actions),
+                             "NOT_READY_MISSING_AUTHORITY_BINDING", "staged edit needs a later exact commit action")
+                    item["stage_effect_permissions"] = {"allowed_to_modify": {repo: {"tracked_paths": paths, "git_index_entries": paths}}}
+                    item["deferred_commit_stage"] = target
+                    item["stage_outputs"] = ["frozen_postimages"]
+                    item["stage_acceptance_gate"] = "freeze base and exact postimages; preserve staged effect for independent precommit review"
+                    state["prepared"] = {"stage_id": action.stage_id, "paths": paths, "commit_stage": target}
+                if context.get("ambiguous_outcome"):
+                    _require(context.get("readback_before_retry") is True and
+                             context.get("automatic_retry") is False,
+                             "COMPILER_INVARIANT_FAILURE", "ambiguous effect needs explicit readback and no automatic retry")
+                    item["ambiguous_effect_contract"] = {
+                        "initial_result": "OUTCOME_UNKNOWN", "maximum_attempts_before_readback": 1,
+                        "capture_before_attempt": ["base", "parent", "staged_tree", "exact_path_blobs", "index"],
+                        "automatic_retry": False, "no_global_rollback": True,
+                        "on_unknown": "preserve partial state; next resource action must be exact readback"}
+                    item["stage_outputs"] += ["staged_effect_identity", "effect_state"]
+                    state["unknown"] = action.stage_id
+                if "refs/heads/" + branch == life.ref and not context.get("deferred_commit_stage"):
+                    result_head = f"stage:{action.stage_id}:observed_commit_head"
+                    item["working_directory"] = life.worktree
+            else:
+                _require(not local and context.get("evidence_locator"),
+                         "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "read-only action needs existing evidence")
+                item["stage_inputs"].append(context["evidence_locator"])
+                if context.get("result_inputs"):
+                    available = {f"stage:{s['stage_id']}:{out}" for s in stages for out in s["stage_outputs"]}
+                    _require(set(context["result_inputs"]) <= available,
+                             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "validation consumes an unavailable stage result")
+                    item["stage_inputs"] += context["result_inputs"]
+                if context.get("validation_contract"):
+                    item["validation_contract"] = context["validation_contract"]
+                    item["stage_outputs"].append("validation_evidence")
+                if kind == "prepare_handoff":
+                    _require(context.get("status") == "PREPARED_NOT_EFFECTIVE_PENDING_ACCEPTANCE",
+                             "COMPILER_INVARIANT_FAILURE", "handoff must remain non-effective")
+                    item["stage_acceptance_gate"] = "inspect prepared-only handoff evidence; no dispatch, publication or acceptance effect"
+        elif kind == "commit":
+            prepared = state.get("prepared", {})
+            _require(prepared.get("commit_stage") == action.stage_id and
+                     len(local) == 1 and local[0].effect == "local_git_ref_write" and
+                     local[0].target == life.ref and context.get("review_evidence"),
+                     "NOT_READY_MISSING_AUTHORITY_BINDING", "commit needs exact prepared result, review and local ref effect")
+            item.update(stage_mode="commit_preparation", stage_branch_policy="continue_existing_branch",
+                        target_branch=life.ref.removeprefix("refs/heads/"),
+                        authorized_commit_scope={repo: prepared["paths"]},
+                        explicitly_adopted_inherited_changes="none", foreign_dirty_change_policy="preserve_and_exclude",
+                        staging_policy="exact_path_only")
+            item["stage_inputs"] += ["stage:" + prepared["stage_id"] + ":frozen_postimages", context["review_evidence"]]
+            item["stage_effect_permissions"] = {"allowed_to_modify": {repo: {"local_refs": [life.ref]}}}
+            item["stage_outputs"] += ["observed_commit_head", "staged_effect_identity", "effect_state"]
+            item["stage_acceptance_gate"] = "reopen exact staged path list and full diff against reviewed postimages before one commit; read back parent/tree/blobs/index"
+            result_head = "stage:" + action.stage_id + ":observed_commit_head"
+            if context.get("ambiguous_outcome"):
+                _require(context.get("readback_before_retry") is True and context.get("automatic_retry") is False,
+                         "COMPILER_INVARIANT_FAILURE", "ambiguous commit needs readback and no automatic retry")
+                item["ambiguous_effect_contract"] = {
+                    "initial_result": "OUTCOME_UNKNOWN", "maximum_attempts_before_readback": 1,
+                    "capture_before_attempt": ["base", "parent", "staged_tree", "exact_path_blobs", "index"],
+                    "automatic_retry": False, "no_global_rollback": True}
+                state["unknown"] = action.stage_id
+            state.pop("prepared", None)
+        elif kind in {"worktree_create", "worktree_remove", "delete_ref"}:
+            expected = {"worktree_create": "worktree_create", "worktree_remove": "worktree_remove",
+                        "delete_ref": "delete_local_branch"}[kind]
+            target = life.ref if kind == "delete_ref" else life.worktree
+            path_effects = [e for e in local if e.effect == expected and e.target == target]
+            branch_effects = [e for e in local if e.effect == "local_git_ref_write" and e.target == life.ref]
+            _require(len(path_effects) == 1 and len(local) == (2 if kind == "worktree_create" and
+                     not life.detached else 1) and
+                     (kind != "worktree_create" or life.detached or len(branch_effects) == 1),
+                     "NOT_READY_MISSING_AUTHORITY_BINDING", "lifecycle action lacks exact independent path/ref effects")
+            scope = {repo: {"local_refs" if kind == "delete_ref" else "worktree_paths": [target]}}
+            item.update(stage_mode="branch_maintenance_only", stage_branch_policy="continue_existing_branch",
+                        target_branch=life.controller_branch)
+            item["stage_effect_permissions"] = {"allowed_to_modify": scope}
+            item["stage_inputs"].append({"must_pass_before_effects": {
+                "repository": repo, "repository_path": life.repository_path,
+                "worktree": life.worktree, "ref": life.ref,
+                "ownership": "task_owned", "state": life.state_required,
+                "source": life.state_source, "on_mismatch": "stop_before_effect"}})
+            if result_head:
+                item["stage_inputs"].append(result_head)
+            if kind == "worktree_create":
+                _require(not state.get("creation_stage"), "COMPILER_INVARIANT_FAILURE", "duplicate resource creation")
+                state["creation_stage"] = action.stage_id
+                # Creation cannot require a clean existing worktree at an absent path.
+                item["stage_inputs"] = [value for value in item["stage_inputs"]
+                                        if not isinstance(value, dict) or "must_pass_before_effects" not in value]
+                item["stage_inputs"].append({"must_pass_before_effects": {
+                    "repository": repo, "reference_ref": life.reference_ref,
+                    "fresh_reference_readback": ["git", "-C", life.repository_path,
+                                                 "rev-parse", "--verify", life.reference_ref],
+                    "task_owned_destination": life.worktree, "reject_collisions": True}})
+                policy, argv = life.creation()
+                item.pop("target_branch", None)
+                item.update(policy)
+                item["stage_outputs"] += ["created_ref_oid", "base_oid"]
+                item["must_be_absent"] = [life.worktree, "registration:" + life.worktree]
+                if not life.detached:
+                    scope[repo]["local_refs"] = [life.ref]
+                    item["must_be_absent"].append(life.ref)
+                # Policy and argv both come from the same typed resource action.
+            elif kind == "worktree_remove":
+                _require(preserved and not removed, "COMPILER_INVARIANT_FAILURE", "retirement needs prior portable preservation")
+                argv = ["git", "-C", life.repository_path, "worktree", "remove", life.worktree]
+                item["required_readback_before_effect"] = {
+                    "worktree_list_argv": ["git", "-C", life.repository_path, "worktree", "list", "--porcelain"],
+                    "head_argv": ["git", "-C", life.worktree, "rev-parse", "HEAD"],
+                    "status_argv": ["git", "-C", life.worktree, "status", "--porcelain", "--untracked-files=all", "--ignored"],
+                    "attached_ref": None if life.detached else life.ref,
+                    "exact_path": life.worktree, "state_required": life.state_required,
+                    "preserved_result": result_head, "require_head_equals_preserved_result": bool(result_head),
+                    "reject_foreign_content": True}
+                item["stage_acceptance_gate"] = "read back path and registration absence; preserved semantic result survives cleanup failure"
+                removed = True
+            else:
+                _require(preserved and removed and absence and
+                         not any(data.get("ordered_action_bindings", {}).get(a.source_id, {}).get("resource", "default") == name
+                                 for a in actions[actions.index(action) + 1:]),
+                         "COMPILER_INVARIANT_FAILURE", "ref deletion requires preservation then worktree removal then absence readback; terminal only")
+                item["stage_effect_permissions"]["local_branch_deletion"] = True
+                item.update(branch_maintenance_action="delete_exact_temporary_ref",
+                            affected_local_branches=[life.ref], expected_preserved_head=result_head or "none: portable result preservation",
+                            preservation_ref="none: exact portable result is preserved",
+                            reference_restore_source="none: deletion only", non_fast_forward_ref_move_authorized="no",
+                            local_branch_deletion="yes", expected_old_oid=result_head or f"stage:{action.stage_id}:pre_delete_ref_oid")
+                fresh = _fresh_ref_check(life.repository_path, life.ref, action.stage_id)
+                item["runtime_observations"] = [fresh]
+                item["stage_outputs"].append("pre_delete_ref_oid")
+                item["result_cross_check"] = {"expected": result_head,
+                    "observed": fresh["output"], "required": bool(result_head),
+                    "on_mismatch": "stop_before_effect; preserve evidence"}
+                argv = ["git", "-C", life.repository_path, "update-ref", "-d", life.ref, fresh["output"]]
+                item["stage_acceptance_gate"] = "read back exact ref absence and preserved canonical/controller identities"
+                if state.get("creation_stage"):
+                    item["anchor_noninterference"] = {
+                        "ref": life.reference_ref,
+                        "readback_argv": ["git", "-C", life.repository_path, "rev-parse", "--verify", life.reference_ref],
+                        "compare_to": "stage:" + state["creation_stage"] + ":base_oid",
+                        "mismatch": "report noninterference failure; do not roll back"}
+            item["safety_critical_argv"] = argv
+            item["automatic_retry"] = False
+        else:
+            _error("IMPLEMENTATION_GAP", "ordered action lacks a bound maintained lowering: " + kind, action.source_line)
+        state.update(preserved=preserved, removed=removed, absence=absence, result_head=result_head)
+        stages.append(item)
+    _require(not any(state["unknown"] for state in states.values()),
+             "COMPILER_INVARIANT_FAILURE", "ambiguous workflow ends without readback")
+    return stages
+
+
+def _plan_dependent(data: dict[str, Any], intent: Semantic_intent,
+                    effects: tuple[Effect_intent, ...]) -> list[dict[str, Any]]:
+    """Consume a preserved tuple; never regenerate a candidate or replay an effect."""
+    _require(_multi_repository_roles(intent) and data.get("candidate_pair_order") == ["topcoffea", "topeft"],
+             "IMPLEMENTATION_GAP", "continuation needs the bounded provider/consumer behavior")
+    state = data.get("accepted_effect_state", {})
+    required = {"candidate_heads", "target_heads", "completed_stages", "review_evidence",
+                "validation_evidence", "consumer_outcome", "readback_authority_binding"}
+    _require(isinstance(state, dict) and set(state) == required and
+             set(state["candidate_heads"]) == set(state["target_heads"]) == set(data["repositories"]) and
+             all(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(oid)) for mapping in
+                 (state["candidate_heads"], state["target_heads"]) for oid in mapping.values()) and
+             set(state["completed_stages"]) == {"provider_candidate", "consumer_candidate",
+                                                "independent_review", "pair_validation", "integrate_topcoffea"} and
+             state["target_heads"]["topcoffea"] == state["candidate_heads"]["topcoffea"] and
+             state["review_evidence"] and state["validation_evidence"] and
+             state["consumer_outcome"] in {"failed_before_effect", "OUTCOME_UNKNOWN"},
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "accepted partial tuple/state is incomplete")
+    bindings = _bindings(data)
+    binding_id = _exact_related_identity(bindings, "continuation.accepted_effect_state", state,
+                                         "topcoffea", "accepted_evidence")
+    prior = data["continuation"]["prior_artifact_identity"]
+    _require(next(b for b in bindings if b.binding_id == binding_id).source_identity == prior and
+             not data.get("automatic_rollback") and not data.get("global_git_transaction") and
+             not data.get("automatic_retry"), "COMPILER_INVARIANT_FAILURE", "continuation provenance or no-retry invariant violated")
+    c = data["continuation"]
+    _require(set(c["checks_not_to_repeat"]) == set(state["completed_stages"]) and
+             set(c["delta_scope"]) <= {"readback", "integrate_topeft"} and
+             not (set(c["delta_scope"]) & set(c["checks_not_to_repeat"])),
+             "NOT_READY_NEW_DECISION_BOUNDARY", "partial continuation protection/delta mismatch")
+    readback = next((b for b in bindings if b.binding_id == state["readback_authority_binding"]), None)
+    _require(readback is not None and readback.acquisition == "acquired" and
+             readback.source_kind == "owner_decision" and _scope_names_repo(readback.validity_scope, "topeft"),
+             "NOT_READY_MISSING_AUTHORITY_BINDING", "consumer readback authority missing")
+    repo = data["repositories"]["topeft"]
+    target = "refs/heads/" + str(repo.get("permanent_target_branch"))
+    _require(_safe_local_branch_ref(target), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "consumer target missing")
+    when = next(step for step in intent.steps if step.keyword == "When")
+    stage = {"stage_id": "readback", "stage_mode": "validation_only", "repository_id": "topeft",
+             "stage_goal": "Read back preserved consumer effect before any remaining action",
+             "stage_effect_permissions": {}, "stage_inputs": ["accepted:" + prior, state],
+             "stage_acceptance_gate": "exact ref/HEAD/index readback; preserve provider and accepted tuple; unknown remains stopped",
+             "stage_outputs": ["readback", "observed_target_head"], "stage_failure_behavior": "stop and preserve; no replay, rollback or blind retry",
+             "working_directory": data["prompt"]["repo_locations"]["topeft"],
+             "readback_argv": [["git", "rev-parse", "--verify", target], ["git", "rev-parse", "HEAD"],
+                               ["git", "diff", "--cached", "--raw"], ["git", "status", "--porcelain"]],
+             "generation_provenance": {"role": "readback", "semantic_line": when.line,
+                 "rule_source": "governance/contracts/orchestration.md", "evidence_gate": "gate:readback",
+                 "provenance_class": "necessary_governance_mechanic"}}
+    stages = [stage]
+    if state["consumer_outcome"] == "OUTCOME_UNKNOWN":
+        _require(not effects, "NOT_READY_MISSING_AUTHORITY_BINDING", "unknown outcome permits readback only, no retry effects")
+        return stages
+    _require(len(effects) == 1 and effects[0].stage_id == "integrate_topeft" and
+             effects[0].effect == "local_git_ref_write" and effects[0].target == target and
+             "integrate_topeft" in c["delta_scope"] and
+             state["target_heads"]["topeft"] != state["candidate_heads"]["topeft"],
+             "NOT_READY_MISSING_AUTHORITY_BINDING", "remaining consumer action needs exact non-replayed local effect")
+    stages.append({"stage_id": "integrate_topeft", "stage_mode": "integration_only", "repository_id": "topeft",
+        "stage_goal": "Advance only the remaining consumer to its accepted exact candidate",
+        "stage_effect_permissions": {"allowed_to_modify": {"topeft": {"local_refs": [target]}}},
+        "stage_inputs": ["stage:readback:readback", "accepted:" + prior, state],
+        "stage_acceptance_gate": "read back exact consumer candidate head; provider/accepted tuple remain unchanged",
+        "stage_outputs": ["observed_target_head"], "stage_failure_behavior": "preserve valid partial state; no rollback or retry",
+        "stage_branch_policy": "continue_existing_branch", "target_branch": repo["permanent_target_branch"],
+        "integration_source_branch": repo["candidate_branch"], "integration_target_branch": repo["permanent_target_branch"],
+        "integration_method": "ff_only", "expected_source_head": state["candidate_heads"]["topeft"],
+        "expected_target_head": "stage:readback:observed_target_head",
+        "must_pass_before_effects": {"source_head": state["candidate_heads"]["topeft"],
+            "target_head": "stage:readback:observed_target_head", "require_fast_forward_ancestry": True,
+            "reject_movement_after_readback": True,
+            "require_clean_index_and_worktree": True, "candidate_tuple": state["candidate_heads"],
+            "validation_evidence": state["validation_evidence"], "review_evidence": state["review_evidence"]},
+        "generation_provenance": {"role": "integrate_topeft", "semantic_line": when.line,
+            "rule_source": "governance/contracts/git_lifecycle.md", "evidence_gate": "gate:integrate_topeft",
+            "provenance_class": "requested_behavior"}})
+    return stages
+
+
 def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effects: tuple[Effect_intent, ...],
                  roles: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     """Build the two bounded dependent patterns; supplied stage prose is inert.
@@ -1222,6 +1946,38 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
     Historical stage input binds no executable value. Exact identities arrive
     through the typed worker and repository bindings.
     """
+    if shape == "orchestrated_workflow" and _parallel_body(intent) != intent:
+        body = _parallel_body(intent)
+        ordered = _ordered_part(intent)
+        body_lines = {s.line for s in body.steps if s.keyword == "When"}
+        ordered_stages = _plan_ordered(data, ordered, tuple(e for e in effects if e.requested_by_step not in body_lines))
+        body_stages = _plan_stages(data, body, shape, tuple(e for e in effects if e.requested_by_step in body_lines), roles)
+        first_line, last_line = min(body_lines), max(body_lines)
+        _require(all(s["generation_provenance"]["semantic_line"] < first_line or
+                     s["generation_provenance"]["semantic_line"] > last_line for s in ordered_stages),
+                 "IMPLEMENTATION_GAP", "lifecycle actions cannot interleave a parallel body")
+        prelude = [s for s in ordered_stages if s["generation_provenance"]["semantic_line"] < first_line]
+        epilogue = [s for s in ordered_stages if s not in prelude]
+        workers = data["worker_contract"]["writers"]
+        carriers = {(w["worktree_path"], "refs/heads/" + w["branch"]) for w in workers}
+        carriers.add((data["worker_contract"]["composition_worktree_path"],
+                      "refs/heads/" + data["worker_contract"]["composition_branch"]))
+        for stage in prelude:
+            if stage["stage_goal"] == "worktree_create":
+                argv = stage["safety_critical_argv"]
+                _require((argv[-2], "refs/heads/" + stage.get("feature_branch", "")) in carriers,
+                         "NOT_READY_MISSING_AUTHORITY_BINDING", "created carrier is foreign to the parallel body")
+        if prelude:
+            for stage in body_stages:
+                if stage["stage_id"] in {w["stage_id"] for w in workers}:
+                    stage["stage_inputs"].append("stage:" + prelude[-1]["stage_id"] + ":readback")
+        if epilogue:
+            epilogue[0]["stage_inputs"].append("stage:" + body_stages[-1]["stage_id"] + ":" + body_stages[-1]["stage_outputs"][0])
+        return prelude + body_stages + epilogue
+    if shape == "ordered_workflow":
+        return _plan_ordered(data, intent, effects)
+    if shape == "dependent_continuation":
+        return _plan_dependent(data, intent, effects)
     if shape not in {"orchestrated_workflow", "multi_repository_coordination"}:
         return []
     # Historical stage graphs are accepted only as inert diagnostic references.
@@ -1261,38 +2017,55 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
         accepted_writer = data.get("continuation", {}).get("checks_not_to_repeat", [None])[0]
         accepted_head = (f"prior:{data['continuation']['prior_artifact_identity']}:"
                          f"{accepted_writer}@"
-                         f"{data['continuation']['accepted_prior_evidence'][0]['observed_commit_head']}") \
+                         f"{data['continuation']['accepted_prior_evidence'][0].get('observed_commit_head', 'frozen_postimages')}") \
             if accepted_writer else ""
         for worker in writers:
             stage_id = worker["stage_id"]
             if stage_id == accepted_writer:
                 continue
             branch = worker.get("branch")
-            _require(bool(branch and worker.get("base_oid") and worker.get("worktree_path") and
-                          worker.get("observed_head")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
+            _require(bool(branch and worker.get("worktree_path")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                      f"{stage_id} needs exact existing worker branch/worktree/base identities")
             paths = worker.get("write_paths", [])
             _require(sorted(paths) == sorted(e.target for e in stage_effects(stage_id)
                                                 if e.effect == "tracked_write"),
                      "NOT_READY_MISSING_AUTHORITY_BINDING", f"{stage_id} paths lack exact effects")
-            item = make(stage_id, "coding", f"Write and commit {stage_id} owned paths",
-                        [f"base:{worker['base_oid']}", f"worktree:{worker['worktree_path']}",
-                         f"head:{worker['observed_head']}"],
+            commit_requested = any(e.effect == "local_git_ref_write" for e in stage_effects(stage_id))
+            _require(commit_requested or ("exact_union" in semantic_roles and
+                     any(e.effect == "local_git_ref_write" for e in stage_effects("exact_union"))),
+                     "NOT_READY_MISSING_AUTHORITY_BINDING", "uncommitted writer lacks controller commit closure")
+            item = make(stage_id, "coding", f"Write {'and commit ' if commit_requested else ''}{stage_id} owned paths",
+                        [f"worktree:{worker['worktree_path']}",
+                         "fresh branch/HEAD/index readback; record base in frozen result provenance"],
                         "reopen exact diff, commit and frozen postimages", ["observed_commit_head", "frozen_postimages"])
             item.update(stage_branch_policy="continue_existing_branch", target_branch=branch,
                         authorized_commit_scope={repo_id: paths}, explicitly_adopted_inherited_changes="none",
                         foreign_dirty_change_policy="preserve_and_exclude", staging_policy="exact_path_only")
             item["stage_effect_permissions"] = {"allowed_to_modify": local_scope(repo_id, paths, branch)}
+            if not commit_requested:
+                item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: {"tracked_paths": paths}}}
+                item["stage_outputs"] = ["frozen_postimages"]
+                item["stage_acceptance_gate"] = "freeze exact base, full postimages and content hashes; preserve uncommitted result for controller closure"
+                item["deferred_commit_stage"] = "exact_union"
+            item["runtime_carrier_readback"] = {
+                "working_directory": worker["worktree_path"], "attached_ref": "refs/heads/" + branch,
+                "branch_argv": ["git", "-C", worker["worktree_path"], "symbolic-ref", "--quiet", "HEAD"],
+                "head_argv": ["git", "-C", worker["worktree_path"], "rev-parse", "HEAD"],
+                "require_task_ownership": True, "preserve_foreign_work": True,
+                "record_result_base_provenance": True}
             stages.append(item)
         writer_inputs = [accepted_head if worker["stage_id"] == accepted_writer else
-                         f"stage:{worker['stage_id']}:observed_commit_head" for worker in writers]
+                         f"stage:{worker['stage_id']}:" + (
+                             "observed_commit_head" if any(e.effect == "local_git_ref_write" and
+                             e.stage_id == worker["stage_id"] for e in effects) else "frozen_postimages")
+                         for worker in writers]
         stages.append(make("independent_review", "validation_only", "Independently review frozen writer results",
                            writer_inputs,
                            "independent reviewer findings disposed", ["review_evidence"]))
         if "exact_union" in semantic_roles:
             union_paths = sorted(workers.get("union_paths", []))
             composition_branch = workers.get("composition_branch")
-            _require(bool(workers.get("composition_base_oid") and workers.get("composition_worktree_path")),
+            _require(bool(workers.get("composition_worktree_path")),
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "composition carrier identity missing")
             _require(bool(composition_branch) and sorted(union_paths) ==
                      sorted(e.target for e in stage_effects("exact_union") if e.effect == "tracked_write"),
@@ -1300,7 +2073,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
             item = make("exact_union", "coding", "Compose exact frozen byte union and commit controller candidate",
                         [*writer_inputs,
                          "stage:independent_review:review_evidence",
-                         f"base:{workers['composition_base_oid']}",
+                         "exact union consumes frozen result bases/postimages; fresh controller readback",
                          f"worktree:{workers['composition_worktree_path']}"],
                         "exact byte union, independent combined semantic review and committed candidate readback",
                         ["observed_commit_head", "union_postimages", "combined_review_evidence"])
@@ -1308,6 +2081,11 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                         authorized_commit_scope={repo_id: union_paths}, explicitly_adopted_inherited_changes="none",
                         foreign_dirty_change_policy="preserve_and_exclude", staging_policy="exact_path_only")
             item["stage_effect_permissions"] = {"allowed_to_modify": local_scope(repo_id, union_paths, composition_branch)}
+            item["runtime_carrier_readback"] = {
+                "working_directory": workers["composition_worktree_path"],
+                "attached_ref": "refs/heads/" + composition_branch,
+                "require_task_ownership": True, "preserve_foreign_work": True,
+                "consume_exact_frozen_result_bases_and_postimages": True}
             stages.append(item)
             stages.append(make("reconciled_review", "validation_only",
                                "Review any controller rewrite of worker postimages",
@@ -1359,10 +2137,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
             stages.append(item)
         if "retirement" in semantic_roles:
             life = data.get("retirement", {})
-            _require(life.get("exact_owned_surface") and life.get("exact_old_oid") and
-                     life.get("preservation_ref") and life.get("expected_preserved_head") and
-                     re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", life["exact_old_oid"]) and
-                     re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", life["expected_preserved_head"]),
+            _require(life.get("exact_owned_surface") and life.get("preservation_ref"),
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "retirement identity/preservation inputs missing")
             _require(_safe_local_branch_ref(life["exact_owned_surface"]) and
                      _safe_local_branch_ref(life["preservation_ref"]),
@@ -1371,16 +2146,20 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                         [f"stage:{stages[-1]['stage_id']}:{stages[-1]['stage_outputs'][0]}", "portable preservation evidence",
                          "reopened semantic and review gates"],
                         "exact old-OID compare-and-delete and ref/worktree readback",
-                        ["retirement_readback"])
+                        ["retirement_readback", "pre_delete_ref_oid"])
             item.update(stage_branch_policy="continue_existing_branch", target_branch=workers["integration_target_branch"],
                         branch_maintenance_action="delete_exact_temporary_ref",
                         affected_local_branches=[life["exact_owned_surface"]],
-                        expected_preserved_head=life["expected_preserved_head"],
+                        expected_preserved_head="none: portable result preservation; record observed ref as evidence",
                         preservation_ref=life["preservation_ref"], reference_restore_source="none: deletion only",
                         non_fast_forward_ref_move_authorized="no", local_branch_deletion="yes",
-                        remote_branch_deletion="no", expected_old_oid=life["exact_old_oid"],
-                        safety_critical_ref_command=("git update-ref -d " + life["exact_owned_surface"] + " " +
-                                                     life["exact_old_oid"]))
+                        remote_branch_deletion="no", expected_old_oid="stage:retirement:pre_delete_ref_oid",
+                        runtime_observations=[_fresh_ref_check(
+                            prompt["repo_locations"][repo_id], life["exact_owned_surface"], "retirement")],
+                        safety_critical_argv=["git", "update-ref", "-d", life["exact_owned_surface"],
+                                              "stage:retirement:pre_delete_ref_oid"],
+                        safety_critical_ref_command=("git update-ref -d " + life["exact_owned_surface"] +
+                                                     " stage:retirement:pre_delete_ref_oid"))
             item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: {
                 "local_refs": [life["exact_owned_surface"]], "git_effects": ["delete_exact_temporary_ref"]}},
                                                 "local_branch_deletion": "yes"}
@@ -1410,8 +2189,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
             namespace = role["feature_development_namespace"].removesuffix("*")
             _require(repo.get("development_branch") == live_branch and repo.get("stage_id") == stage_id,
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", f"{repo_id} live branch identity mismatch")
-            _require(bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(repo.get("base", "")))) and
-                     repo.get("candidate") == f"stage:{stage_id}:observed_commit_head",
+            _require(repo.get("candidate") == f"stage:{stage_id}:observed_commit_head",
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                      f"{repo_id} needs exact base and derived observed candidate binding")
             _require(branch.startswith(namespace) and branch != live_branch and
@@ -1419,20 +2197,17 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                      repo.get("candidate_carrier_authority_binding"),
                      'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE',
                      f"{repo_id} lacks an authorized native candidate carrier")
-            _require(repo.get("candidate_head") == repo.get("base") and
-                     repo.get("candidate_base_oid") == repo.get("base"),
-                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
-                     f"{repo_id} candidate is not bound to permanent live starting head")
             paths = [e.target for e in stage_effects(stage_id) if e.effect == "tracked_write"]
             _require(bool(paths), "NOT_READY_MISSING_AUTHORITY_BINDING", f"{repo_id} candidate lacks tracked effect")
             item = make(stage_id, "coding", f"Write and commit {repo_id} candidate",
                         [f"{repo_id} observed live base {repo.get('base')}",
                          f"candidate worktree:{repo['candidate_worktree']}",
-                         f"candidate head:{repo['candidate_head']}", "native policy"],
+                         "fresh candidate branch/HEAD/index readback", "native policy"],
                         "reopen local commit, task diff and native-policy evidence", ["observed_commit_head"])
             item.update(repository_id=repo_id, stage_branch_policy="continue_existing_branch", target_branch=branch,
                         candidate_worktree=repo["candidate_worktree"],
-                        expected_candidate_head=repo["candidate_head"],
+                        runtime_carrier_readback={"worktree": repo["candidate_worktree"], "attached_branch": branch,
+                            "record": ["head", "base_oid"], "require_task_owned_clean_carrier": True},
                         authorized_commit_scope={repo_id: paths}, explicitly_adopted_inherited_changes="none",
                         foreign_dirty_change_policy="preserve_and_exclude", staging_policy="exact_path_only")
             item["stage_effect_permissions"] = {"allowed_to_modify": local_scope(repo_id, paths, branch)}
@@ -1482,7 +2257,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
             item.update(repository_id=repo_id, stage_branch_policy="continue_existing_branch",
                         target_branch=target, integration_source_branch=repo["candidate_branch"],
                         integration_target_branch=target, integration_method="ff_only",
-                        expected_source_head=repo["candidate"], expected_target_head=repo["base"],
+                        expected_source_head=repo["candidate"], expected_target_head=f"stage:{stage_id}:pre_effect_target_oid",
                         integration_worktree=prompt["repo_locations"][repo_id],
                         must_pass_before_effects={
                             "candidate_tuple": dict(prompt["candidate_pair"]),
@@ -1490,7 +2265,9 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                             "review_evidence": "stage:independent_review:review_evidence",
                             "source_ref": "refs/heads/" + repo["candidate_branch"],
                             "source_head": repo["candidate"], "target_ref": "refs/heads/" + target,
-                            "target_head": repo["base"], "require_clean_index_and_worktree": True,
+                            "target_head": f"stage:{stage_id}:pre_effect_target_oid", "require_clean_index_and_worktree": True,
+                            "fresh_target_readback": ["git", "rev-parse", "--verify", "refs/heads/" + target],
+                            "reject_movement_after_readback": True,
                             "require_fast_forward_ancestry": True,
                             "on_mismatch": "stop_before_effect_and_preserve_state"},
                         failure_outcomes={
@@ -1498,6 +2275,11 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                             "observed_effect": "preserve exact repo-local advancement and candidate evidence",
                             "OUTCOME_UNKNOWN": "stop; authoritative repo-local ref/index/worktree readback "
                             "before any separately authorized recovery; never infer no effect"})
+            item["runtime_observations"] = [{
+                "output": f"stage:{stage_id}:pre_effect_target_oid",
+                "argv": item["must_pass_before_effects"]["fresh_target_readback"],
+                "before_effect": True, "require_exit_zero": True, "require_full_oid": True}]
+            item["stage_outputs"].append("pre_effect_target_oid")
             item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: {
                 "git_index_entries": paths, "local_refs": [local_effects[0].target],
                 "git_effects": ["integrate_exact_source"]}}}
@@ -1525,7 +2307,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
 def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
                  effects: tuple[Effect_intent, ...], shape: str) -> list[Trace_edge]:
     stages = data.get("stages", [])
-    if shape not in {"orchestrated_workflow", "multi_repository_coordination"}:
+    if shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
         _require(not stages and not data.get("worker_contract"), "COMPILER_INVARIANT_FAILURE",
                  "caller stages are not a compiler-selected minimum-sufficient workflow")
         return []
@@ -1535,12 +2317,43 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
     then = next((step for step in intent.steps if step.keyword == "Then"), None)
     _require(when is not None and then is not None, "COMPILER_INVARIANT_FAILURE",
              "workflow needs action and observable result")
-    if shape == "orchestrated_workflow":
+    if shape == "dependent_continuation":
+        expected = ['readback'] + ([] if data['accepted_effect_state']['consumer_outcome'] == 'OUTCOME_UNKNOWN'
+                                   else ['integrate_topeft'])
+        _require(not data.get('automatic_retry') and not data.get('automatic_rollback'),
+                 'COMPILER_INVARIANT_FAILURE', 'dependent continuation invents retry or rollback')
+        if data['accepted_effect_state']['consumer_outcome'] == 'OUTCOME_UNKNOWN':
+            _require(not effects, 'COMPILER_INVARIANT_FAILURE', 'unknown outcome is readback only')
+        else:
+            accepted = data['accepted_effect_state']
+            remaining = stages[-1]
+            guard = remaining.get('must_pass_before_effects', {})
+            source = accepted['candidate_heads']['topeft']
+            _require(remaining.get('expected_source_head') == source and
+                     guard.get('source_head') == source and
+                     remaining.get('integration_source_branch') == data['repositories']['topeft']['candidate_branch'] and
+                     remaining.get('integration_target_branch') == data['repositories']['topeft']['permanent_target_branch'] and
+                     guard.get('candidate_tuple') == accepted['candidate_heads'] and
+                     guard.get('validation_evidence') == accepted['validation_evidence'] and
+                     guard.get('review_evidence') == accepted['review_evidence'] and
+                     guard.get('require_fast_forward_ancestry') is True and
+                     guard.get('require_clean_index_and_worktree') is True and
+                     guard.get('reject_movement_after_readback') is True,
+                     'COMPILER_INVARIANT_FAILURE', 'remaining integration differs from accepted exact source/tuple/gates')
+    elif shape == "ordered_workflow":
+        expected = [action.stage_id for action in _ordered_actions(intent)]
+    elif shape == "orchestrated_workflow":
         _require(bool(re.search(r"\b(review|validat|union)\w*\b", then.text, re.I)),
                  "COMPILER_INVARIANT_FAILURE", "review stages lack observable Then behavior")
         workers = data["worker_contract"]
         protected = data.get("continuation", {}).get("checks_not_to_repeat", [])
         expected = [role for role in _parallel_roles(intent) if role not in protected]
+        if _parallel_body(intent) != intent:
+            ordered = _ordered_actions(_ordered_part(intent))
+            first = min(row.source_line for row in _partition_rows(intent)
+                        if row.domain == 'parallel_worker_or_join')
+            expected = ([a.stage_id for a in ordered if a.source_line < first] + expected +
+                        [a.stage_id for a in ordered if a.source_line > first])
     else:
         _require("pair" in then.text.lower() and "validat" in then.text.lower(),
                  "COMPILER_INVARIANT_FAILURE", "candidate-pair stage lacks observable Then behavior")
@@ -1551,6 +2364,15 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
     actual = [stage.get("stage_id") for stage in stages]
     _require(actual == expected and all(expected) and len(set(expected)) == len(expected),
              "COMPILER_INVARIANT_FAILURE", "supplied stages differ from semantic minimum-sufficient plan")
+    if shape == 'ordered_workflow' or (shape == 'orchestrated_workflow' and _parallel_body(intent) != intent):
+        ordered_intent = intent if shape == 'ordered_workflow' else _ordered_part(intent)
+        try:
+            verify_ordered_invariants(stages, _ordered_actions(ordered_intent),
+                                      _partition_rows(ordered_intent),
+                                      data.get('lifecycle_resources') or {'default': data['lifecycle_contract']},
+                                      data.get('ordered_action_bindings', {}))
+        except ValueError as exc:
+            _error('COMPILER_INVARIANT_FAILURE', str(exc))
     if shape == "multi_repository_coordination":
         for position, stage_id in enumerate(_multi_repository_roles(intent)):
             stage = next(s for s in stages if s["stage_id"] == stage_id)
@@ -1566,12 +2388,15 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
                      stage["must_pass_before_effects"]["candidate_tuple"] == data["prompt"]["candidate_pair"],
                      "COMPILER_INVARIANT_FAILURE", "permanent advancement lacks exact tuple/review dependencies")
     if _composition_dependencies(intent):
-        integration = next(stage for stage in stages if stage["stage_id"] == "integration")
         validation = next(stage for stage in stages if stage["stage_id"] == "common_validation")
-        _require(actual.index("exact_union") < actual.index("common_validation") < actual.index("integration")
-                 and "stage:common_validation:common_validation_evidence" in integration["stage_inputs"]
-                 and "stage:exact_union:observed_commit_head" in validation["stage_inputs"],
-                 "COMPILER_INVARIANT_FAILURE", "integration lacks the candidate validation dependency")
+        _require(actual.index('exact_union') < actual.index('common_validation') and
+                 'stage:exact_union:observed_commit_head' in validation['stage_inputs'],
+                 'COMPILER_INVARIANT_FAILURE', 'common validation lacks exact composed result')
+        if 'integration' in _parallel_roles(intent):
+            integration = next(stage for stage in stages if stage["stage_id"] == "integration")
+            _require(actual.index('common_validation') < actual.index('integration') and
+                     'stage:common_validation:common_validation_evidence' in integration['stage_inputs'],
+                     'COMPILER_INVARIANT_FAILURE', 'integration lacks the candidate validation dependency')
     edges = list(_composition_dependencies(intent))
     for stage in stages:
         stage_id = stage["stage_id"]
@@ -1595,6 +2420,8 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
         if related_effects:
             edges.extend(Trace_edge(f"effect:{effect.effect_id}", f"stage:{stage_id}", "implemented_by")
                          for effect in related_effects)
+        elif shape in {"ordered_workflow", "dependent_continuation"} or (shape == "orchestrated_workflow" and stage_id not in _parallel_roles(intent)):
+            edges.append(Trace_edge(source, f"stage:{stage_id}", "requires_validation_stage"))
         elif stage_id in {"independent_review", "common_validation", data.get("candidate_pair_validation_stage"),
                           data.get("worker_contract", {}).get("independent_review_stage"),
                           data.get("worker_contract", {}).get("exact_union_stage")}:
@@ -1775,7 +2602,9 @@ def _verify_simple_scope(prompt: dict[str, Any], effects: tuple[Effect_intent, .
                              "COMPILER_INVARIANT_FAILURE", f"invalid {category} target")
                     if category == "git_effects":
                         justified = ((target == "create_one_prompt_local_commit" and
-                                      any(local_effect(repo_id, e.target, {"tracked_write"}) for e in effects)) or
+                                      (any(local_effect(repo_id, e.target, {"tracked_write"}) for e in effects) or
+                                       prompt.get("prompt_mode") == "commit_preparation" and
+                                       any(local_effect(repo_id, e.target, {"local_git_ref_write"}) for e in effects))) or
                                      (target == "create_feature_branch_from_reference" and
                                       prompt.get("branch_policy") == "create_feature_branch_from_reference" and
                                       any(local_effect(repo_id, e.target, {"local_git_ref_write"})
@@ -1789,6 +2618,9 @@ def _verify_simple_scope(prompt: dict[str, Any], effects: tuple[Effect_intent, .
                         kind = "tracked_write" if category in {"tracked_paths", "git_index_entries"} else \
                             "local_git_ref_write"
                         justified = local_effect(repo_id, target, {kind})
+                        if category == "git_index_entries" and prompt.get("prompt_mode") == "commit_preparation":
+                            justified = (_scope_contains(prompt.get("authorized_commit_scope", {}).get(repo_id, {}), target) and
+                                         any(local_effect(repo_id, e.target, {"local_git_ref_write"}) for e in effects))
                         if category == "local_refs":
                             justified = justified or local_effect(repo_id, target,
                                                                    {"delete_local_branch", "delete_remote_branch"})
@@ -1823,8 +2655,7 @@ def _effect_carrier(effect: Effect_intent, repo: str, data: dict[str, Any],
         if len(matches) == 1 and isinstance(matches[0], dict):
             carrier = matches[0]
             if (carrier.get("repository") == repo and
-                    "refs/heads/" + str(carrier.get("attached_branch")) == effect.target and
-                    re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(carrier.get("head", "")))):
+                    "refs/heads/" + str(carrier.get("attached_branch")) == effect.target):
                 return carrier.get("worktree")
     return None
 
@@ -2029,7 +2860,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     if branch:
         _canonical_branch(str(branch), contents)
         _branch_fields(prompt, "branch_policy")
-    if shape in {"orchestrated_workflow", "multi_repository_coordination"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
         _require(mode == "orchestrated_workflow" and not branch and "heavy_command_permissions" not in prompt,
                  "COMPILER_INVARIANT_FAILURE", "orchestrated output has invalid outer mode/permissions")
         _require({"workflow_goal", "workflow_stop_policy", "workflow_stage_ledger_path",
@@ -2077,19 +2908,13 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             accepted = continuation.accepted_prior_evidence[0]
             accepted_binding_id = _exact_related_identity(
                 bindings, "q04.accepted_writer_result",
-                {"writer_id": accepted["writer_id"],
-                 "observed_commit_head": accepted["observed_commit_head"],
-                 "reviewed_evidence": accepted["reviewed_evidence"],
-                 "base_oid": accepted["base_oid"]}, repo_id, "accepted_evidence")
+                _accepted_result_identity(accepted), repo_id, "accepted_evidence")
             _require(next(b for b in bindings if b.binding_id == accepted_binding_id).source_identity ==
                      continuation.prior_artifact_identity,
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                      "Q04 accepted writer result does not belong to prior artifact")
             _relation_edge(bindings, stage_edges, "q04.accepted_writer_result",
-                           {"writer_id": accepted["writer_id"],
-                            "observed_commit_head": accepted["observed_commit_head"],
-                            "reviewed_evidence": accepted["reviewed_evidence"],
-                            "base_oid": accepted["base_oid"]},
+                           _accepted_result_identity(accepted),
                            repo_id, "exact_union", "accepted_evidence")
     # Tags are retained in the intent and receipt, but never select a shape or grant an effect.
     by_id = {b.binding_id: b for b in bindings}
@@ -2112,7 +2937,11 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                                "delete_remote_branch"} for effect in effects),
                      "NOT_READY_NEW_DECISION_BOUNDARY",
                      "negative remote assertion contradicts requested remote effect")
-        elif shape not in {"orchestrated_workflow", "multi_repository_coordination"}:
+        elif data.get("commit_contract") and re.search(r"no new effect.*recovery authority", assertion, re.I):
+            _require(data.get("automatic_retry") is False, "COMPILER_INVARIANT_FAILURE", "no-new-effect constraint requires no automatic retry")
+        elif data.get("deterministic_edit") and re.search(r"no worker.*workflow is invented", assertion, re.I):
+            _require(not data.get("stages") and shape == "simple_non_orchestrated", "COMPILER_INVARIANT_FAILURE", "small-edit constraint forbids generated workflow")
+        elif shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow"}:
             _error('IMPLEMENTATION_GAP',
                    f"negative assertion has no bounded constraint checker: {assertion}")
     if not effects:
@@ -2164,7 +2993,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
              "COMPILER_INVARIANT_FAILURE", "repository-native branch roles not serialized")
     for stage in data.get("stages", []):
         repo_id = stage.get("repository_id")
-        if repo_id in roles and stage.get("stage_mode") == "coding":
+        if repo_id in roles and stage.get("stage_mode") == "coding" and not data.get("lifecycle_resources"):
             _require(stage.get("target_branch") == data["repositories"][repo_id].get("candidate_branch"),
                      "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", f"{repo_id} writer branch is not bound candidate")
     authorized: list[str] = []
@@ -2175,11 +3004,20 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                  for s in intent.steps if s.keyword == "When")
     edges.extend(stage_edges)
     def bind_identity(path: str, value: str, repo_id: str, stage_id: str, oid: bool = False) -> None:
-        binding_id = _exact_identity(bindings, path, value, repo_id, oid)
+        if oid:
+            edges.append(Trace_edge(f"tracking:{path}={value}", f"stage:{stage_id}", "records_observation_only"))
+            return
+        binding_id = _exact_identity(bindings, path, value, repo_id)
         identity = f"identity:{path}={value}"
         edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_value"))
         edges.append(Trace_edge(identity, f"stage:{stage_id}", "consumed_by"))
 
+    if data.get("lifecycle_resources"):
+        for resource_id, resource in data["lifecycle_resources"].items():
+            _relation_edge(bindings, edges, "lifecycle_resources." + resource_id + ".carrier",
+                           {key: resource[key] for key in ("repository", "repository_path", "worktree", "ref", "reference_ref")},
+                           resource["repository"], next(s["stage_id"] for s in data["stages"]
+                           if s.get("working_directory") == resource["worktree"]))
     if shape == "orchestrated_workflow":
         repo_id = next(iter(data["repositories"]))
         workers = data["worker_contract"]
@@ -2193,8 +3031,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                               repo_id, stage_id, key.endswith("oid") or key == "observed_head")
             _relation_edge(bindings, edges, f"worker_contract.writers.{stage_id}.carrier",
                            {"repository": repo_id, "worktree": worker["worktree_path"],
-                            "attached_branch": worker["branch"], "head": worker["observed_head"],
-                            "base_oid": worker["base_oid"]}, repo_id, stage_id)
+                            "attached_branch": worker["branch"], "head": worker.get("observed_head"),
+                            "base_oid": worker.get("base_oid")}, repo_id, stage_id)
         semantic_roles = _parallel_roles(intent)
         if "exact_union" in semantic_roles:
             for key in ("composition_branch", "composition_base_oid", "composition_worktree_path"):
@@ -2203,8 +3041,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             _relation_edge(bindings, edges, "worker_contract.composition_carrier",
                            {"repository": repo_id, "worktree": workers["composition_worktree_path"],
                             "attached_branch": workers["composition_branch"],
-                            "head": workers["composition_base_oid"],
-                            "base_oid": workers["composition_base_oid"]}, repo_id, "exact_union")
+                            "head": workers.get("composition_base_oid"),
+                            "base_oid": workers.get("composition_base_oid")}, repo_id, "exact_union")
         if "integration" in semantic_roles:
             bind_identity("worker_contract.integration_target_branch", workers.get("integration_target_branch"),
                           repo_id, "integration")
@@ -2229,11 +3067,11 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                               repo["stage_id"], key == "base")
             relation = {"repository": repo_id,
                         "permanent_live_development_branch": repo["development_branch"],
-                        "permanent_live_head": repo["base"],
+                        "permanent_live_head": repo.get("base"),
                         "candidate_branch": repo["candidate_branch"],
                         "candidate_worktree": repo["candidate_worktree"],
-                        "candidate_head": repo["candidate_head"],
-                        "candidate_base_oid": repo["candidate_base_oid"]}
+                        "candidate_head": repo.get("candidate_head"),
+                        "candidate_base_oid": repo.get("candidate_base_oid")}
             _relation_edge(bindings, edges, f"repositories.{repo_id}.candidate_carrier",
                            relation, repo_id, repo["stage_id"])
             carrier = by_id.get(repo["candidate_carrier_authority_binding"])
@@ -2248,7 +3086,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             if data["integration_stages"]:
                 _relation_edge(bindings, edges, f"repositories.{repo_id}.permanent_target",
                                {"repository": repo_id, "worktree": prompt["repo_locations"][repo_id],
-                                "attached_branch": repo["permanent_target_branch"], "head": repo["base"]},
+                                "attached_branch": repo["permanent_target_branch"], "head": repo.get("base")},
                                repo_id, "integrate_" + repo_id)
         pair_contract = data.get("pair_validation_contract")
         _require(isinstance(pair_contract, dict) and set(pair_contract) == {"test_target", "covers"} and
@@ -2265,15 +3103,16 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                         "provider_head": "stage:provider_candidate:observed_commit_head",
                         "consumer_head": "stage:consumer_candidate:observed_commit_head"},
                        data["candidate_pair_order"][0], "pair_validation", "accepted_evidence")
-    if shape in {"orchestrated_workflow", "multi_repository_coordination"}:
+    if shape == "dependent_continuation":
+        relation = data["accepted_effect_state"]
+        _relation_edge(bindings, edges, "continuation.accepted_effect_state", relation,
+                       "topcoffea", "readback", "accepted_evidence")
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
         isolation_audit["relation_local_consistency"] = True
         _verify_carrier_isolation(data, shape, edges, isolation_audit)
     if data.get("retirement") and shape == "orchestrated_workflow":
         life = data["retirement"]
         repo_id = next(iter(data["repositories"]))
-        for key in ("exact_old_oid", "expected_preserved_head"):
-            _require(bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(life.get(key, "")))),
-                     "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", f"retirement.{key} is not an exact OID")
         for identity_path, fields, kind, configured_binding in (
                 ("retirement.owned_ref", ("exact_owned_surface", "exact_old_oid"),
                  "repository_readback", "ownership_readback_binding"),
@@ -2315,6 +3154,10 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                     dependencies = ()
                 else:
                     check = _given_verification(step, fact, effects, data, by_id)
+                    tracking_ref = bool(check and check["property"] == "local_ref_oid")
+                    if tracking_ref:
+                        # Exact reviewed source/result obligations are checked independently by integration.
+                        check = {**check, "tracking_only": True}
                     portable = _accepted_writer_given(step, fact, effects, continuation, set(data["repositories"]))
                     invalidated = _given_invalidated(fact, effects, continuation)
                     validity = _given_validity(check, fact, effects, data, by_id)
@@ -2330,7 +3173,16 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                     fact.observed_state == _given_observation(check, fact))
                     contradictory = stale or bool(check and fact.acquisition == "acquired" and not invalidated and
                                                   fact.observed_state is not None and not acquired)
-                    if portable or acquired:
+                    if tracking_ref:
+                        state = "non_material_documentary_premise"
+                        dependencies = ()
+                        edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
+                                                f"binding:{linked}", "records_observation_only"))
+                        prompt.setdefault("evidence_requirements", []).append({
+                            "tracking_only_ref_observation": {"binding_id": linked,
+                                "observed_state": fact.observed_state,
+                                "refresh_before_effect": check["argv"]}})
+                    elif portable or acquired:
                         state = "already_acquired_material_fact"
                         evidence = {"binding_id": linked, "source_identity": fact.source_identity,
                                     "validity_scope": fact.validity_scope, "observed_state": fact.observed_state,
@@ -2416,7 +3268,10 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                      "NOT_READY_MISSING_AUTHORITY_BINDING", "side-effecting action lacks explicit requested effect and binding",
                      step.line)
         if step.keyword == "When" and re.search(r"\b(edit|write|modify|change|move|advance|delete|retire|remove|merge|integrate|unblind)\b",
-                                                step.text, re.I):
+                                                step.text, re.I) and not (
+                shape == "dependent_continuation" and
+                data["accepted_effect_state"]["consumer_outcome"] == "OUTCOME_UNKNOWN" and
+                not effects and [stage["stage_id"] for stage in data["stages"]] == ["readback"]):
             _require(any(effect.requested_by_step == step.line for effect in effects),
                      "NOT_READY_MISSING_AUTHORITY_BINDING", "mutating action lacks explicit effect and binding",
                      step.line)
@@ -2544,7 +3399,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             for repo_id, area in scope.items():
                 _require(repo_id in data["repositories"] and isinstance(area, dict),
                          "COMPILER_INVARIANT_FAILURE", f"{stage_id} has unbound repository scope")
-                for category in ("tracked_paths", "git_index_entries", "local_refs"):
+                for category in ("tracked_paths", "git_index_entries", "local_refs", "worktree_paths"):
                     for target in area.get(category, []):
                         _require(_scope_contains(prompt["allowed_to_modify"].get(repo_id, {}), target) and
                                  _scope_contains(prompt["workflow_effect_envelope"].get(
@@ -2557,7 +3412,20 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                        f"stage:{e.stage_id}:observed_commit_head" in stage["stage_inputs"]
                                        for e in effects))),
                                  "COMPILER_INVARIANT_FAILURE", f"{stage_id} has untraced or pooled {category} {target}")
-            if stage["stage_mode"] == "coding":
+            if stage["stage_mode"] == "coding" and stage.get("deferred_commit_stage"):
+                closure = stage["deferred_commit_stage"]
+                target_stage = next((s for s in data["stages"] if s["stage_id"] == closure), {})
+                _require((closure == "exact_union" or
+                          (target_stage.get("stage_mode") == "commit_preparation" and
+                           f"stage:{stage_id}:frozen_postimages" in target_stage["stage_inputs"] and
+                           target_stage.get("repository_id") == stage.get("repository_id"))) and
+                         stage["stage_outputs"] == ["frozen_postimages"] and
+                         not any(e.effect == "local_git_ref_write" for e in local_effects) and
+                         any(e.stage_id == closure and e.effect == "local_git_ref_write" for e in effects) and
+                         all(set(area) <= ({"tracked_paths"} if closure == "exact_union" else {"tracked_paths", "git_index_entries"})
+                             for area in scope.values()),
+                         "NOT_READY_MISSING_AUTHORITY_BINDING", "invalid deferred writer closure")
+            elif stage["stage_mode"] == "coding":
                 ref = "refs/heads/" + stage["target_branch"]
                 _require(any(e.effect == "local_git_ref_write" and e.target == ref for e in local_effects) and
                          _scope_contains(scope, ref),
@@ -2575,13 +3443,46 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         _require(readback is not None and readback.acquisition == "acquired" and
                  readback.source_kind == "owner_decision",
                  "NOT_READY_MISSING_AUTHORITY_BINDING", "OUTCOME_UNKNOWN readback lacks exact authority")
+    if data.get("commit_contract"):
+        contract = data["commit_contract"]
+        _require(mode == "commit_preparation" and not data.get("stages") and
+                 data.get("outcome_unknown") is True and data.get("automatic_retry") is False and
+                 contract.get("recovery_authorized") is False and
+                 _safe_local_branch_ref(contract.get("ref")) and
+                 contract["ref"] == "refs/heads/" + prompt.get("target_branch", "") and
+                 contract.get("repository") in data["repositories"] and
+                 contract.get("index_paths") == prompt.get("authorized_commit_scope", {}).get(contract["repository"]) and
+                 bool(contract.get("index_identity")) and
+                 any(e.effect == "local_git_ref_write" and e.target == contract["ref"] for e in effects),
+                 "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "commit ambiguity lacks exact effect/base/index/recovery boundary")
+        location = prompt["repo_locations"][contract["repository"]]
+        _require(contract.get("worktree") == location, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "commit readback carrier mismatch")
+        prompt["ambiguous_effect_contract"] = {
+            "outcome": "OUTCOME_UNKNOWN", "effect_ids": [e.effect_id for e in effects],
+            "working_directory": location, "recorded_base_oid": contract.get("base_oid"),
+            "index_paths": contract["index_paths"], "index_identity": contract["index_identity"],
+            "readback_argv": [["git", "rev-parse", "--verify", contract["ref"]],
+                              ["git", "rev-parse", "--verify", "HEAD"],
+                              ["git", "diff", "--cached", "--raw"], ["git", "ls-files", "--stage"]],
+            "automatic_retry": False, "new_effect_before_explicit_idempotence_or_recovery_authority": False,
+            "on_ambiguous_readback": "stop and preserve state; do not infer failure"}
+    if data.get("deterministic_edit"):
+        edit = data["deterministic_edit"]
+        writes = [e.target for e in effects if e.effect == "tracked_write"]
+        _require(shape == "simple_non_orchestrated" and writes == [edit.get("path")] and
+                 bool(re.fullmatch(r"[0-9a-f]{64}", str(edit.get("preimage_file_sha256", "")))) and
+                 edit.get("literal_count") == 1 and edit.get("preimage_excerpt") and edit.get("replacement") and
+                 edit.get("established_semantics_source"),
+                 "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "deterministic edit lacks exact established one-file replacement")
+        prompt["deterministic_edit"] = edit
+        prompt["static_validation"] = "require exact preimage hash and one literal match before edit; inspect exact one-file diff and git diff --check; no workflow or worker creation"
     if data.get("runtime_model_observation") == "not_observable":
         _require(data.get("runtime_model_materiality") == "not_decision_material",
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "exact runtime identity is decision-material")
-    if data.get("multi_repository_state"):
+    if data.get("multi_repository_state") and shape != "dependent_continuation":
         _require(not data.get("automatic_rollback") and not data.get("global_git_transaction"),
                  "COMPILER_INVARIANT_FAILURE", "multi-repository atomicity or rollback invented")
-        _require(all(r.get("base") and r.get("candidate") and r.get("authority_binding")
+        _require(all(r.get("candidate") and r.get("authority_binding")
                      for r in data.get("repositories", {}).values()),
                  "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "repo-local base/candidate/authority missing")
         _require(bool(data.get("candidate_pair_order")), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
@@ -2699,7 +3600,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             edges.append(Trace_edge(f"evidence_requirement:line:{step.line}",
                                     "evaluation_path:external_evidence_review", "evaluated_after_execution"))
             if data.get("stages"):
-                validation_stage = ("pair_validation" if shape == "multi_repository_coordination" else
+                validation_stage = ("readback" if shape == "dependent_continuation" else
+                                    data["stages"][-1]["stage_id"] if shape == "ordered_workflow" else
+                                    "pair_validation" if shape == "multi_repository_coordination" else
                                     "exact_union" if "exact_union" in _parallel_roles(intent) else "independent_review")
                 edges.append(Trace_edge(f"acceptance_assertion:line:{step.line}",
                                         f"gate:{validation_stage}", "validated_at_gate"))
@@ -2714,16 +3617,19 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     return edges, authorized, excluded
 
 
-def _validator(prompt: str) -> dict[str, Any]:
-    spec = importlib.util.spec_from_file_location("maintained_prompt_validator", VALIDATOR)
-    _require(spec is not None and spec.loader is not None, "COMPILER_DEFECT", "validator import unavailable")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+def _validator(prompt: str, policy: Policy_source_binding) -> dict[str, Any]:
+    locator = '.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py'
+    raw = policy.read(locator)
+    # Execute the maintained, trusted canonical validator bytes from the same
+    # frozen snapshot as governance, without a checkout-local import or launcher.
+    module = types.ModuleType('maintained_prompt_validator')
+    module.__file__ = str(policy.repository / locator)
+    sys.modules[module.__name__] = module
+    exec(compile(raw, module.__file__, 'exec'), module.__dict__)
     result = module.validate_content(prompt.encode("utf-8"), Path("generated_prompt.md"))
     return {"executed": True, "result": "pass" if result["results"]["mechanical_validity"] and
             result["results"]["internal_consistency"] else "fail", "limit": "mechanical_only",
-            "locator": str(VALIDATOR.relative_to(ROOT)), "sha256": _source_hash(VALIDATOR),
+            "locator": locator, "sha256": hashlib.sha256(raw).hexdigest(),
             "version": result["producer"]["version"],
             "mechanical_validity": result["results"]["mechanical_validity"],
             "internal_consistency": result["results"]["internal_consistency"],
@@ -2741,7 +3647,7 @@ def _rule_routing(data: dict[str, Any], shape: str, effects: tuple[Effect_intent
     if effects and any(e.effect in {"tracked_write", "local_git_ref_write", "delete_local_branch",
                                    "delete_remote_branch", "remote_git_write", "publication", "merge"} for e in effects):
         routes["git_lifecycle"] = "governance/contracts/git_lifecycle.md"
-    if shape in {"orchestrated_workflow", "multi_repository_coordination"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
         routes["stage_isolation"] = "governance/contracts/orchestration.md"
         routes["independent_review_prose"] = "CONTRIBUTING.md"
     if any("@production" in step.tags for step in data["_intent"].steps) or any(
@@ -2764,11 +3670,15 @@ def _rule_routing(data: dict[str, Any], shape: str, effects: tuple[Effect_intent
     return routes
 
 
-def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline") -> Compile_result:
+def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline", *,
+                     policy_repository: Optional[Path] = None) -> Compile_result:
     """Return a candidate and receipt, or a diagnostic receipt with no prompt."""
     receipt: dict[str, Any] = {"source_contract": {"identity": source_id},
                               "compiler_identity": {"path": "tools/governance_workflow_compiler.py",
-                                                    "sha256": _source_hash(Path(__file__))},
+                                                    "sha256": _source_hash(Path(__file__)),
+                                                    "modules": {name: _source_hash(Path(__file__).with_name(name))
+                                                        for name in ('governance_workflow_ir.py',
+                                                                     'governance_workflow_semantics.py')}},
                               "compiler_result": "COMPILER_DEFECT",
                               "manual_fallback": "independently_evaluable_under_canonical_governance",
                               "dispatchability": {"prepared": False, "conformant": False,
@@ -2783,6 +3693,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
     try:
         data = yaml.safe_load(bindings_yaml)
         _require(isinstance(data, dict), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "binding input must be mapping")
+        data = canonical_mapping(data)
         _require(isinstance(data.get("bindings", []), list) and
                  isinstance(data.get("requested_effects", []), list) and
                  isinstance(data.get("stages", []), list) and
@@ -2792,9 +3703,16 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         receipt["source_contract"].update({"feature": intent.feature,
             "feature_tags": list(intent.feature_tags), "scenarios": list(intent.scenarios),
             "scenario_tags": [list(tags) for tags in intent.scenario_tags]})
-        contents, identities = _canonical_sources()
+        try:
+            policy = Policy_source_binding(policy_repository or ROOT)
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f'canonical master unavailable: {exc}')
+        contents, identities = _canonical_sources(policy)
+        data['_policy_source'] = policy
         bindings = _bindings(data)
         effects = _effects(data, intent)
+        intent = _normalize_semantics(intent, data, effects)
+        receipt["semantic_partition"] = asdict(intent.partition)
         continuation = _continuation(data)
         shape = _shape(data, intent, effects, bindings, continuation)
         if continuation and data.get("worker_contract") and shape == "orchestrated_workflow":
@@ -2809,6 +3727,11 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                  if key not in {"branch", "base_oid", "observed_head", "worktree_path"}}
                 if worker["stage_id"] in protected else worker
                 for worker in data["worker_contract"]["writers"]]}
+        if shape == "dependent_continuation":
+            state = data["accepted_effect_state"]
+            protected = set(state.get("completed_stages", []))
+            receipt["reused_accepted_effects"] = [e.effect_id for e in effects if e.stage_id in protected]
+            effects = tuple(e for e in effects if e.stage_id not in protected)
         data["_assertion_paths"] = _assertion_paths(intent, shape, data)
         receipt["selected_execution_shape"] = shape
         _check_closed_fields(data["prompt"], data.get("stages", []), contents)
@@ -2820,8 +3743,12 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             for repo_id in roles}
         data["_intent"] = intent
         routes = _rule_routing(data, shape, effects, contents, roles)
-        if shape in {"orchestrated_workflow", "multi_repository_coordination"}:
+        if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
             data["stages"] = _plan_stages(data, intent, shape, effects, roles)
+        try:
+            data['_result_graph'] = Result_graph.from_stages(data.get('stages', []))
+        except ValueError as exc:
+            _error('COMPILER_INVARIANT_FAILURE', str(exc))
         tracked = any(effect.effect == "tracked_write" for effect in effects)
         expected_patch = "prompt_local" if tracked else "empty_no_changes"
         _require(data["prompt"].get("patch_kind_expected") == expected_patch,
@@ -2833,6 +3760,16 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         receipt["isolation_verification"] = isolation_audit
         edges, authorized, excluded = _verify(data, intent, bindings, effects, continuation, shape,
                                                contents, roles, isolation_audit)
+        try:
+            graph = Result_graph.from_stages(data.get('stages', []))
+        except ValueError as exc:
+            _error('COMPILER_INVARIANT_FAILURE', str(exc))
+        data['_result_graph'] = graph
+        receipt['result_graph'] = graph.projection()
+        for stage in graph.stages:
+            for ref in stage.inputs:
+                edges.append(Trace_edge(ref.transport(), 'stage:' + stage.stage_id, 'consumes_result'))
+        edges.sort(key=lambda edge: (edge.source, edge.output, edge.relation))
         required_relations: list[tuple[str, str]] = []
         if shape == "orchestrated_workflow":
             required_relations.extend((f"worker_contract.writers.{worker['stage_id']}.carrier",
@@ -2852,6 +3789,8 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             required_relations.append(("pair_validation.candidate_tuple", "pair_validation"))
             required_relations.extend((f"repositories.{repo_id}.permanent_target", "integrate_" + repo_id)
                                       for repo_id in data["candidate_pair_order"] if data["integration_stages"])
+        if shape == "dependent_continuation":
+            required_relations.append(("continuation.accepted_effect_state", "readback"))
         trace_complete = _trace_complete(intent, effects, data.get("stages", []), edges,
                                          data["_assertion_paths"], required_relations,
                                          isolation_audit.get("carrier_roles", []))
@@ -2882,7 +3821,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                       "derived_external_acceptance is an external evidence/owner boundary, not an execution stage.",
                       "", "```text", workflow_diagram, "```", ""])
         lines.extend(["", "## Bound CPC prompt candidate", "", "```yaml",
-                      yaml.safe_dump(prompt_data, sort_keys=False, allow_unicode=True).rstrip(), "```", ""])
+                      yaml.safe_dump(canonical_mapping(prompt_data), sort_keys=False, allow_unicode=True).rstrip(), "```", ""])
         lines.extend(["Node correspondence (documentary; never an effect grant):", "", "```yaml",
                       yaml.safe_dump({"workflow_visualization": visualization}, sort_keys=False).rstrip(), "```", ""])
         lines.extend(["## Post-execution evidence assertions", "",
@@ -2892,16 +3831,25 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         safety_constraints = {key: data[key] for key in ("worker_contract", "repositories", "candidate_pair_order",
                         "candidate_pair_validation_stage", "integration_stages", "partial_effects",
                         "partial_state_binding",
-                        "multi_repository_state", "outcome_unknown", "readback_before_retry", "retirement",
+                        "multi_repository_state", "outcome_unknown", "readback_before_retry", "automatic_retry", "retirement",
+                        "lifecycle_contract", "commit_contract", "accepted_effect_state",
                         "readback_authority_binding", "runtime_model_observation", "runtime_model_materiality",
                         "scientific_selection_binding")
                               if key in data}
         if safety_constraints:
             lines.extend(["## Bound safety and readback constraints", "", "```yaml",
-                          yaml.safe_dump(safety_constraints, sort_keys=False, allow_unicode=True).rstrip(), "```", ""])
+                          yaml.safe_dump(canonical_mapping(safety_constraints), sort_keys=False, allow_unicode=True).rstrip(), "```", ""])
         prompt = "\n".join(lines)
-        lint = _validator(prompt)
+        try:
+            lint = _validator(prompt, policy)
+        except (OSError, UnicodeError, ValueError, subprocess.CalledProcessError) as exc:
+            _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f'canonical validator unavailable: {exc}')
         _require(lint["result"] == "pass", "COMPILER_INVARIANT_FAILURE", "maintained mechanical validator failed")
+        try:
+            policy.revalidate()
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            _error('NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', f'canonical policy revalidation failed: {exc}')
+        receipt['policy_source_binding'] = policy.receipt()
         by_binding_id = {binding.binding_id: binding for binding in bindings}
         dispatch_gate = data.get("dispatch_gate", {})
         owner_gate_binding = by_binding_id.get(dispatch_gate.get("owner_authorization_binding"))
@@ -2970,6 +3918,8 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         return Compile_result(exc.result, "", receipt)
     except Compile_error as exc:
         receipt["compiler_result"] = exc.result
+        if 'routes' in locals():
+            receipt['rule_routing'] = routes
         if exc.result in {"UNSUPPORTED_CANONICAL_CONSTRUCT", "IMPLEMENTATION_GAP",
                           "ARCHITECTURE_BOUNDARY_UNRESOLVED"}:
             receipt["unsupported_construct"] = _architecture_boundary(exc, intent, effects, shape)
@@ -3003,12 +3953,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--bindings", type=Path, required=True, help="separate explicit authority/evidence YAML")
     parser.add_argument("--prompt-out", type=Path, required=True)
     parser.add_argument("--receipt-out", type=Path, required=True)
+    parser.add_argument('--policy-repository', type=Path,
+                        help='trusted canonical Git repository; policy is read only from refs/heads/master')
     args = parser.parse_args(argv)
     if args.prompt_out.exists() or args.receipt_out.exists():
         parser.error("output collision; choose absent exact paths")
     try:
         result = compile_contract(args.feature.read_text(encoding="utf-8"),
-                                  args.bindings.read_text(encoding="utf-8"), str(args.feature))
+                                  args.bindings.read_text(encoding="utf-8"), str(args.feature),
+                                  policy_repository=args.policy_repository)
         args.receipt_out.write_text(yaml.safe_dump(result.receipt, sort_keys=False), encoding="utf-8")
         if result.prompt:
             args.prompt_out.write_text(result.prompt, encoding="utf-8")

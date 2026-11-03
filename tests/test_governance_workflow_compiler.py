@@ -116,12 +116,13 @@ def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
 
 def bind_relation(data, identity_path, value, repo_id="TOP26006_fw",
                   source_kind="repository_readback"):
+    """Capture a completed acquired observation, independent of current state."""
     data["bindings"].append({
         "binding_id": "relation_" + str(len(data["bindings"])),
         "claim": identity_path, "materiality": "IDENTITY_CRITICAL",
         "source_kind": source_kind, "source_identity": "readback:" + identity_path,
         "acquisition": "acquired", "validity_scope": repo_id,
-        "observed_state": {"identity_path": identity_path, "value": value},
+        "observed_state": {"identity_path": identity_path, "value": deepcopy(value)},
     })
 
 
@@ -543,7 +544,19 @@ def test_q05_multi_repository_candidate_tuple_and_local_authority(monkeypatch):
         assert item["repository_id"] == repo_id and item["stage_mode"] == "integration_only"
         assert item["integration_source_branch"] != item["integration_target_branch"]
         assert item["expected_source_head"] == repo["candidate"]
-        assert item["expected_target_head"] == repo["base"]
+        target_observation = f"stage:{item['stage_id']}:pre_effect_target_oid"
+        assert item["expected_target_head"] == target_observation
+        guard = item["must_pass_before_effects"]
+        assert guard["target_head"] == target_observation
+        assert guard["target_ref"] == "refs/heads/" + repo["development_branch"]
+        assert guard["fresh_target_readback"] == [
+            "git", "rev-parse", "--verify", guard["target_ref"]]
+        assert guard["reject_movement_after_readback"] is True
+        assert guard["on_mismatch"] == "stop_before_effect_and_preserve_state"
+        assert item["runtime_observations"] == [{
+            "output": target_observation, "argv": guard["fresh_target_readback"],
+            "before_effect": True, "require_exit_zero": True, "require_full_oid": True}]
+        assert "pre_effect_target_oid" in item["stage_outputs"]
         assert item["must_pass_before_effects"]["candidate_tuple"] == plan["candidate_pair"]
         assert item["must_pass_before_effects"]["require_fast_forward_ancestry"] is True
         assert "stage:pair_validation:candidate_pair_evidence" in item["stage_inputs"]
@@ -1112,7 +1125,10 @@ def test_e2_unparseable_registry_module_fails_closed(monkeypatch, tmp_path):
     module = tmp_path / "governance/modules/topeft.md"
     module.parent.mkdir(parents=True)
     module.write_text("native policy is required\npermanent_live_development_branch: te/dev\n")
-    monkeypatch.setattr(compiler, "ROOT", tmp_path)
+    original = compiler.Policy_source_binding.read
+    def read(binding, path):
+        return module.read_bytes() if path == 'governance/modules/topeft.md' else original(binding, path)
+    monkeypatch.setattr(compiler.Policy_source_binding, 'read', read)
     data = base_data()
     data["repositories"] = {"topeft": {}}
     data["prompt"]["repo_locations"] = {"topeft": "/workspace/topeft"}
@@ -1216,6 +1232,7 @@ def test_e3_unrequested_integration_effect_cannot_create_stage():
     assert result.prompt == ""
     assert result.receipt["dispatchability"]["dispatchable"] is False
     assert "no composition dependency" in result.receipt["diagnostics"][0]["message"]
+    assert result.receipt["authorized_effects"] == []
 
 
 def test_e3_commit_is_governance_mechanic_without_commit_word():
@@ -1293,11 +1310,11 @@ def test_e3_protected_continuation_never_replays_full_plan(feature, data):
     instance["bindings"].append({**instance["bindings"][0], "binding_id": "accepted_009",
                                  "source_kind": "accepted_evidence", "source_identity": "accepted-009-r1"})
     result = run(feature, instance)
-    assert result.compiler_result == ("IMPLEMENTATION_GAP" if feature == MULTI_REPO else
+    assert result.compiler_result == ("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE" if feature == MULTI_REPO else
                                       "NOT_READY_NEW_DECISION_BOUNDARY")
     assert result.prompt == ""
     assert any(term in result.receipt["diagnostics"][0]["message"] for term in
-               ("delta planner", "Q04 invalidation/protection"))
+               ("accepted effect-state", "Q04 invalidation/protection"))
 
 
 def test_e3_bogus_worker_identities_are_not_authenticated_by_generic_gates():
@@ -1320,56 +1337,44 @@ def test_e3_bogus_worker_identities_are_not_authenticated_by_generic_gates():
 
 def test_e3_bogus_q05_base_is_not_authenticated_by_generic_gates():
     data = multi_repo_data()
-    data["repositories"]["topcoffea"]["base"] = "d" * 40
-    data["bindings"].extend([
-        {**data["bindings"][0], "binding_id": "manual_review", "source_kind": "accepted_evidence"},
-        {**data["bindings"][0], "binding_id": "live_applicability",
-         "source_kind": "repository_readback", "observed_state": {"status": "live"}},
-    ])
-    data["dispatch_gate"] = {"owner_authorization_binding": "owner_task",
-                             "manual_governance_review_binding": "manual_review",
-                             "live_applicability_binding": "live_applicability"}
+    data["repositories"]["topcoffea"]["base"] = "historical-observation"
     result = run(MULTI_REPO, data)
-    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
-    assert result.prompt == "" and result.receipt["dispatchability"]["dispatchable"] is False
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    assert not result.receipt["dispatchability"]["dispatchable"]
+    data["repositories"]["topcoffea"]["candidate_worktree"] = "/foreign"
+    assert not run(MULTI_REPO, data).prompt
 
 
 def test_e3_exact_value_readback_positive_mismatch_and_oid_shape():
     data = parallel_data()
-    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
-    path = "worker_contract.writers.writer_a.base_oid"
-    bound = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") == path)
+    bound = _binding(data, "worker_contract.writers.writer_a.base_oid")
     bound["observed_state"]["value"] = "f" * 40
-    assert run(PARALLEL, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     data = multi_repo_data()
+    data["repositories"]["topcoffea"].pop("base")
     assert run(MULTI_REPO, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
-    data["repositories"]["topcoffea"]["base"] = "not-an-oid"
-    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
 
 
 def test_e3_source_identity_text_alone_cannot_bind_runtime_value():
     data = parallel_data()
-    path = "worker_contract.writers.writer_a.observed_head"
-    bound = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") == path)
-    bound["source_identity"] = path + "@" + "a" * 40
-    del bound["observed_state"]
-    result = run(PARALLEL, data)
-    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
-    assert result.prompt == ""
+    bound = _binding(data, "worker_contract.writers.writer_a.observed_head")
+    bound.pop("observed_state")
+    # An unconsumed HEAD observation is not authority or a prerequisite.
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    data["bindings"] = [b for b in data["bindings"] if b["binding_id"] != "owner_writer_a"]
+    assert not run(PARALLEL, data).prompt
 
 
 def test_e3_retirement_ref_oid_relation_is_exact():
     data = parallel_data()
-    bound = next(b for b in data["bindings"] if b["binding_id"] == "owned_temp_ref")
-    bound["observed_state"]["value"]["exact_old_oid"] = "d" * 40
+    _binding(data, "retirement.owned_ref")["observed_state"]["value"]["exact_old_oid"] = "d" * 40
     result = run(PARALLEL, data)
-    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
-    assert result.prompt == ""
-    data = parallel_data()
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    terminal = prompt_yaml(result)["workflow_stages"][-1]
+    assert terminal["safety_critical_argv"][-1] == "stage:retirement:pre_delete_ref_oid"
+    assert terminal["runtime_observations"][0]["reject_movement_after_readback"]
     data["retirement"]["ownership_readback_binding"] = "owner_task"
-    result = run(PARALLEL, data)
-    assert result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
-    assert result.prompt == ""
+    assert not run(PARALLEL, data).prompt
 
 
 def test_b01_common_validation_caller_gate_and_unrelated_target_fail_closed():
@@ -1447,12 +1452,15 @@ def test_b04_split_or_contradictory_relations_fail_closed():
     relation = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") ==
                     "worker_contract.writers.writer_a.carrier")
     relation["observed_state"]["value"]["head"] = "f" * 40
-    assert run(PARALLEL, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert run(PARALLEL, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
     data = multi_repo_data()
     relation = next(b for b in data["bindings"] if b.get("observed_state", {}).get("identity_path") ==
                     "repositories.topcoffea.candidate_carrier")
     relation["observed_state"]["value"]["permanent_live_head"] = "f" * 40
-    assert run(MULTI_REPO, data).compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+    assert run(MULTI_REPO, data).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+
+    relation["observed_state"]["value"]["candidate_worktree"] = "/foreign"
+    assert not run(MULTI_REPO, data).prompt
 
 
 def test_b04_missing_relation_trace_cannot_claim_completeness(monkeypatch):
@@ -1980,19 +1988,14 @@ def test_fake_preflight_cannot_certify_unsupported_material_property(fake):
 
 
 def test_exact_identity_given_uses_only_its_dependent_ref_and_acquired_value():
-    oid = "a" * 40
-    feature, data = material_given_data(f"ref refs/heads/docs/example names commit {oid}")
-    pending = run(feature, data)
-    check = pending.receipt["given_readiness"][0]["verification"]
-    assert check["argv"] == ["git", "rev-parse", "--verify", "refs/heads/docs/example"]
-    assert check["expected"] == oid and check["before_effects"] == ["commit_ref"]
-    # A claimed acquisition without the observed value does not prove identity.
-    data["bindings"][-1]["acquisition"] = "acquired"
-    assert run(feature, data).receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
-    data["bindings"][-1]["observed_state"] = given_observation(check, data["bindings"][-1])
-    acquired = run(feature, data)
-    assert acquired.receipt["given_readiness"][0]["state"] == "already_acquired_material_fact"
-    assert "must_pass_before_effects" not in prompt_yaml(acquired).get("evidence_requirements", [])
+    feature, data = material_given_data("ref refs/heads/docs/example names commit " + "a" * 40)
+    result = run(feature, data)
+    given = result.receipt["given_readiness"][0]
+    assert given["verification"]["tracking_only"]
+    assert given["state"] == "non_material_documentary_premise"
+    assert result.receipt["excluded_effects"] == []
+    data["bindings"][-1].update(acquisition="acquired", observed_state={"observed_value": "b" * 40})
+    assert run(feature, data).receipt["excluded_effects"] == []
     unrelated = run(feature.replace("refs/heads/docs/example", "refs/heads/other"), data)
     assert unrelated.receipt["excluded_effects"] == ["commit_ref"]
 
@@ -2138,11 +2141,13 @@ def test_r2_generic_live_evidence_cannot_authenticate_exact_given():
     feature, data = material_given_data("ref refs/heads/docs/example names commit " + "f" * 40, acquired=True)
     fact = data["bindings"][-1]
     fact["source_identity"] = "generic:live_applicability"
-    result = run(feature, data)
-    assert result.receipt["given_readiness"][0]["state"] == "runtime_preflight_requirement"
-    assert "must_pass_before_effects" in result.prompt
     fact["observed_state"] = {"value": "f" * 40}
-    assert run(feature, data).receipt["excluded_effects"] == ["commit_ref"]
+    result = run(feature, data)
+    assert result.receipt["given_readiness"][0]["state"] == "non_material_documentary_premise"
+    assert not result.receipt["dispatchability"]["dispatchable"]
+    # The hash-only observation supplies no missing effect authority.
+    data["bindings"] = [b for b in data["bindings"] if b["binding_id"] != "commit_owner"]
+    assert not run(feature, data).prompt
 
 
 @pytest.mark.parametrize("acquisition", ["pending", "superseded", "last_observed"])
@@ -2224,19 +2229,12 @@ def test_r2_given_plan_follows_writer_carrier_and_ignores_yaml_order():
 
 
 def test_r2_only_material_observed_oid_changes_effect_readiness():
-    oid = "a" * 40
-    feature, data = material_given_data("ref refs/heads/docs/example names commit " + oid)
+    feature, data = material_given_data("ref refs/heads/docs/example names commit " + "a" * 40)
     fact = data["bindings"][-1]
-    check = run(feature, data).receipt["given_readiness"][0]["verification"]
-    fact.update(acquisition="acquired", source_kind="accepted_evidence")
-    fact["observed_state"] = given_observation(check, fact)
-    baseline = run(feature, data)
-    bind_state(data, "unrelated.HEAD", "e" * 40)
-    assert run(feature, data).receipt["given_readiness"] == baseline.receipt["given_readiness"]
-    fact["observed_state"]["observed_value"] = "b" * 40
-    changed = run(feature, data)
-    assert changed.receipt["excluded_effects"] == ["commit_ref"]
-    assert changed.receipt["authorized_effects"] == ["effect_1"]
+    fact.update(acquisition="acquired", source_kind="accepted_evidence", observed_state={"observed_value": "b" * 40})
+    result = run(feature, data)
+    assert result.receipt["excluded_effects"] == []
+    assert result.receipt["given_readiness"][0]["verification"]["tracking_only"]
 
 
 def parallel_subset_data(composition=True):
@@ -2319,20 +2317,14 @@ def acquired_writer_ref_given(source_kind='accepted_evidence'):
 @pytest.mark.parametrize('source_kind', ['accepted_evidence', 'repository_readback'])
 def test_r3_changed_consumed_carrier_invalidates_only_dependent_effect(source_kind):
     feature, data, fact = acquired_writer_ref_given(source_kind)
-    unchanged = run(feature, data)
-    assert unchanged.receipt['given_readiness'][0]['state'] == 'already_acquired_material_fact'
     move_writer_head(data, 'writer_a', 'b' * 40)
     result = run(feature, data)
-    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
-    assert result.receipt['excluded_effects'] == ['commit_writer_a']
-    assert 'commit_writer_b' in result.receipt['authorized_effects']
-    relation = result.receipt['given_readiness'][0]['validity_relation']
-    assert relation['state'] == 'stale_consumed_property'
-    assert relation['observed_property'] == 'local_ref_oid'
-    comparison = relation['carrier_comparisons'][0]
-    assert comparison['current_observed_value'] == 'b' * 40
-    assert comparison['required_value'] == 'a' * 40
-    assert not result.receipt['dispatchability']['dispatchable']
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert result.receipt['excluded_effects'] == []
+    assert result.receipt['given_readiness'][0]['verification']['tracking_only']
+    # An actual resource substitution still fails independently of tracking values.
+    data['worker_contract']['writers'][0]['worktree_path'] = '/foreign'
+    assert not run(feature, data).prompt
 
 
 def test_r3_unrelated_carrier_and_unconsumed_head_do_not_invalidate_given():
@@ -2539,3 +2531,970 @@ def test_r3_missing_vocabulary_extractor_is_gap_not_normative_boundary(monkeypat
     result = run(data=data)
     assert result.compiler_result == 'IMPLEMENTATION_GAP'
     assert result.receipt['unsupported_construct']['current_architecture_boundary']['classification'] == 'implementation_gap'
+
+
+LIFECYCLE = """Feature: exact carrier lifecycle
+Scenario: preserve and retire
+Given the exact task-owned clean unlocked worktree and ref are bound
+When I preserve the portable result and evidence
+And I remove the exact clean linked worktree
+And I read back path and registration absence
+And I delete the exact temporary ref using its old OID
+Then the worktree and ref are absent and canonical master is unchanged
+"""
+
+
+def lifecycle_data():
+    data = base_data()
+    orchestrated(data)
+    data["stages"] = []
+    scope = {"TOP26006_fw": {"worktree_paths": ["/workspace/probe"],
+                              "local_refs": ["refs/heads/probe"]}}
+    data["prompt"]["allowed_to_modify"] = scope
+    data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": scope, "local_branch_deletion": True}
+    data["lifecycle_contract"] = {
+        "repository": "TOP26006_fw", "repository_path": "/workspace/repo",
+        "worktree": "/workspace/probe", "ref": "refs/heads/probe",
+        "head": "a" * 40, "base_oid": "a" * 40, "ownership": "task_owned",
+        "state_required": {"tracked_clean": True, "index_clean": True, "conflict_free": True,
+                           "untracked_empty": True, "ignored_empty": True, "unlocked": True},
+        "state_source": "exact live readback required before removal",
+        "preservation": ["result", "compiler receipt", "semantic review", "carrier identity"],
+        "controller_branch": "controller", "automatic_retry": False}
+    data["requested_effects"] = []
+    for eid, kind, target, line, role in [
+            ("remove", "worktree_remove", "/workspace/probe", 5, "remove_worktree"),
+            ("delete", "delete_local_branch", "refs/heads/probe", 7, "delete_ref")]:
+        data["bindings"].append({**data["bindings"][0], "binding_id": eid,
+            "authorizes_effect": True, "effect": kind, "target": target})
+        data["requested_effects"].append({"effect_id": eid, "effect": kind, "target": target,
+            "requested_by_step": line, "positive_authority_binding": eid, "stage_id": role})
+    return data
+
+
+def test_exact_worktree_retirement_is_distinct_and_ordered():
+    result = run(LIFECYCLE, lifecycle_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    assert [s["stage_id"] for s in stages] == ["preserve", "remove_worktree", "inspect", "delete_ref"]
+    assert stages[1]["safety_critical_argv"] == ["git", "-C", "/workspace/repo", "worktree", "remove", "/workspace/probe"]
+    assert stages[-1]["safety_critical_argv"] == ["git", "-C", "/workspace/repo", "update-ref", "-d", "refs/heads/probe", "stage:delete_ref:pre_delete_ref_oid"]
+    assert stages[2]["required_readback"]["no_worktree_attached_to"] == "refs/heads/probe"
+    assert "stage:inspect:readback" in stages[-1]["stage_inputs"]
+    assert stages[1]["automatic_retry"] is False and stages[-1]["automatic_retry"] is False
+    assert stages[0]["stage_effect_permissions"] == stages[2]["stage_effect_permissions"] == {}
+    assert result.receipt["traceability"]["complete"]
+    assert result.receipt["workflow_visualization"]["consistency"]
+
+
+@pytest.mark.parametrize("field", ["tracked_clean", "index_clean", "conflict_free", "untracked_empty", "ignored_empty", "unlocked"])
+def test_dirty_or_locked_retirement_cannot_relax_preconditions(field):
+    data = lifecycle_data(); data["lifecycle_contract"]["state_required"][field] = False
+    result = run(LIFECYCLE, data)
+    assert not result.prompt and result.compiler_result == "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE"
+
+
+@pytest.mark.parametrize("damage", ["missing_path", "foreign", "alias", "missing_preservation", "missing_effect", "wrong_owner", "pooled"])
+def test_lifecycle_underbound_or_unauthorized_fails(damage):
+    data = lifecycle_data()
+    if damage == "missing_path": del data["lifecycle_contract"]["worktree"]
+    elif damage == "foreign": data["lifecycle_contract"]["ownership"] = "foreign"
+    elif damage == "alias": data["lifecycle_contract"]["worktree"] = "/workspace/repo"
+    elif damage == "missing_preservation": data["lifecycle_contract"]["preservation"] = []
+    elif damage == "missing_effect": data["requested_effects"].pop(0)
+    elif damage == "wrong_owner": next(b for b in data["bindings"] if b["binding_id"] == "remove")["target"] = "/other"
+    else: data["prompt"]["workflow_effect_envelope"] = {"allowed_to_modify": {}}
+    result = run(LIFECYCLE, data)
+    assert not result.prompt and not result.receipt.get("authorized_effects")
+
+
+def test_lifecycle_readback_cannot_be_skipped_or_plan_corrupted(monkeypatch):
+    data = lifecycle_data()
+    feature = LIFECYCLE.replace("And I read back path and registration absence\n", "")
+    data["requested_effects"][-1]["requested_by_step"] -= 1
+    assert not run(feature, data).prompt
+    original = compiler._plan_stages
+    def corrupt(*args):
+        stages = original(*args)
+        stages[1]["safety_critical_argv"].insert(-1, "--force")
+        return stages
+    monkeypatch.setattr(compiler, "_plan_stages", corrupt)
+    result = run(LIFECYCLE, lifecycle_data())
+    assert not result.prompt and result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+
+
+def test_worktree_create_and_branch_creation_need_separate_effects():
+    data = lifecycle_data()
+    data["requested_effects"] = [{"effect_id": "create", "effect": "worktree_create", "target": "/workspace/probe",
+        "requested_by_step": 4, "positive_authority_binding": "create", "stage_id": "create_worktree"}]
+    data["bindings"].append({**data["bindings"][0], "binding_id": "create", "authorizes_effect": True,
+                             "effect": "worktree_create", "target": "/workspace/probe"})
+    intent = compiler.parse_gherkin("Feature: create\nScenario: exact\nGiven bound target\nWhen I create the exact isolated worktree\nThen the report cites evidence", "test")
+    with pytest.raises(compiler.Compile_error, match="independent path/ref"):
+        compiler._plan_ordered(data, intent, compiler._effects(data, intent))
+    data["requested_effects"].append({"effect_id": "branch", "effect": "local_git_ref_write", "target": "refs/heads/probe",
+        "requested_by_step": 4, "positive_authority_binding": "branch", "stage_id": "create_worktree"})
+    stages = compiler._plan_ordered(data, intent, compiler._effects(data, intent))
+    assert stages[0]["safety_critical_argv"] == ["git", "-C", "/workspace/repo", "worktree", "add", "-b", "probe", "/workspace/probe", "refs/heads/controller"]
+    assert stages[0]["stage_branch_policy"] == "create_feature_branch_from_reference"
+    assert stages[0]["feature_branch"] == "probe"
+    assert stages[0]["reference_branch"] == "controller"
+    assert "refs/heads/probe" in stages[0]["must_be_absent"]
+    assert stages[0]["stage_effect_permissions"]["allowed_to_modify"]["TOP26006_fw"]["local_refs"] == ["refs/heads/probe"]
+
+
+def test_uncommitted_writer_freezes_postimages_with_controller_closure():
+    data = parallel_subset_data(True)
+    data["requested_effects"] = [e for e in data["requested_effects"] if e["effect_id"] not in {"commit_writer_a", "commit_writer_b"}]
+    feature = PARALLEL.replace("writers edit, integrate, and retire branches", "writers edit")
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    for worker in stages[:2]:
+        assert worker["stage_outputs"] == ["frozen_postimages"]
+        assert worker["deferred_commit_stage"] == "exact_union"
+        area = worker["stage_effect_permissions"]["allowed_to_modify"]["TOP26006_fw"]
+        assert set(area) == {"tracked_paths"}
+    assert "stage:writer_a:frozen_postimages" in stages[3]["stage_inputs"]
+    data["requested_effects"] = [e for e in data["requested_effects"] if e["effect_id"] != "commit_controller"]
+    assert not run(feature, data).prompt
+
+
+def dependent_data(outcome="failed_before_effect"):
+    data = multi_repo_advancement_data()
+    data["multi_repository_state"] = "PARTIALLY_INTEGRATED"
+    state = {"candidate_heads": {"topcoffea": "c" * 40, "topeft": "d" * 40},
+             "target_heads": {"topcoffea": "c" * 40, "topeft": "b" * 40},
+             "completed_stages": ["provider_candidate", "consumer_candidate", "independent_review", "pair_validation", "integrate_topcoffea"],
+             "review_evidence": "accepted_pair_review", "validation_evidence": "accepted_tuple_validation",
+             "consumer_outcome": outcome, "readback_authority_binding": "readback_consumer"}
+    data["accepted_effect_state"] = state
+    data["continuation"] = {"prior_artifact_identity": "accepted_partial_tuple", "accepted_closure_layers": ["test_closure"],
+        "accepted_prior_evidence": [state], "invalidation_boundary": ["integrate_topeft"],
+        "delta_scope": ["readback", "integrate_topeft"], "unresolved_checks_only": ["readback"],
+        "checks_not_to_repeat": state["completed_stages"]}
+    bind_relation(data, "continuation.accepted_effect_state", state, "topcoffea", "accepted_evidence")
+    data["bindings"][-1]["source_identity"] = "accepted_partial_tuple"
+    data["bindings"].append({**data["bindings"][0], "binding_id": "readback_consumer", "validity_scope": "topeft"})
+    if outcome == "OUTCOME_UNKNOWN":
+        data["requested_effects"] = [e for e in data["requested_effects"] if e["stage_id"] != "integrate_topeft"]
+        data["prompt"]["patch_kind_expected"] = "empty_no_changes"
+    else:
+        data["prompt"]["patch_kind_expected"] = "empty_no_changes"
+    return data
+
+
+def test_exact_dependent_continuation_preserves_provider_and_tuple():
+    result = run(MULTI_REPO.replace("write candidates", "write candidates and integrate"), dependent_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    assert [s["stage_id"] for s in stages] == ["readback", "integrate_topeft"]
+    assert result.receipt["authorized_effects"] == ["advance_topeft"]
+    assert stages[-1]["expected_source_head"] == "d" * 40
+    assert stages[-1]["expected_target_head"] == "stage:readback:observed_target_head"
+    assert "provider_candidate" not in [s["stage_id"] for s in stages]
+    assert "create_one_prompt_local_commit" not in str(stages)
+
+
+def test_unknown_dependent_effect_is_readback_only():
+    result = run(MULTI_REPO.replace("write candidates", "write candidates and integrate"), dependent_data("OUTCOME_UNKNOWN"))
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert result.receipt["authorized_effects"] == []
+    assert [s["stage_id"] for s in prompt_yaml(result)["workflow_stages"]] == ["readback"]
+    assert result.receipt["workflow_visualization"]["consistency"]
+
+
+@pytest.mark.parametrize("damage", ["tuple", "rollback", "retry", "protection"])
+def test_partial_state_evidence_or_safety_mismatch_fails(damage):
+    data = deepcopy(dependent_data())
+    if damage == "tuple": data["accepted_effect_state"] = {**data["accepted_effect_state"], "validation_evidence": "unbound"}
+    elif damage == "rollback": data["automatic_rollback"] = True
+    elif damage == "retry": data["automatic_retry"] = True
+    else: data["continuation"]["checks_not_to_repeat"] = []
+    result = run(MULTI_REPO.replace("write candidates", "write candidates and integrate"), data)
+    assert not result.prompt
+
+
+def test_small_deterministic_edit_with_static_check_remains_simple():
+    feature, data = documentation_data()
+    data["deterministic_edit"] = {"path": "docs/a.md", "preimage_file_sha256": "a" * 64,
+        "preimage_excerpt": "old", "replacement": "established", "literal_count": 1,
+        "established_semantics_source": "accepted contract"}
+    feature = feature.replace("Then docs/a.md is validated", "And I run ordinary focused static validation\nThen the generated prompt remains minimum-sufficient and non-orchestrated\nAnd no worker, worktree, join, controller or multi-stage workflow is invented")
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert "workflow_stages" not in prompt_yaml(result)
+    assert prompt_yaml(result)["deterministic_edit"]["path"] == "docs/a.md"
+
+
+
+def test_committed_result_identity_flows_into_terminal_worktree_retirement():
+    """Retirement must consume the new result, not the pre-commit carrier HEAD.
+
+    This is a synthetic abstraction regression, not a historical input supplement
+    or authorization to execute any generated action.
+    """
+    data = lifecycle_data()
+    data["lifecycle_contract"]["head"] = "stage:edit:observed_commit_head"
+    data["prompt"]["patch_kind_expected"] = "prompt_local"
+    scope = data["prompt"]["allowed_to_modify"]["TOP26006_fw"]
+    scope["tracked_paths"] = ["docs/change.md"]
+    scope["git_index_entries"] = ["docs/change.md"]
+    data["requested_effects"] = []
+    for eid, kind, target, line, role in [
+            ("edit", "tracked_write", "docs/change.md", 4, "edit"),
+            ("commit", "local_git_ref_write", "refs/heads/probe", 4, "edit"),
+            ("remove", "worktree_remove", "/workspace/probe", 6, "remove_worktree"),
+            ("delete", "delete_local_branch", "refs/heads/probe", 8, "delete_ref")]:
+        data["bindings"] = [b for b in data["bindings"] if b["binding_id"] != eid]
+        data["bindings"].append({**data["bindings"][0], "binding_id": eid, "authorizes_effect": True,
+                                 "effect": kind, "target": target})
+        data["requested_effects"].append({"effect_id": eid, "effect": kind, "target": target,
+            "requested_by_step": line, "positive_authority_binding": eid, "stage_id": role})
+    data["ordered_action_bindings"] = {"s4": {
+        "paths": ["docs/change.md"], "branch": "probe",
+        "reviewed_postimages": {"docs/change.md": {"sha256": "e" * 64, "locator": "accepted/postimages/change.md"}}, "review_evidence": "accepted exact staged review"}}
+    feature = """Feature: result identity across lifecycle
+Scenario: one committed result then terminal retirement
+Given the exact clean task-owned carrier and reviewed replacement are bound
+When I edit the exact reviewed documentation path and commit once
+And I preserve the portable result and evidence
+And I remove the exact clean linked worktree
+And I read back path and registration absence
+And I delete the exact temporary ref using its old OID
+Then the worktree and ref are absent and canonical master is unchanged
+"""
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    stages = prompt_yaml(result)["workflow_stages"]
+    terminal = stages[-1]
+    assert terminal["expected_old_oid"] == "stage:edit:observed_commit_head"
+    assert "stage:edit:observed_commit_head" in str(terminal["stage_inputs"])
+    assert "a" * 40 not in str(terminal["safety_critical_argv"])
+
+
+@pytest.mark.parametrize("head", [None, "a" * 40, "b" * 40, "stage:nonexistent:future_oid"])
+def test_r4_retirement_has_no_authored_oid_prerequisite(head):
+    data = lifecycle_data()
+    data["lifecycle_contract"].pop("base_oid")
+    data["lifecycle_contract"].pop("head")
+    if head is not None:
+        data["lifecycle_contract"]["head"] = head
+    result = run(LIFECYCLE, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    terminal = prompt_yaml(result)["workflow_stages"][-1]
+    observation = terminal["runtime_observations"][0]
+    assert observation["argv"] == ["git", "-C", "/workspace/repo", "rev-parse", "--verify", "refs/heads/probe"]
+    assert observation["require_full_oid"] and observation["require_exit_zero"]
+    assert terminal["safety_critical_argv"][-1] == observation["output"]
+    assert observation["reject_movement_after_readback"]
+    assert "no refreshed lease" in observation["on_mismatch"]
+    assert not terminal["automatic_retry"]
+
+
+@pytest.mark.parametrize("shape", ["parallel", "pair"])
+def test_r4_carrier_observations_can_be_absent_without_adopting_foreign_resources(shape):
+    data = parallel_data() if shape == "parallel" else multi_repo_data()
+    feature = PARALLEL if shape == "parallel" else MULTI_REPO
+    if shape == "parallel":
+        for worker in data["worker_contract"]["writers"]:
+            worker.pop("observed_head"); worker.pop("base_oid")
+        data["worker_contract"].pop("composition_base_oid")
+        data["retirement"].pop("exact_old_oid")
+        data["retirement"].pop("expected_preserved_head")
+    else:
+        for repo in data["repositories"].values():
+            for key in ("base", "candidate_head", "candidate_base_oid"):
+                repo.pop(key)
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    assert result.receipt["traceability"]["complete"]
+
+
+def test_r4_integration_keeps_reviewed_source_and_fresh_target_safety():
+    result = run(MULTI_REPO.replace("write candidates", "write candidates and integrate"), multi_repo_advancement_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    for stage in prompt_yaml(result)["workflow_stages"]:
+        if stage["stage_mode"] == "integration_only":
+            guard = stage["must_pass_before_effects"]
+            assert guard["source_head"].startswith("stage:")
+            assert guard["fresh_target_readback"][-1] == guard["target_ref"]
+            assert guard["require_fast_forward_ancestry"] and guard["reject_movement_after_readback"]
+
+
+def test_r4_stage_result_is_derived_without_future_head_input():
+    # Existing mandatory regression remains byte-for-byte intact above.
+    import inspect
+    original = inspect.getsource(test_committed_result_identity_flows_into_terminal_worktree_retirement)
+    variant = original.replace('def test_committed_result_identity_flows_into_terminal_worktree_retirement():',
+                               'def without_future_input():').replace(
+        'data["lifecycle_contract"]["head"] = "stage:edit:observed_commit_head"',
+        'data["lifecycle_contract"].pop("head")')
+    namespace = dict(globals())
+    exec(variant, namespace)
+    namespace["without_future_input"]()
+
+
+def test_r4_ambiguous_commit_without_historical_base_still_requires_readback():
+    data = base_data()
+    area = {"git_index_entries": ["docs/change.md"], "local_refs": ["refs/heads/task"],
+            "git_effects": ["create_one_prompt_local_commit"]}
+    data["prompt"].update(prompt_mode="commit_preparation", branch_policy="continue_existing_branch",
+        target_branch="task", authorized_commit_scope={"TOP26006_fw": ["docs/change.md"]},
+        allowed_to_modify={"TOP26006_fw": area},
+        heavy_command_permissions={"allowed_to_modify": {"TOP26006_fw": area}})
+    data.update(outcome_unknown=True, readback_before_retry=True, automatic_retry=False,
+                readback_authority_binding="owner_task")
+    data["commit_contract"] = {"repository": "TOP26006_fw", "worktree": "/workspace",
+        "ref": "refs/heads/task", "index_paths": ["docs/change.md"],
+        "index_identity": "reviewed exact task index", "recovery_authorized": False}
+    data["bindings"].append({**data["bindings"][0], "binding_id": "commit", "authorizes_effect": True,
+        "effect": "local_git_ref_write", "target": "refs/heads/task"})
+    data["requested_effects"] = [{"effect_id": "commit", "effect": "local_git_ref_write",
+        "target": "refs/heads/task", "requested_by_step": 4, "positive_authority_binding": "commit"}]
+    feature = ("Feature: ambiguous commit\nScenario: exact effect\nGiven the task index is bound\n"
+        "When I create one local commit\nAnd the commit command returns an ambiguous terminal outcome\n"
+        "Then I read back the exact branch ref, HEAD and index before any retry\n"
+        "And no new effect is allowed without explicit idempotence or recovery authority\n")
+    result = run(feature, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
+    contract = prompt_yaml(result)["ambiguous_effect_contract"]
+    assert contract["recorded_base_oid"] is None
+    assert contract["readback_argv"][0][-1] == "refs/heads/task"
+    assert contract["automatic_retry"] is False
+    data["automatic_retry"] = True
+    assert not run(feature, data).prompt
+
+
+def worktree_paths(porcelain):
+    """Compare full normalized worktree records, never path substrings."""
+    return {str(Path(line.removeprefix("worktree ")).resolve())
+            for line in porcelain.splitlines() if line.startswith("worktree ")}
+
+
+def ref_names(output):
+    return set(output.splitlines())
+
+
+def test_exact_fixture_path_and_ref_membership_with_shared_prefix(tmp_path):
+    removed = tmp_path / "alpha"
+    surviving = tmp_path / "alpha_repo"
+    porcelain = f"worktree {surviving}\nHEAD {'a' * 40}\nbranch refs/heads/alpha_repo\n\n"
+    assert str(removed) in porcelain  # Demonstrate why the historical assertion was false.
+    assert str(removed.resolve()) not in worktree_paths(porcelain)
+    assert worktree_paths(porcelain) == {str(surviving.resolve())}
+    assert "refs/heads/alpha" not in ref_names("refs/heads/alpha_repo\n")
+    assert ref_names("refs/heads/alpha\nrefs/heads/alpha_repo\n") == {
+        "refs/heads/alpha", "refs/heads/alpha_repo"}
+
+
+def test_empirical_worktree_retirement_and_compare_delete(tmp_path):
+    """Execute compiler lifecycle argv only in a disposable, test-owned repository."""
+    import json
+    import subprocess
+
+    repository = tmp_path / "repository"
+    worktree = tmp_path / "probe"
+    repository.mkdir()
+    transcript = []
+    receipt = tmp_path / "lifecycle_receipt.json"
+
+    def execute(argv, expected=0):
+        result = subprocess.run(argv, capture_output=True, text=True)
+        transcript.append({"argv": argv, "returncode": result.returncode,
+                           "stdout": result.stdout, "stderr": result.stderr})
+        receipt.write_text(json.dumps(transcript, indent=2))
+        assert result.returncode == expected, transcript[-1]
+        return result.stdout.strip()
+
+    def git(*args, expected=0):
+        return execute(["git", "-C", str(repository), *args], expected)
+
+    git("init", "--initial-branch=controller")
+    git("-c", "user.name=Lifecycle Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "--allow-empty", "-m", "Initialize disposable lifecycle fixture")
+    controller_head = git("rev-parse", "HEAD")
+    data = _replace_literal(lifecycle_data(), "/workspace/repo", str(repository))
+    data = _replace_literal(data, "/workspace/probe", str(worktree))
+    data["prompt"]["workspace_root"] = str(repository)
+    data["prompt"]["repo_locations"]["TOP26006_fw"] = str(repository)
+    data["lifecycle_contract"].pop("head")
+    data["lifecycle_contract"].pop("base_oid")
+
+    creation = deepcopy(data)
+    creation["requested_effects"] = []
+    for eid, effect, target in [
+            ("create", "worktree_create", str(worktree)),
+            ("branch", "local_git_ref_write", "refs/heads/probe")]:
+        creation["bindings"].append({**creation["bindings"][0], "binding_id": eid,
+                                     "authorizes_effect": True, "effect": effect,
+                                     "target": target})
+        creation["requested_effects"].append({
+            "effect_id": eid, "effect": effect, "target": target,
+            "requested_by_step": 4, "positive_authority_binding": eid,
+            "stage_id": "create_worktree"})
+    intent = compiler.parse_gherkin(
+        "Feature: create\nScenario: exact\nGiven bound target\n"
+        "When I create the exact isolated worktree\nThen the report cites evidence", "test")
+    stage = compiler._plan_ordered(
+        creation, intent, compiler._effects(creation, intent))[0]
+    assert stage["stage_branch_policy"] == "create_feature_branch_from_reference"
+    assert stage["feature_branch"] == "probe" and stage["reference_branch"] == "controller"
+    assert stage["safety_critical_argv"] == [
+        "git", "-C", str(repository), "worktree", "add", "-b", "probe",
+        str(worktree), "refs/heads/controller"]
+    assert not worktree.exists()
+    git("show-ref", "--verify", "--quiet", "refs/heads/probe", expected=1)
+    execute(stage["safety_critical_argv"])
+    result = run(LIFECYCLE, data)
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt
+    (tmp_path / "generated_prompt.md").write_text(result.prompt)
+    stages = prompt_yaml(result)["workflow_stages"]
+    removal, inspection, deletion = stages[1:]
+    assert removal["stage_branch_policy"] == "continue_existing_branch"
+    assert removal["target_branch"] == deletion["target_branch"] == "controller"
+    assert git("symbolic-ref", "--short", "HEAD") == "controller"
+    assert execute(["git", "-C", str(worktree), "symbolic-ref", "HEAD"]) == "refs/heads/probe"
+    assert execute(["git", "-C", str(worktree), "status", "--porcelain",
+                    "--untracked-files=all", "--ignored"]) == ""
+    registrations = git("worktree", "list", "--porcelain")
+    assert str(worktree.resolve()) in worktree_paths(registrations) and "locked" not in registrations
+    assert execute(["git", "-C", str(worktree), "rev-parse", "HEAD"]) == controller_head
+    # Preserve and reopen receipts before the destructive lifecycle operations.
+    assert json.loads(receipt.read_text()) == transcript
+    assert (tmp_path / "generated_prompt.md").read_text() == result.prompt
+    assert removal["safety_critical_argv"] == [
+        "git", "-C", str(repository), "worktree", "remove", str(worktree)]
+    execute(removal["safety_critical_argv"])
+    assert not worktree.exists()
+    registrations = git("worktree", "list", "--porcelain")
+    assert str(worktree.resolve()) not in worktree_paths(registrations)
+    assert worktree_paths(registrations) == {str(repository.resolve())}
+    assert inspection["required_readback"]["path_absent"] == str(worktree)
+    observation = deletion["runtime_observations"][0]
+    assert observation["reject_movement_after_readback"]
+    old_oid = execute(observation["argv"])
+    assert re.fullmatch(r"[0-9a-f]{40}", old_oid)
+    argv = deletion["safety_critical_argv"]
+    assert argv[-1] == observation["output"]
+    assert argv[:-1] == ["git", "-C", str(repository), "update-ref", "-d", "refs/heads/probe"]
+    execute([*argv[:-1], old_oid])
+    git("show-ref", "--verify", "--quiet", "refs/heads/probe", expected=1)
+    assert git("rev-parse", "HEAD") == controller_head
+    assert git("status", "--porcelain", "--untracked-files=all") == ""
+    assert json.loads(receipt.read_text()) == transcript
+
+
+def synthetic_artifact(path, content):
+    """Synthetic task input owns these UTF-8 bytes; compilation only projects them."""
+    import hashlib
+    return {'path': path, 'sha256': hashlib.sha256(content.encode('utf-8')).hexdigest(),
+            'source': {'kind': 'synthetic_literal', 'content': content},
+            'review_evidence': 'exact reviewed synthetic replacement'}
+
+
+def ordered_resource_fixture():
+    """Input builder: temporary resources have no permanent-advancement effects."""
+    data = base_data()
+    orchestrated(data)
+    data['stages'] = []
+    data['prompt'].update(delegation_policy='required', patch_kind_expected='prompt_local',
+                          validation_ceiling='targeted_unit_test')
+    data['repositories'] = {'topcoffea': {}, 'topeft': {}}
+    data['prompt']['repo_locations'] = {'topcoffea': '/workspace/alpha_repo', 'topeft': '/workspace/beta_repo'}
+    data['prompt']['read_only'] = {'topcoffea': ['refs/heads/tc/dev-live'], 'topeft': ['refs/heads/te/datacard_sr_reco']}
+    resources = {}
+    for name, repo, branch, anchor in [('alpha','topcoffea','tc/fixture','tc/dev-live'),
+                                       ('beta','topeft','te/fixture','te/datacard_sr_reco')]:
+        life = deepcopy(lifecycle_data()['lifecycle_contract'])
+        life.update(repository=repo, repository_path='/workspace/'+name+'_repo',
+                    worktree='/workspace/'+name, ref='refs/heads/'+branch,
+                    reference_ref='refs/heads/'+anchor, controller_branch=anchor)
+        life.pop('head'); life.pop('base_oid')
+        resources[name] = life
+        bind_relation(data, 'lifecycle_resources.'+name+'.carrier',
+                      {k:life[k] for k in ('repository','repository_path','worktree','ref','reference_ref')}, repo)
+    data['lifecycle_resources'] = resources
+    # Semantic sequence is independent of alphabetical resource order.
+    rows = [
+        ('create_worktree','I create the alpha worktree','alpha'),
+        ('create_worktree_2','I create the beta worktree','beta'),
+        ('edit','I edit the alpha baseline and commit','alpha'),
+        ('edit_2','I edit the beta baseline and commit','beta'),
+        ('edit_3','I edit the beta candidate and commit','beta'),
+        ('static_validation','I run static validation of the partial tuple','beta'),
+        ('edit_4','I edit the alpha candidate for later commit','alpha'),
+        ('inspect','I review the staged alpha candidate independently','alpha'),
+        ('commit','I create one alpha commit','alpha'),
+        ('inspect_2','I read back the ambiguous alpha effect','alpha'),
+        ('static_validation_2','I run static validation of four exact tuples','alpha'),
+        ('inspect_3','I review the integrated evidence independently','alpha'),
+        ('preserve','I preserve alpha portable evidence','alpha'),
+        ('preserve_2','I preserve beta portable evidence','beta'),
+        ('remove_worktree','I remove the alpha worktree','alpha'),
+        ('inspect_4','I read back alpha path and registration absence','alpha'),
+        ('delete_ref','I delete the alpha temporary ref','alpha'),
+        ('remove_worktree_2','I remove the beta worktree','beta'),
+        ('inspect_5','I read back beta path and registration absence','beta'),
+        ('delete_ref_2','I delete the beta temporary ref','beta'),
+    ]
+    # Authoritative synthetic task inputs, serialized into the generated contract.
+    fixture_content = {
+        'edit': '{"contract": "sample", "protocol": 1}\n',
+        'edit_2': '{"accepts": [1], "contract": "sample"}\n',
+        'edit_3': '{"accepts": [1, 2], "contract": "sample"}\n',
+        'edit_4': '{"contract": "sample", "protocol": 2}\n'}
+    data['ordered_action_bindings'] = {}
+    data['requested_effects'] = []
+    scope = {repo:{'tracked_paths':['contract.json'], 'local_refs':[life['ref']],
+                   'worktree_paths':[life['worktree']]} for repo,life in
+             ((v['repository'],v) for v in resources.values())}
+    data['prompt']['allowed_to_modify'] = scope
+    data['prompt']['workflow_effect_envelope'] = {'allowed_to_modify':scope,'local_branch_deletion':True}
+    for index,(stage_id,text,name) in enumerate(rows,4):
+        life=resources[name]; repo=life['repository']; context={'resource':name}
+        data['ordered_action_bindings']['s'+str(index)]=context
+        if stage_id in {'inspect','inspect_3'}: context['independent_review']=True
+        effects=[]
+        if stage_id.startswith('create_worktree'):
+            effects=[('worktree_create',life['worktree']),('local_git_ref_write',life['ref'])]
+        elif stage_id.startswith('edit'):
+            context.update(paths=['contract.json'],branch=life['ref'].removeprefix('refs/heads/'),
+                           reviewed_postimages={'contract.json': synthetic_artifact('contract.json', fixture_content[stage_id])},
+                           review_evidence='exact reviewed synthetic replacement')
+            effects=[('tracked_write','contract.json')]
+            if stage_id=='edit_4': context['deferred_commit_stage']='commit'
+            else: effects.append(('local_git_ref_write',life['ref']))
+        elif stage_id=='commit':
+            context.update(review_evidence='stage:inspect:readback',ambiguous_outcome=True,
+                           readback_before_retry=True,automatic_retry=False)
+            effects=[('local_git_ref_write',life['ref'])]
+        elif stage_id.startswith('static_validation'):
+            pairs = [('edit', 'edit_3', 'PASS')]
+            if stage_id.endswith('_2'):
+                pairs = [('edit', 'edit_2', 'PASS'), ('edit', 'edit_3', 'PASS'),
+                         ('inspect_2', 'edit_2', 'FAIL_EXPECTED'), ('inspect_2', 'edit_3', 'PASS')]
+            cases = [{'provider': 'stage:'+a+':observed_commit_head',
+                      'consumer': 'stage:'+b+':observed_commit_head', 'expected': outcome}
+                     for a,b,outcome in pairs]
+            context.update(evidence_locator='synthetic contract: equal contract and protocol in accepts',
+                           result_inputs=sorted({row[key] for row in cases for key in ('provider','consumer')}),
+                           validation_contract={'predicate':'contract equality and protocol membership',
+                             'cases':cases, 'matrix':[row['expected'] for row in cases]})
+        elif stage_id.startswith('remove_worktree'): effects=[('worktree_remove',life['worktree'])]
+        elif stage_id.startswith('delete_ref'): effects=[('delete_local_branch',life['ref'])]
+        for n,(kind,target) in enumerate(effects):
+            eid=stage_id+'_'+str(n)
+            data['bindings'].append({**data['bindings'][0], 'binding_id':eid, 'validity_scope':repo,
+                                     'authorizes_effect':True,'effect':kind,'target':target})
+            data['requested_effects'].append({'effect_id':eid,'effect':kind,'target':target,
+                'requested_by_step':index,'positive_authority_binding':eid,'stage_id':stage_id})
+    feature='Feature: explicitly ordered temporary resources\nScenario: candidate transitions\nGiven task-owned resources are bound\n'
+    feature+='\n'.join(('When ' if i==0 else 'And ')+row[1] for i,row in enumerate(rows))
+    return feature+'\nThen the report cites evidence\n',data
+
+
+def test_ordered_resources_preserve_declared_order_and_ambiguous_readback(tmp_path):
+    feature,data=ordered_resource_fixture()
+    result=run(feature,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    prompt=prompt_yaml(result); stages=prompt['workflow_stages']; ids=[s['stage_id'] for s in stages]
+    assert ids.index('edit_3') < ids.index('edit_4') < ids.index('commit') < ids.index('inspect_2')
+    commit=next(s for s in stages if s['stage_id']=='commit')
+    assert commit['ambiguous_effect_contract']['initial_result']=='OUTCOME_UNKNOWN'
+    readback=next(s for s in stages if s['stage_id']=='inspect_2')
+    assert readback['required_readback']['unknown_blocks_downstream']
+    assert not readback['required_readback']['automatic_retry']
+    assert all(s['stage_mode']!='integration_only' for s in stages)
+    for stage in stages:
+        grants=str(stage['stage_effect_permissions'])
+        assert 'refs/heads/tc/dev-live' not in grants
+        assert 'refs/heads/te/datacard_sr_reco' not in grants
+    (tmp_path/'generated_ordered_prompt.md').write_text(result.prompt)
+    assert result.receipt['traceability']['complete']
+
+
+@pytest.mark.parametrize('fault',['missing_create','pooled','duplicate','blind_retry','missing_readback','permanent_target'])
+def test_ordered_resource_authority_counterexamples(fault):
+    feature,data=ordered_resource_fixture()
+    if fault=='missing_create': data['bindings'][next(i for i,b in enumerate(data['bindings']) if b['binding_id']=='create_worktree_0')]['authorizes_effect']=False
+    elif fault=='pooled': next(b for b in data['bindings'] if b['binding_id']=='create_worktree_0')['validity_scope']='topeft'
+    elif fault=='duplicate': data['lifecycle_resources']['beta']['worktree']=data['lifecycle_resources']['alpha']['worktree']
+    elif fault=='blind_retry': data['ordered_action_bindings']['s12']['automatic_retry']=True
+    elif fault=='missing_readback': feature=feature.replace('I read back the ambiguous alpha effect','I preserve alpha evidence prematurely')
+    else: data['ordered_action_bindings']['s6']['branch']='tc/dev-live'
+    assert not run(feature,data).prompt
+
+
+def composed_resource_fixture():
+    data=parallel_data()
+    data.pop('retirement');data.pop('common_validation_contract')
+    data['requested_effects']=[e for e in data['requested_effects'] if e['stage_id'] not in {'integration','retirement'}]
+    data['prompt']['workflow_effect_envelope'].pop('local_branch_deletion')
+    data['lifecycle_resources']={}
+    data['ordered_action_bindings']={}
+    # Existing controller is separate from the two newly created worker resources.
+    for i,worker in enumerate(data['worker_contract']['writers']):
+        name='alpha' if i==0 else 'beta'; stage_id='create_worktree'+('_2' if i else '')
+        life=deepcopy(lifecycle_data()['lifecycle_contract'])
+        life.update(repository_path=data['prompt']['repo_locations']['TOP26006_fw'],worktree=worker['worktree_path'],ref='refs/heads/'+worker['branch'],reference_ref='refs/heads/controller')
+        life.pop('head');life.pop('base_oid')
+        data['lifecycle_resources'][name]=life
+        data['ordered_action_bindings']['s'+str(4+i)]={'resource':name}
+        bind_relation(data,'lifecycle_resources.'+name+'.carrier',
+                      {k:life[k] for k in ('repository','repository_path','worktree','ref','reference_ref')},'TOP26006_fw')
+        for n,(kind,target) in enumerate([('worktree_create',life['worktree']),('local_git_ref_write',life['ref'])]):
+            eid=stage_id+'_'+str(n)
+            data['bindings'].append({**data['bindings'][0],'binding_id':eid,'authorizes_effect':True,'effect':kind,'target':target})
+            data['requested_effects'].append({'effect_id':eid,'effect':kind,'target':target,'requested_by_step':4+i,
+                                            'positive_authority_binding':eid,'stage_id':stage_id})
+        data['prompt']['allowed_to_modify']['TOP26006_fw'].append(life['worktree'])
+        data['prompt']['workflow_effect_envelope']['allowed_to_modify']['TOP26006_fw'].append(life['worktree'])
+    for effect in data['requested_effects']:
+        if effect['stage_id'] in {'writer_a','writer_b','exact_union'}: effect['requested_by_step']=6
+    feature='Feature: composed resources\nScenario: isolated parallel body\nGiven isolated worktrees\nWhen I create the alpha worktree\nAnd I create the beta worktree\nAnd writers edit\nThen exact union is reviewed'
+    return feature,data
+
+
+def test_lifecycle_prelude_feeds_parallel_body(tmp_path):
+    feature,data=composed_resource_fixture();result=run(feature,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    stages=prompt_yaml(result)['workflow_stages']; ids=[s['stage_id'] for s in stages]
+    assert ids[:4]==['create_worktree','create_worktree_2','writer_a','writer_b']
+    for writer in stages[2:4]: assert 'stage:create_worktree_2:readback' in writer['stage_inputs']
+    assert all('worktree_paths' not in s['stage_effect_permissions'].get('allowed_to_modify',{}).get('TOP26006_fw',{}) for s in stages[2:])
+    (tmp_path/'generated_composed_prompt.md').write_text(result.prompt)
+    assert result.receipt['traceability']['complete']
+
+
+@pytest.mark.parametrize('fault',['missing','foreign','duplicate'])
+def test_composed_creation_grants_are_independent(fault):
+    feature,data=composed_resource_fixture()
+    if fault=='missing': next(b for b in data['bindings'] if b['binding_id']=='create_worktree_0')['authorizes_effect']=False
+    elif fault=='foreign': data['lifecycle_resources']['alpha']['worktree']='/workspace/foreign'
+    else: data['lifecycle_resources']['beta']['worktree']=data['lifecycle_resources']['alpha']['worktree']
+    assert not run(feature,data).prompt
+
+
+def test_portable_accepted_writer_needs_no_commit_identity():
+    data=q04_data(); accepted=data['continuation']['accepted_prior_evidence'][0]
+    accepted.pop('observed_commit_head')
+    accepted['frozen_postimages']={'docs/writer_b.md':{'sha256':'e'*64,'locator':'accepted/postimages/writer_b.md'}}
+    _binding(data,'q04.accepted_writer_result')['observed_state']['value']=deepcopy(accepted)
+    result=run(PARALLEL,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    stages=prompt_yaml(result)['workflow_stages']
+    assert 'writer_b' not in [s['stage_id'] for s in stages]
+    assert 'prior:accepted-009-r1:writer_b@frozen_postimages' in next(s for s in stages if s['stage_id']=='exact_union')['stage_inputs']
+    assert 'frozen_postimages' in result.prompt
+
+
+def test_empirical_ordered_resource_partial_state_and_cleanup(tmp_path):
+    import json
+    import subprocess
+    feature,data=ordered_resource_fixture()
+    data=_replace_literal(data,'/workspace',str(tmp_path))
+    transcript=[]; outputs={}; initial={}
+    def execute(argv):
+        completed=subprocess.run(argv,text=True,capture_output=True)
+        transcript.append({'argv':argv,'returncode':completed.returncode,'stdout':completed.stdout,'stderr':completed.stderr})
+        (tmp_path/'generic_lifecycle_receipt.json').write_text(json.dumps(transcript,indent=2))
+        assert completed.returncode==0,transcript[-1]
+        return completed.stdout.strip()
+    def git(path,*args): return execute(['git','-C',str(path),*args])
+    for life in data['lifecycle_resources'].values():
+        repository=Path(life['repository_path']);repository.mkdir()
+        git(repository,'init','--initial-branch='+life['controller_branch'])
+        git(repository,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--allow-empty','-m','Initialize fixture')
+        initial[life['repository']]=git(repository,'rev-parse','HEAD')
+    result=run(feature,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    (tmp_path/'generated_empirical_prompt.md').write_text(result.prompt)
+    frozen={}; partial=None; artifacts={}; conformance=[]
+    from tools.governance_workflow_ir import Artifact_spec
+    for stage in prompt_yaml(result)['workflow_stages']:
+        sid=stage['stage_id']; path=Path(stage['working_directory'])
+        if stage['stage_goal']=='worktree_create': execute(stage['safety_critical_argv'])
+        elif stage['stage_goal']=='edit':
+            records=next(row['exact_reviewed_postimages'] for row in stage['stage_inputs']
+                         if isinstance(row,dict) and 'exact_reviewed_postimages' in row)
+            record=records['contract.json']
+            artifact=Artifact_spec.from_record('contract.json',record,record['review_evidence'])
+            artifacts[sid]=artifact
+            (path/artifact.path).write_bytes(artifact.literal_bytes())
+            artifact.verify_bytes((path/artifact.path).read_bytes())
+            git(path,'add','--','contract.json')
+            frozen[sid]=git(path,'write-tree')
+            if not stage.get('deferred_commit_stage'):
+                git(path,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','Update synthetic contract')
+                outputs[sid]=git(path,'rev-parse','HEAD')
+            if sid=='edit_3':
+                alpha=Path(data['lifecycle_resources']['alpha']['worktree'])
+                partial=(git(alpha,'rev-parse','HEAD'),outputs[sid])
+                assert partial==(outputs['edit'],outputs['edit_3'])
+        elif sid=='commit':
+            assert git(path,'write-tree')==frozen['edit_4']
+            before=git(path,'rev-parse','HEAD')
+            # Intentionally discard the commit process result. Resolution uses only fresh Git state.
+            subprocess.run(['git','-C',str(path),'-c','user.name=Fixture','-c','user.email=fixture@example.invalid',
+                            'commit','-m','Update staged synthetic contract'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            transcript.append({'effect':'commit','classification':'OUTCOME_UNKNOWN','attempt_count':1})
+            outputs['pre_attempt']=before
+        elif sid=='inspect_2':
+            observed=git(path,'rev-parse','HEAD')
+            assert git(path,'rev-parse','HEAD^')==outputs['pre_attempt']
+            assert git(path,'rev-parse','HEAD^{tree}')==frozen['edit_4']
+            assert not git(path,'status','--porcelain')
+            outputs['commit']=observed
+            outputs['inspect_2']=observed
+            transcript.append({'classification':'effect_happened','retry_count':0})
+        elif sid=='static_validation_2':
+            def content(resource,oid):
+                return json.loads(git(data['lifecycle_resources'][resource]['repository_path'],'show',oid+':contract.json'))
+            # Compare exact Git blob bytes before interpreting the tuple predicate.
+            import hashlib
+            for edit_id,resource_id,result_id in [('edit','alpha','edit'),('edit_2','beta','edit_2'),
+                                                   ('edit_3','beta','edit_3'),('edit_4','alpha','inspect_2')]:
+                artifact=artifacts[edit_id]; oid=outputs[result_id]
+                body=subprocess.check_output(['git','-C',data['lifecycle_resources'][resource_id]['repository_path'],
+                                              'show',oid+':'+artifact.path])
+                artifact.verify_bytes(body)
+                assert body==artifact.literal_bytes()
+                conformance.append({'stage':edit_id,'commit':oid,'artifact':artifact.projection(),
+                                    'actual_sha256':hashlib.sha256(body).hexdigest(),'content':body.decode()})
+            (tmp_path/'h4_empirical_postimage_conformance.json').write_text(json.dumps(conformance,indent=2))
+            assert len(json.loads((tmp_path/'h4_empirical_postimage_conformance.json').read_text()))==4
+            relation=stage['validation_contract']
+            from tools.governance_workflow_ir import Result_ref
+            def resolve(value):
+                return outputs[Result_ref.parse(value).stage_id]
+            pairs=[(resolve(row['provider']),resolve(row['consumer'])) for row in relation['cases']]
+            observed=[]
+            for a,b in pairs:
+                left,right=content('alpha',a),content('beta',b)
+                observed.append(left['contract']==right['contract'] and left['protocol'] in right['accepts'])
+            assert observed==[row['expected']=='PASS' for row in relation['cases']]
+            (tmp_path/'portable_results.json').write_text(json.dumps({'outputs':outputs,'pairs':pairs,'results':observed,'artifacts':{sid:a.projection() for sid,a in artifacts.items()},'conformance':conformance},indent=2))
+            assert json.loads((tmp_path/'portable_results.json').read_text())['results']==observed
+        elif stage['stage_goal']=='worktree_remove':
+            assert (tmp_path/'portable_results.json').is_file()
+            assert not git(path,'status','--porcelain','--untracked-files=all','--ignored')
+            execute(stage['safety_critical_argv']);assert not path.exists()
+        elif stage['stage_goal']=='delete_ref':
+            observation=stage['runtime_observations'][0]
+            old=execute(observation['argv']);argv=stage['safety_critical_argv']
+            execute([*argv[:-1],old])
+    for life in data['lifecycle_resources'].values():
+        assert not Path(life['worktree']).exists()
+        assert str(Path(life['worktree']).resolve()) not in worktree_paths(
+            git(life['repository_path'],'worktree','list','--porcelain'))
+        assert worktree_paths(git(life['repository_path'],'worktree','list','--porcelain')) == {
+            str(Path(life['repository_path']).resolve())}
+        assert life['ref'] not in ref_names(git(life['repository_path'],'for-each-ref','--format=%(refname)'))
+        assert git(life['repository_path'],'rev-parse','HEAD')==initial[life['repository']]
+    (tmp_path/'generic_lifecycle_receipt.json').write_text(json.dumps(transcript,indent=2))
+    assert json.loads((tmp_path/'generic_lifecycle_receipt.json').read_text())==transcript
+
+
+def composed_retirement_fixture():
+    feature,data=composed_resource_fixture()
+    lines=feature.splitlines(); tail=lines.pop()
+    for i,(name,resource) in enumerate(data['lifecycle_resources'].items()):
+        suffix='_2' if i else ''
+        for kind,text in [('preserve','I preserve portable result evidence'),
+                          ('remove_worktree','I remove the exact worktree'),
+                          ('inspect','I read back path and registration absence'),
+                          ('delete_ref','I delete the exact temporary ref')]:
+            line=len(lines)+1;lines.append('And '+text)
+            data['ordered_action_bindings']['s'+str(line)]={'resource':name}
+            if kind not in {'remove_worktree','delete_ref'}:continue
+            effect='worktree_remove' if kind=='remove_worktree' else 'delete_local_branch'
+            target=resource['worktree'] if kind=='remove_worktree' else resource['ref']
+            eid=kind+suffix
+            data['bindings'].append({**data['bindings'][0],'binding_id':eid,'authorizes_effect':True,'effect':effect,'target':target})
+            data['requested_effects'].append({'effect_id':eid,'effect':effect,'target':target,'requested_by_step':line,
+                                            'positive_authority_binding':eid,'stage_id':eid})
+    data['prompt']['workflow_effect_envelope']['local_branch_deletion']=True
+    return '\n'.join([*lines,tail]),data
+
+
+def test_composed_epilogue_waits_for_reviewed_body():
+    feature,data=composed_retirement_fixture();result=run(feature,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    stages=prompt_yaml(result)['workflow_stages'];ids=[s['stage_id'] for s in stages]
+    assert ids.index('reconciled_review') < ids.index('preserve') < ids.index('remove_worktree') < ids.index('delete_ref')
+    assert any('stage:reconciled_review:' in str(x) for x in next(s for s in stages if s['stage_id']=='preserve')['stage_inputs'])
+    assert ids[-1]=='delete_ref_2'
+
+
+def test_empirical_composed_creation_parallel_results_join_retirement(tmp_path):
+    import subprocess,json
+    feature,data=composed_retirement_fixture();data=_replace_literal(data,'/workspace',str(tmp_path))
+    repository=tmp_path; transcript=[]
+    def execute(argv):
+        r=subprocess.run(argv,capture_output=True,text=True)
+        transcript.append({'argv':argv,'returncode':r.returncode,'stdout':r.stdout,'stderr':r.stderr})
+        assert r.returncode==0,transcript[-1]
+        return r.stdout.strip()
+    def git(path,*args):return execute(['git','-C',str(path),*args])
+    git(repository,'init','--initial-branch=controller')
+    git(repository,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--allow-empty','-m','Initialize fixture')
+    initial=git(repository,'rev-parse','HEAD')
+    composition=Path(data['worker_contract']['composition_worktree_path'])
+    git(repository,'worktree','add','-b','controller_candidate',str(composition),'HEAD')
+    result=run(feature,data)
+    assert result.compiler_result=='COMPILED_CONFORMING_CANDIDATE',result.receipt
+    (tmp_path/'generated_parallel_prompt.md').write_text(result.prompt)
+    frozen={}
+    for stage in prompt_yaml(result)['workflow_stages']:
+        sid=stage['stage_id']
+        if stage.get('stage_goal')=='worktree_create':execute(stage['safety_critical_argv'])
+        elif sid in {'writer_a','writer_b'}:
+            worker=next(w for w in data['worker_contract']['writers'] if w['stage_id']==sid)
+            path=Path(worker['worktree_path']);rel=worker['write_paths'][0]
+            (path/rel).parent.mkdir(parents=True,exist_ok=True);(path/rel).write_text(sid+' owned content\n')
+            frozen[rel]=(path/rel).read_bytes()
+            git(path,'add','--',rel)
+            git(path,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','Write isolated result')
+        elif sid=='exact_union':
+            assert len(frozen)==2
+            for rel,content in frozen.items():
+                target=composition/rel;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(content)
+            assert all((composition/rel).read_bytes()==content for rel,content in frozen.items())
+            git(composition,'add','--',*frozen)
+            git(composition,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','Compose reviewed results')
+            (tmp_path/'portable_union.json').write_text(json.dumps({p:hashlib.sha256(b).hexdigest() for p,b in frozen.items()}))
+            assert json.loads((tmp_path/'portable_union.json').read_text())=={p:hashlib.sha256(b).hexdigest() for p,b in frozen.items()}
+        elif stage.get('stage_goal')=='worktree_remove':
+            assert (tmp_path/'portable_union.json').exists();execute(stage['safety_critical_argv'])
+        elif stage.get('stage_goal')=='delete_ref':
+            oid=execute(stage['runtime_observations'][0]['argv'])
+            execute([*stage['safety_critical_argv'][:-1],oid])
+    # The explicitly pre-existing test controller is also fixture-owned.
+    oid=git(composition,'rev-parse','HEAD')
+    git(repository,'worktree','remove',str(composition))
+    git(repository,'update-ref','-d','refs/heads/controller_candidate',oid)
+    assert git(repository,'rev-parse','HEAD')==initial
+    assert ref_names(git(repository,'for-each-ref','--format=%(refname)')) == {'refs/heads/controller'}
+    assert worktree_paths(git(repository,'worktree','list','--porcelain')) == {str(repository.resolve())}
+    (tmp_path/'composed_lifecycle_receipt.json').write_text(json.dumps(transcript,indent=2))
+    assert json.loads((tmp_path/'composed_lifecycle_receipt.json').read_text())==transcript
+
+
+def separate_composed_fixture(retirement=False):
+    feature, data = composed_retirement_fixture() if retirement else composed_resource_fixture()
+    feature = feature.replace("And writers edit", "And I edit writer_a disjoint files\n"
+                              "And I write writer_b disjoint files\nAnd I compose the exact union")
+    for effect in data['requested_effects']:
+        role = effect['stage_id']
+        if role in {'writer_a', 'writer_b', 'exact_union'}:
+            effect['requested_by_step'] = {'writer_a': 6, 'writer_b': 7, 'exact_union': 8}[role]
+        elif effect['requested_by_step'] > 6:
+            effect['requested_by_step'] += 2
+    data['ordered_action_bindings'] = {
+        's' + str(int(key[1:]) + (2 if int(key[1:]) > 6 else 0)): value
+        for key, value in data['ordered_action_bindings'].items()}
+    feature, bindings = fixture_graph(feature, yaml.safe_dump(data))
+    # Literal independent oracle: prelude -> fork -> join -> ordered tail.
+    final = len(feature.splitlines()) - 3
+    edges = [('s3', 's4'), ('s4', 's5'), ('s5', 's6'), ('s5', 's7'),
+             ('s6', 's8'), ('s7', 's8')]
+    edges += [('s' + str(i), 's' + str(i + 1)) for i in range(8, final)]
+    lines = feature.splitlines()
+    lines[2] = '  ' + '    '.join(f'[{a}] --> [{b}]' for a, b in edges)
+    return '\n'.join(lines), yaml.safe_load(bindings)
+
+
+@pytest.mark.parametrize('retirement', [False, True])
+def test_typed_partition_separate_composition_and_epilogue(retirement, tmp_path):
+    feature, data = separate_composed_fixture(retirement)
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    stages = prompt_yaml(result)['workflow_stages']
+    assert [s['stage_id'] for s in stages[:4]] == [
+        'create_worktree', 'create_worktree_2', 'writer_a', 'writer_b']
+    partition = result.receipt['semantic_partition']
+    assignments = {row['semantic_id']: row for row in partition['assignments']}
+    assert assignments['s6']['domain'] == assignments['s7']['domain'] == 'parallel_worker_or_join'
+    assert assignments['s4']['resource'] == 'alpha'
+    assert assignments['s5']['resource'] == 'beta'
+    assert assignments['s6']['owners'] == ('writer_a',)
+    visual = result.receipt['workflow_visualization']
+    mapping = {m['node']: m for m in visual['execution_mapping']}
+    for node, role in [('s4', 'create_worktree'), ('s5', 'create_worktree_2'),
+                       ('s6', 'writer_a'), ('s7', 'writer_b'), ('s8', 'exact_union')]:
+        assert mapping[node]['stage_id'] == role
+        assert mapping[node]['semantic_steps'] == [node]
+    edges = {(e['source'], e['target']) for e in visual['generated_graph']['connectors']}
+    assert ('s6', 's7') not in edges and ('s7', 's6') not in edges
+    assert {('s5', 's6'), ('s5', 's7'), ('s6', 'derived_independent_review'),
+            ('s7', 'derived_independent_review'), ('derived_independent_review', 's8')} <= edges
+    if retirement:
+        preserve = next(s for s in stages if s['stage_id'] == 'preserve')
+        assert 'stage:reconciled_review:reconciled_review_evidence' in preserve['stage_inputs']
+        assert ('derived_reconciled_review', 's9') in edges
+    assert result.receipt['traceability']['complete']
+    assert set(visual['generated_graph']['nodes']) == set(mapping)
+    (tmp_path / 'generated_prompt.md').write_text(result.prompt)
+    (tmp_path / 'partition_receipt.yaml').write_text(yaml.safe_dump(result.receipt))
+
+
+def test_typed_partition_explicit_ordered_edit_keeps_resource(tmp_path):
+    feature, data = ordered_resource_fixture()
+    feature = feature.replace('I edit the alpha baseline and commit', 'I edit writer_a disjoint files')
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    row = next(r for r in result.receipt['semantic_partition']['assignments'] if r['semantic_id'] == 's6')
+    assert row['domain'] == 'ordered_lifecycle' and row['resource'] == 'alpha'
+    assert row['owners'] == ('edit',)
+    assert not result.receipt['semantic_partition']['parallel_roles']
+    (tmp_path / 'generated_prompt.md').write_text(result.prompt)
+
+
+@pytest.mark.parametrize('fault', ['contradictory', 'wrong_worker', 'unknown'])
+def test_typed_partition_rejects_ambiguous_or_unclassified_actions(fault):
+    feature, data = separate_composed_fixture()
+    if fault == 'contradictory':
+        data['ordered_action_bindings']['s6'] = {'resource': 'alpha'}
+    elif fault == 'wrong_worker':
+        next(e for e in data['requested_effects'] if e['stage_id'] == 'writer_a')['stage_id'] = 'writer_b'
+    else:
+        feature = feature.replace('I edit writer_a disjoint files', 'I invent an unclassified operation')
+    result = run(feature, data)
+    assert not result.prompt
+    assert result.compiler_result == ('IMPLEMENTATION_GAP' if fault == 'unknown' else
+                                      'NOT_READY_MISSING_AUTHORITY_BINDING')
+    if fault == 'contradictory':
+        assert 'contradictory typed ownership' in str(result.receipt['diagnostics'])
+
+
+@pytest.mark.parametrize('case,expected', [
+    ('A', 'NOT_READY_NEW_DECISION_BOUNDARY'),
+    ('B', 'COMPILER_INVARIANT_FAILURE'),
+    ('C', 'NOT_READY_MISSING_AUTHORITY_BINDING'),
+    ('D', 'COMPILED_CONFORMING_CANDIDATE'),
+    ('E', 'COMPILED_CONFORMING_CANDIDATE'),
+    ('F', 'NOT_READY_MISSING_AUTHORITY_BINDING'),
+])
+def test_aggregate_diagnostic_precedence_matrix(case, expected, tmp_path):
+    feature, data = PARALLEL, parallel_data()
+    if case in {'A', 'B'}:
+        feature = feature.replace('writers edit, integrate, and retire branches',
+                                  'writers edit and retire branches')
+        if case == 'B':
+            data.pop('common_validation_contract')
+    elif case in {'C', 'E', 'F'}:
+        feature, data = separate_composed_fixture()
+        if case == 'C':
+            next(e for e in data['requested_effects'] if e['stage_id'] == 'writer_a')['stage_id'] = 'writer_b'
+        elif case == 'F':
+            data['ordered_action_bindings']['s6'] = {'resource': 'alpha'}
+    result = run(feature, data)
+    (tmp_path / 'diagnostic_receipt.yaml').write_text(yaml.safe_dump(result.receipt))
+    (tmp_path / 'generated_prompt.md').write_text(result.prompt)
+    assert result.compiler_result == expected, result.receipt
+    if case in {'A', 'B', 'C', 'F'}:
+        assert result.prompt == ''
+        assert result.receipt['authorized_effects'] == []
+    if case == 'F':
+        assert 'contradictory typed ownership' in str(result.receipt['diagnostics'])
