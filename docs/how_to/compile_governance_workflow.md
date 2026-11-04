@@ -2,8 +2,10 @@
 
 The non-normative D8 compiler prepares an inspectable CPC prompt candidate and
 a YAML compilation receipt. It does not dispatch a prompt, perform an effect,
-evaluate execution evidence, or accept a result. D8 remains non-normative
-during D8-E and D8-F.
+evaluate execution evidence, or accept a result. The isolated D8 candidate is
+being prospectively qualified in D8-G; it is not canonical governance or a
+stable rollout. Current project master remains authoritative outside this
+bounded qualification.
 
 Use the Python wrapper and interpreter resolved from the local YAML profile:
 
@@ -29,6 +31,72 @@ mechanical-only claim ceiling.
 
 See the [architecture explanation](../explanation/governance_workflow_compiler_architecture.md)
 for the typed result graph and independent safety verification.
+
+## Lane author path for an already-authorized task
+
+Write the semantic task first: premises, requested actions, observable outcomes,
+negative boundaries and their dependency graph. Use the supported Gherkin subset
+and diagram rules below. Keep the owner's actual task wording and distinguish
+an independent result from a later review, composition or commit. The graph
+expresses those dependencies; it does not choose workers, worktrees or commands.
+
+Use this division of responsibility:
+
+| Participant | Input or responsibility |
+| --- | --- |
+| Lane author | Already-authorized behavior, exact substantive scope, semantic dependencies, observable outcomes and explicit exclusions |
+| Trusted upstream binder | Acquired owner/evidence claims, repository and target roles, existing CPC context and the exact positive effect inventory |
+| Compiler | Supported execution shape, modes, stage bodies/order, local grants, gates, commit mechanics, trace and generated workflow diagram |
+| Executor | Current-governance review, scoped runtime preflight, authorized effects and result readback |
+| Owning lane | Acceptance of the returned evidence and any new substantive decision |
+
+Reuse the task's acquired binding and CPC context at the binder boundary. The
+lane author need not reconstruct generated CPC fields, technical stages or Git
+commands, nor predict future commit OIDs. The CLI still requires separate
+binding YAML; it does not acquire owner authority, discover a trusted context
+or convert arbitrary prose into one. If a required context or material binding
+is missing, stop for that input or use a separately authorized manual workflow.
+Do not fill the gap with a guessed owner decision or an invented observation.
+
+For a supported bounded task:
+
+1. Preserve the semantic source and its graph. Bind each real effect to its
+   existing positive authority, repository and exact target; keep negative
+   scope in the current governed context.
+2. Keep genuinely material premises separately represented, with their own
+   provenance and actual consumers. A source premise that only restates
+   already-bound task/governance constraints may remain traced without a
+   duplicate executable evidence binding. Its underlying obligations remain
+   material in their authoritative channels. Recognized live identity premises
+   still need their explicit materiality/dependency binding and supported
+   resolver; source prose cannot replace missing effect authority.
+3. Run the maintained CLI above with the acquired context. Do not author
+   `stages` or supply a second technical plan: supplied stage prose is inert.
+4. Review the exact generated prompt, receipt and diagram against the source
+   and current governance. Check semantic dependencies separately from physical
+   scheduling, exact local grants, negative scope, material evidence gates and
+   foreign-work controls. Mechanical lint is only one check.
+5. Execute only after the existing owner authority and separate conformance
+   gate are satisfied. Acquire current branch/resource/index state where the
+   generated effect consumes it, then retain distinct execution and result
+   evidence. Compilation does not prove those checks happened.
+
+For the supported controller-local fork/review/commit shape, independent
+writers have disjoint tracked targets, feed one read-only review join and then
+one separate commit on an existing bound branch. Delegation is forbidden and
+one existing repository/worktree/ref carries the work. The compiler schedules
+these writer actions serially without adding a semantic writer-to-writer edge.
+Each writer freezes and reviews its own outcome; the join cannot hide a failed
+writer behind the other result. Writers receive no index/ref commit effect;
+the commit stage receives only the exact accepted union's index/ref mechanics.
+Do not introduce worker carriers or branch creation to express this shape.
+
+A source line, tag, graph edge or receipt grants no permission. Unsupported
+syntax or an unrepresented action reports its actual implementation boundary;
+missing authority/evidence retains its own stop. Do not rewrite the task or
+widen the effects to obtain a conforming compile. A new substantive decision
+returns to the owner. The existing manual guides linked below remain available
+under their own authority; a fallback is not automatic execution permission.
 
 Standard Gherkin is the human semantic contract: the feature and scenarios
 describe premises, requested actions, observable results, and negative

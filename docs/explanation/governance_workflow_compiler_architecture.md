@@ -5,6 +5,65 @@ evidence evaluation and owner acceptance remain external. Its source inputs are
 bounded Gherkin intent, explicit upstream binder claims and an acquired policy
 repository. None of those roles can replace another.
 
+## Qualification and canonical authority
+
+The isolated candidate is undergoing prospective D8-G qualification. It is not
+canonical governance, an activated project workflow or a stable rollout. The
+accepted functional qualification and compiler repairs are continuation
+evidence; they do not accept the real D8-G task or promote the candidate.
+Current canonical project master remains authoritative outside the exact
+owner-approved qualification scope. An acquired qualification policy carrier
+can support that bounded test without becoming project canonical master or
+an authority for other work.
+
+The owner-approved order remains:
+
+```text
+D8-G
+  -> full pre-rollout adversarial readiness audit
+  -> D8-H owner readiness/activation
+  -> canonical promotion
+  -> post-integration conformance verification
+  -> stable rollout
+```
+
+Each boundary requires its own evidence and owner disposition. A successful
+compile, mechanical lint, faithful generated prompt, task execution, lane
+acceptance and canonical adoption are distinct results. D8-G does not authorize
+D8-H, promotion or stable rollout; promotion alone does not establish
+post-integration conformance. No compiler receipt can skip this order.
+
+## Intent, bindings, planning and serialization
+
+The architecture keeps four responsibilities separate:
+
+| Layer | Owned meaning |
+| --- | --- |
+| Semantic intent | Gherkin actions, premises, observable outcomes and source dependencies |
+| Authoritative bindings | Acquired owner/evidence claims, exact repository/target scope and independent positive effect authority |
+| Governance planning | Supported physical schedule, local stage grants, required checks and commit/readback mechanics under the acquired policy |
+| Serialized prompt/workflow | Inspectable execution contract, trace and graph for separate conformance review and authorized execution |
+
+Each genuinely material premise needs its own source-honest representation and
+consumer relation. A source Given may also trace a restatement of constraints
+already owned by accepted task status, positive authority, negative scope or
+canonical governance. That duplicate restatement needs no second monolithic
+executable evidence binding. Its real obligations remain material in those
+channels: prose cannot supply a missing grant, widen a target, relax a denial
+or certify preservation of foreign work. Recognized live identity assertions
+still require their explicit binding and supported verification path; unknown
+unbound prose cannot manufacture an owner decision.
+
+For the bounded controller-local fork/review/commit shape, independent semantic
+writers can execute serially on one existing bound carrier with delegation
+forbidden. Each writer has only its own disjoint tracked target and freezes a
+separate outcome. One read-only join consumes both outcomes independently; a
+later commit receives only the exact accepted union's index/ref mechanics.
+Physical scheduling creates no source writer-to-writer dependency. Semantic
+trace, positive effect authority, negative scope and runtime evidence remain
+separate even when one executor performs all actions. Unsupported shapes stop
+at their actual boundary rather than acquiring an invented stage or grant.
+
 `governance_workflow_ir.py` owns the canonical policy snapshot and typed produced
 results. `Policy_source_binding` reads exact master Git objects and records
 consumed dependencies, including modules and validator bytes. It revalidates
