@@ -25,6 +25,12 @@ Read the authorized task, the relevant [execution policy](../../AGENTS.md), the 
 | A later repository step cannot proceed | Read back the valid earlier repository results and their interfaces. | Preserve and report the partial state; do not assume global rollback. |
 | A requirement belongs to a later phase | Identify the phase and its dependency on the current result. | Report it at that boundary; do not invent a current blocker. |
 
+If evidence shows a defect recurring or propagating across dependent
+consumers after local closure, use the bounded [foundational diagnosis](../explanation/task_lifecycle.md#when-repeated-patching-calls-for-foundational-diagnosis)
+before choosing another isolated patch. An isolated stop with a known cause
+remains a local recovery problem; this deeper route is not mandatory for every
+error and does not expand the authorized task.
+
 ## Verify the result
 
 The report ties each stop to a concrete current consequence, preserves valid evidence, and names the next authorized decision. The [recovery tutorial](../tutorials/08_recover_from_a_stopped_task.md) shows a bounded example.
