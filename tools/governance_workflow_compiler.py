@@ -446,21 +446,28 @@ def _closed_values(field_name: str, contents: dict[str, str]) -> set[str]:
     git = contents["governance/contracts/git_lifecycle.md"]
     orchestration = contents["governance/contracts/orchestration.md"]
     production = contents["governance/contracts/production.md"]
-    if field_name == "dirty_worktree_policy":
-        if "Default preflight_profile" not in agents:
+    if field_name in {"dirty_worktree_policy", "preflight_profile"}:
+        # The two fields share one declaration, not the following prose. Bound
+        # it before normalizing whitespace; a missing/duplicate unit is unknown.
+        paragraphs = re.split(r"\n[ \t]*\n|\n(?=[ \t]*[#|])", agents)
+        declarations = [paragraph.strip() for paragraph in paragraphs
+                        if re.match(r"Default\s+preflight_profile\b", paragraph.strip())]
+        if len(declarations) != 1:
             return set()
-        paragraph = agents.split("Default preflight_profile", 1)[-1].split("Inspect exact task paths", 1)[0]
-        default = re.search(r"default dirty_worktree_policy\s+is ([a-z_]+)", paragraph)
-        alternatives = re.search(r"Alternatives are ([a-z_,\s]+?); declare", paragraph)
-        return ({default.group(1)} if default else set()) | (
-            set(re.findall(r"[a-z]+(?:_[a-z0-9]+)+", alternatives.group(1))) if alternatives else set())
-    if field_name == "preflight_profile":
-        if "Default preflight_profile" not in agents:
+        paragraph = " ".join(declarations[0].split())
+        if len(re.findall(r"\bDefault preflight_profile\b", paragraph)) != 1:
             return set()
-        paragraph = agents.split("Default preflight_profile", 1)[-1].split("Inspect exact task paths", 1)[0]
-        default = re.search(r"is ([a-z_]+);", paragraph)
-        expanded = re.search(r"([a-z_]+) requires a reason", paragraph)
-        return ({default.group(1)} if default else set()) | ({expanded.group(1)} if expanded else set())
+        value = r"[a-z]+(?:_[a-z0-9]+)*"
+        declaration = re.match(
+            rf"Default preflight_profile is ({value}); "
+            rf"default dirty_worktree_policy is ({value}) \([^()]*\)\. "
+            rf"Alternatives are ({value}(?:, {value})* and {value}); "
+            rf"declare them explicitly\. ({value}) requires a reason\.", paragraph)
+        if declaration is None:
+            return set()
+        if field_name == "preflight_profile":
+            return {declaration.group(1), declaration.group(4)}
+        return {declaration.group(2), *declaration.group(3).replace(" and ", ", ").split(", ")}
     if field_name == "patch_kind_expected":
         if "Patch kinds are " not in agents or "; name creation method" not in agents:
             return set()

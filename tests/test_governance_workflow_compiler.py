@@ -4076,3 +4076,130 @@ def test_tracked_identity_does_not_authorize_an_unbound_target():
     result = compile_contract(feature, yaml.safe_dump(data))
     assert result.compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
     assert not result.prompt
+
+
+# Exact accepted R18 paragraph (AGENTS SHA-256
+# 7e01f1c2bba5744771f2c3a1146c918142ce150d875409a11ab7f1e088bdab82).
+R18_PREFLIGHT_DECLARATION = 'Default preflight_profile is compact_preflight; default dirty_worktree_policy\nis require_clean_worktree (tracked/index/conflict clean, not physically\nempty). Alternatives are work_on_dirty_branch_as_is,\nallow_declared_preexisting_changes and commit_preparation_existing_changes;\ndeclare them explicitly. expanded_preflight requires a reason. Inspect exact\ntask paths, branch/HEAD, needed references, staged/unstaged task changes and\ninput/output collisions. preflight_scope_paths may be derived only when the\nnamed exact surfaces determine a unique minimum set. Check task paths and\nshared/generated inputs or outputs that can contaminate the effect; inspect\nthe complete index before a commit. Neither clean-state policy nor preflight\nrequires physical workspace emptiness. Disjoint foreign changes may remain\nunder an explicitly selected dirty-worktree alternative when the exact delta\nis safely isolated. Never inventory unrelated untracked files. Preserve all\nforeign changes; path write permission does not adopt them. No reset, restore,\nstash, clean or checkout-discard without exact authority, except the narrow\nforeign-index recovery defined in the Git contract. Read back relevant final\nstate.'
+DIRTY_POLICY_VALUES = {'require_clean_worktree', 'work_on_dirty_branch_as_is',
+                       'allow_declared_preexisting_changes', 'commit_preparation_existing_changes'}
+PREFLIGHT_VALUES = {'compact_preflight', 'expanded_preflight'}
+
+
+@pytest.fixture(scope='module')
+def closed_vocabulary_sources():
+    return compiler._canonical_sources()[0]
+
+
+def test_closed_vocabulary_p12_exact_r18(closed_vocabulary_sources):
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': R18_PREFLIGHT_DECLARATION}
+    assert ';\ndeclare them explicitly.' in R18_PREFLIGHT_DECLARATION
+    assert compiler._closed_values('dirty_worktree_policy', contents) == DIRTY_POLICY_VALUES
+    assert compiler._closed_values('preflight_profile', contents) == PREFLIGHT_VALUES
+
+
+@pytest.mark.parametrize('form', ['single_line', 'list_reflow', 'semicolon_reflow', 'spaces', 'tabs_newlines'])
+@pytest.mark.parametrize('field,expected', [('dirty_worktree_policy', DIRTY_POLICY_VALUES),
+                                          ('preflight_profile', PREFLIGHT_VALUES)])
+def test_closed_vocabulary_p13_reflow(form, field, expected, closed_vocabulary_sources):
+    paragraph = ' '.join(R18_PREFLIGHT_DECLARATION.split())
+    if form == 'list_reflow':
+        paragraph = paragraph.replace(', ', ',\n')
+    elif form == 'semicolon_reflow':
+        paragraph = paragraph.replace('; declare', ';\ndeclare')
+    elif form == 'spaces':
+        paragraph = paragraph.replace(' ', '   ')
+    elif form == 'tabs_newlines':
+        paragraph = paragraph.replace(' ', '\t\n')
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': paragraph}
+    assert compiler._closed_values(field, contents) == expected
+
+
+@pytest.mark.parametrize('field,expected', [
+    ('dirty_worktree_policy', DIRTY_POLICY_VALUES),
+    ('preflight_profile', PREFLIGHT_VALUES),
+    ('patch_kind_expected', {'prompt_local', 'cumulative', 'touched_file_cumulative', 'empty_no_changes'}),
+    ('foreign_dirty_change_policy', {'preserve_and_exclude'}),
+    ('staging_policy', {'exact_path_only'}),
+    ('workflow_stop_policy', {'stop_on_failed_gate_or_new_decision_boundary'}),
+    ('integration_method', {'ff_only'}),
+    ('publication_action', {'create_or_reuse_open_pr_or_mr', 'synchronize_declared_remote_branch',
+                            'normalize_declared_post_squash_staging_ref', 'merge_existing_pr_or_mr'}),
+    ('duplicate_pr_or_mr_policy', {'reuse_exact_open_match_else_create_one'}),
+    ('execution_owner', {'codex', 'user'}),
+])
+def test_closed_vocabulary_p14_existing_sets(field, expected, closed_vocabulary_sources):
+    assert compiler._closed_values(field, closed_vocabulary_sources) == expected
+
+
+def test_closed_vocabulary_p14_values_come_from_declaration(closed_vocabulary_sources):
+    paragraph = ('Default preflight_profile is compact_probe; default dirty_worktree_policy '
+                 'is clean_probe (tracked clean). Alternatives are dirty_probe_a, '
+                 'dirty_probe_b and dirty_probe_c; declare them explicitly. '
+                 'expanded_probe requires a reason.')
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': paragraph}
+    assert compiler._closed_values('dirty_worktree_policy', contents) == {
+        'clean_probe', 'dirty_probe_a', 'dirty_probe_b', 'dirty_probe_c'}
+    assert compiler._closed_values('preflight_profile', contents) == {'compact_probe', 'expanded_probe'}
+
+
+def test_closed_vocabulary_n12_invented_value(closed_vocabulary_sources):
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': R18_PREFLIGHT_DECLARATION}
+    with pytest.raises(compiler.Compile_error) as failure:
+        compiler._check_closed_fields({'dirty_worktree_policy': 'invented_dirty_policy'}, [], contents)
+    assert failure.value.result == 'UNSUPPORTED_CANONICAL_CONSTRUCT'
+
+
+@pytest.mark.parametrize('fault', ['missing', 'missing_default', 'missing_list', 'malformed_list',
+                                  'duplicate_paragraph', 'duplicate_inline'])
+@pytest.mark.parametrize('field', ['dirty_worktree_policy', 'preflight_profile'])
+def test_closed_vocabulary_n13_missing_ambiguous(fault, field, closed_vocabulary_sources):
+    paragraph = R18_PREFLIGHT_DECLARATION
+    if fault == 'missing':
+        paragraph = 'No supported declaration.'
+    elif fault == 'missing_default':
+        paragraph = paragraph.replace('default dirty_worktree_policy', 'unrelated policy')
+    elif fault == 'missing_list':
+        paragraph = paragraph.split('Alternatives are', 1)[0]
+    elif fault == 'malformed_list':
+        paragraph = paragraph.replace(' and commit_preparation', ' or commit_preparation')
+    else:
+        paragraph += ('\n\n' if fault == 'duplicate_paragraph' else ' ') + R18_PREFLIGHT_DECLARATION
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': paragraph}
+    assert compiler._closed_values(field, contents) == set()
+    with pytest.raises(compiler.Compile_error) as failure:
+        compiler._check_closed_fields({field: 'require_clean_worktree'}, [], contents)
+    assert failure.value.result == 'IMPLEMENTATION_GAP'
+
+
+@pytest.mark.parametrize('separator', ['\n\n', '\n# Other policy\n', '\n| Other | Policy |\n',
+                                       ' Unrelated guidance. '])
+@pytest.mark.parametrize('complete', [True, False])
+def test_closed_vocabulary_n14_adjacent_prose(separator, complete, closed_vocabulary_sources):
+    paragraph = R18_PREFLIGHT_DECLARATION if complete else R18_PREFLIGHT_DECLARATION.split('Alternatives are', 1)[0]
+    paragraph += separator + ('Alternatives are leaked_policy_a and leaked_policy_b; '
+                              'declare them explicitly. expanded_probe requires a reason.')
+    contents = {**closed_vocabulary_sources, 'AGENTS.md': paragraph}
+    expected = DIRTY_POLICY_VALUES if complete else set()
+    assert compiler._closed_values('dirty_worktree_policy', contents) == expected
+    assert compiler._closed_values('preflight_profile', contents) == (PREFLIGHT_VALUES if complete else set())
+
+
+@pytest.mark.parametrize('fault', ['unbound_target', 'missing_effect_grant'])
+def test_closed_vocabulary_n16_membership_is_not_authority(fault, closed_vocabulary_sources, monkeypatch):
+    contents = dict(closed_vocabulary_sources)
+    original = next(p for p in contents['AGENTS.md'].split('\n\n') if p.startswith('Default preflight_profile'))
+    contents['AGENTS.md'] = contents['AGENTS.md'].replace(original, R18_PREFLIGHT_DECLARATION)
+    monkeypatch.setattr(compiler, '_canonical_sources', lambda policy=None: (
+        contents, {name: hashlib.sha256(body.encode()).hexdigest() for name, body in contents.items()}))
+    data = structured_fork_data()
+    data['prompt']['dirty_worktree_policy'] = 'work_on_dirty_branch_as_is'
+    if fault == 'unbound_target':
+        data['bindings'][1]['target'] = 'docs/foreign.md'
+    else:
+        data['prompt']['heavy_command_permissions'] = {}
+    assert compiler._closed_values('dirty_worktree_policy', contents) == DIRTY_POLICY_VALUES
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert result.compiler_result != 'COMPILED_CONFORMING_CANDIDATE'
+    assert not result.prompt
+    assert 'source-derived live dirty_worktree_policy' not in str(result.receipt.get('diagnostics'))
