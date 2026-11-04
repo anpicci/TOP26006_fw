@@ -11,6 +11,12 @@ Use this manual to frame a research question, give an assistant a bounded task, 
 
 For the shortest route to one useful reviewed task, follow [Explore one bounded task](getting_started.md#explore-one-bounded-task), then [review the returned evidence](tutorials/05_review_and_accept_returned_evidence.md). Local execution needs the setup linked from that route; reading the example does not.
 
+## Follow the tutorials
+
+The **[tutorial learning path](tutorials/index.md)** guides you through small research exercises, from preparing a workspace and checking a synthetic result to reviewing evidence, continuing work, and handing it over. It gives the recommended ordinary route, each lesson's starting point and outcome, and optional extensions for native analysis and broader coordination.
+
+Use that walkthrough when you want to learn the method by doing; use the task routes below when you already know which kind of help you need.
+
 ## Find the route you need
 
 | I want to… | Start with… |

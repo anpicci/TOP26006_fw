@@ -157,4 +157,6 @@ Finish with a short note naming the CSV and the repository version you used
 used, the values observed, and the limits above. Record any discrepancy rather
 than guessing its cause. For more on assessing that account, read
 [evidence and acceptance](../explanation/evidence_reproducibility_and_acceptance.md),
-or return to the [manual](../index.md) to choose your next task.
+then continue to [Tutorial 4](04_make_a_bounded_analysis_change.md) for a bounded
+change in its own scratch teaching context. Return to the [tutorial learning
+path](index.md) for alternatives.

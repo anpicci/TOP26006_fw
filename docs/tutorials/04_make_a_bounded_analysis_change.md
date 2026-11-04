@@ -98,3 +98,5 @@ After interruption, enter the explicit scratch path and inspect HEAD, status, th
 To start the lesson from its initial state, choose a new absent practice directory and replace every `tutorial04_practice` occurrence consistently. Preserve the earlier directory; do not reset, clean, overwrite, or infer ownership of its changes. The seed setup is the only preparation to repeat in the new directory; no Tutorial 3 calculation is required.
 
 Continue to [review returned evidence](05_review_and_accept_returned_evidence.md), which has its own fixed input and does not require this scratch history.
+
+Return to the [tutorial learning path](index.md) to choose another lesson.

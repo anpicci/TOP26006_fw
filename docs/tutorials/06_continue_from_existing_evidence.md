@@ -53,4 +53,4 @@ Reopen the saved draft and its named scenario after interruption. If the source 
 
 To start afresh, use the documented scenario stage above and a new personal draft. No earlier shell state is needed. This exercise proves only that a continuation can be specified, not that its proposed write ran or was accepted.
 
-For an interrupted local task, continue to [recovery](08_recover_from_a_stopped_task.md). Only when a real task requires a second repository should you use [multi-repository coordination](07_coordinate_a_multi_repository_change.md); it is a later conditional route, not the ordinary next step.
+Next in the learning path is [Tutorial 8: recovery](08_recover_from_a_stopped_task.md), which starts from its own documented stop. This continuation exercise has not created a stopped task; operational recovery is needed only when a real task is actually stopped. Return to the [tutorial learning path](index.md) for other choices. Only when a real task requires a second repository should you use [multi-repository coordination](07_coordinate_a_multi_repository_change.md); it is a later conditional route, not the ordinary next step.

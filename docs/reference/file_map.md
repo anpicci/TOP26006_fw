@@ -7,6 +7,7 @@ Choose a destination by what you need to do. Learning pages and how-to guides ex
 | Location | What to use it for |
 | --- | --- |
 | [README](../../README.md), [manual index](../index.md), [getting started](../getting_started.md) | Enter the manual and choose a short research route. |
+| [Tutorial learning path](../tutorials/index.md) | Follow the canonical guided curriculum, with lesson starting points, outcomes, and optional extensions. |
 | [Research foundations](../foundations/ai_assisted_research.md), [research workflow](../explanation/research_workflow.md), [roles and authority](../explanation/roles_and_authority.md), [research-oriented writing](../explanation/research_oriented_writing.md) | Understand the method and the responsibilities of people and tools. Explanatory documentation. |
 | [Synthetic measurements](../../examples/repeated_measurements/README.md), [companion notebook](../../examples/repeated_measurements/repeated_measurements.ipynb) | Explore invented teaching data and the maintained calculation; the notebook calls its functions and stores no executed output. |
 | [First read-only task](../tutorials/03_complete_a_first_read_only_task.md) | Complete one small task without a native analysis checkout; use [Tutorial 1](../tutorials/01_prepare_a_research_project.md) when local execution needs setup. |

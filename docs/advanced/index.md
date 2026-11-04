@@ -1,6 +1,6 @@
 # Advanced workstream coordination
 
-Complete the [core learning route](../index.md) first. Its serial task, review, acceptance, continuation, and handoff method is sufficient for ordinary work. Concurrent workstreams are useful when questions and dependencies can be bounded; adding workers is not a measure of maturity or quality.
+Complete the [core learning route](../tutorials/index.md) first. Its serial task, review, acceptance, continuation, and handoff method is sufficient for ordinary work. Concurrent workstreams are useful when questions and dependencies can be bounded; adding workers is not a measure of maturity or quality.
 
 ## Decide whether to enter this route
 

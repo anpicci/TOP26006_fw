@@ -22,4 +22,4 @@ The optional [Add an analysis repository](tutorials/02_add_an_analysis_repositor
 
 ## Continue when the task grows
 
-After your first task, the [later tutorials](index.md#continue-after-the-first-task) cover making a bounded change, reviewing evidence, continuing work, recovery, and handoff. The [advanced and maintainer routes](index.md#advanced-and-maintainer-routes) are available when you need broader coordination, provider details, or project configuration.
+After your first task, follow the [tutorial learning path](tutorials/index.md) for the full guided curriculum. It explains how the later lessons on change, review, continuation, recovery, and handoff fit together, and when to take an optional extension. The [advanced and maintainer routes](index.md#advanced-and-maintainer-routes) are available when you need broader coordination, provider details, or project configuration.
