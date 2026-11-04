@@ -3805,3 +3805,274 @@ def test_l05_read_only_runtime_requirements_do_not_demand_git_commit_checks():
     assert 'dirty-worktree' not in responsibility
     assert 'repository/worktree/branch' not in responsibility
     assert 'must_pass_before_effects' not in str(requirements)
+
+
+STRUCTURED_FORK_FEATURE = 'Feature: document the D8 lane-author path before stable rollout\n\n  The semantic dependency graph is:\n\n  ```text\n                  +--> [W1] --------+\n                  |                 |\n[G1] -------------+                 +--> [C1] --> [C2] --> [T1]\n                  |                 |\n                  +--> [W2] --------+\n  ```\n\n  Scenario: update and review the two maintained pre-rollout documentation pages\n    Given [G1] the accepted post-R16 D8 candidate is being prospectively qualified and is not yet canonical, current canonical master remains authoritative outside this bounded qualification, exactly the two maintained D8 documentation pages may change, compiler/governance/test/validator/master/remote/production/scientific surfaces may not change, and foreign work must be preserved and excluded\n    When [W1] writer_a edits only docs/how_to/compile_governance_workflow.md so a lane author can express an already-authorized bounded task through the supported semantic Gherkin contract without manually reconstructing CPC fields, technical stage choreography, Git commands or volatile identity values, while unsupported constructs and new substantive decisions remain explicit stop-or-manual-fallback boundaries\n    And [W2] writer_b edits only docs/explanation/governance_workflow_compiler_architecture.md so it clearly distinguishes isolated candidate qualification from canonical governance and preserves the owner-approved order D8-G -> full pre-rollout adversarial readiness audit -> D8-H owner readiness/activation -> canonical promotion -> post-integration conformance verification -> stable rollout\n    And [C1] controller reviews W1 and W2 independently against G1 and their requested outcomes and composes only the exact accepted two-file union, preserving any material failure instead of hiding it behind the other writer\n    And [C2] controller commits exactly the accepted two-file union on the existing governance/workflow-compiler-remediation branch without adopting unrelated tracked or foreign work\n    Then [T1] the final candidate documents satisfy W1 and W2, the committed path set is exactly the two authorized documentation files, the real canonical master remains unchanged, compile execution evidence lane acceptance canonical adoption and stable rollout remain distinct, and no new authority or scientific decision has been created by Gherkin or D8'
+
+
+def structured_fork_data(feature=STRUCTURED_FORK_FEATURE):
+    data = base_data()
+    prompt = data['prompt']
+    paths = ['docs/how_to/compile_governance_workflow.md',
+             'docs/explanation/governance_workflow_compiler_architecture.md']
+    branch = 'governance/workflow-compiler-remediation'
+    ref = 'refs/heads/' + branch
+    prompt.update(prompt_mode='coding', patch_kind_expected='prompt_local',
+                  branch_policy='continue_existing_branch', target_branch=branch,
+                  allowed_to_modify={'TOP26006_fw': paths + ['.git/index', ref]},
+                  heavy_command_permissions={'allowed_to_modify': {'TOP26006_fw': paths + ['.git/index', ref]}},
+                  foreign_dirty_change_policy='preserve_and_exclude', staging_policy='exact_path_only')
+    data['requested_effects'] = []
+    actions = [step for step in compiler.parse_gherkin(feature, 'fixture').steps if step.keyword == 'When']
+    for i, (step, kind, target) in enumerate(zip([actions[0], actions[1], actions[3]],
+            ['tracked_write', 'tracked_write', 'local_git_ref_write'], paths + [ref])):
+        bid = 'effect_authority_' + str(i)
+        data['bindings'].append({**data['bindings'][0], 'binding_id': bid,
+            'claim': step.text, 'authorizes_effect': True, 'effect': kind, 'target': target})
+        data['requested_effects'].append({'effect_id': 'effect_' + str(i), 'effect': kind,
+            'target': target, 'requested_by_step': step.line, 'positive_authority_binding': bid})
+    return data
+
+
+def structured_partition(feature=STRUCTURED_FORK_FEATURE, data=None):
+    data = structured_fork_data(feature) if data is None else data
+    intent = compiler.parse_gherkin(feature, 'fixture')
+    return compiler._normalize_semantics(intent, data, compiler._effects(data, intent))
+
+
+def test_structured_partition_p1_p3_p5_p6_p7_n6_n8_n10():
+    data = structured_fork_data()
+    intent = structured_partition(data=data)
+    nodes, edges = compiler._semantic_graph(intent)
+    assert edges == {('G1', 'W1'), ('G1', 'W2'), ('W1', 'C1'), ('W2', 'C1'),
+                     ('C1', 'C2'), ('C2', 'T1')}
+    effects = tuple(e for row in intent.partition.assignments for e in row.effects)
+    stages = compiler._plan_controller_local(data, intent, effects)
+    rows = {row.semantic_id: row for row in intent.partition.assignments}
+    graph = compiler.Result_graph.from_stages(stages)
+    assert [s['generation_provenance']['semantic_line'] for s in stages] == [
+        rows[k].source_line for k in ['W1', 'W2', 'C1', 'C2']]
+    assert graph.predecessors(rows['W2'].owners[0]) == set()
+    assert graph.predecessors(rows['C1'].owners[0]) == {rows[k].owners[0] for k in ['W1', 'W2']}
+    assert stages[2]['stage_effect_permissions'] == {}
+    assert stages[3]['stage_mode'] == 'commit_preparation'
+    assert stages[3]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['git_index_entries'] == sorted(
+        e.target for e in effects if e.effect == 'tracked_write')
+    assert [e.effect_id for e in rows['W1'].effects] == ['effect_0']
+    assert [e.effect_id for e in rows['W2'].effects] == ['effect_1']
+    assert [e.effect_id for e in rows['C2'].effects] == ['effect_2']
+    assert not rows['C1'].effects
+    assert data['prompt']['delegation_policy'] == 'forbidden'
+    assert len({s['working_directory'] for s in stages}) == 1
+
+
+def test_structured_partition_p2_n3_prose_and_opaque_ids():
+    original = structured_partition()
+    feature = STRUCTURED_FORK_FEATURE
+    for before, after in [('G1', 'aa'), ('W1', 'bb'), ('W2', 'cc'),
+                          ('C1', 'dd'), ('C2', 'ee'), ('T1', 'ff')]:
+        feature = feature.replace('[' + before + ']', '[' + after + ']')
+    feature = feature.replace('writer_a edits only', 'first actor revises only').replace(
+        'writer_b edits only', 'second actor revises only')
+    renamed = structured_partition(feature)
+    compiled = compile_contract(feature, yaml.safe_dump(structured_fork_data(feature)))
+    assert compiled.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', compiled.receipt.get('diagnostics')
+    assert [(r.predecessors, r.successors, r.domain, [e.effect_id for e in r.effects])
+            for r in renamed.partition.assignments] == [
+        (r.predecessors, r.successors, r.domain, [e.effect_id for e in r.effects])
+        for r in original.partition.assignments]
+
+
+def test_structured_partition_n0_malformed_graph():
+    diagram = """                                 +--> [W1] how-to edit --------+
+                                 |                            |
+  [G1] bounded qualification ---+                            +--> [C1] review/join --> [C2] exact commit --> [T1] result
+                                 |                            |
+                                 +--> [W2] architecture edit -+"""
+    with pytest.raises(compiler.Compile_error) as failure:
+        compiler._ascii_graph(diagram)
+    assert failure.value.result == 'WORKFLOW_GRAPH_INCONSISTENT'
+
+
+def test_structured_partition_n5_true_serial_topology():
+    intent = compiler.parse_gherkin(STRUCTURED_FORK_FEATURE, 'fixture')
+    graph = compiler._draw_ascii({s.semantic_id for s in intent.steps},
+        set(zip(['G1', 'W1', 'W2', 'C1', 'C2'], ['W1', 'W2', 'C1', 'C2', 'T1'])))
+    intent = compiler.replace(intent, workflow_diagram=graph)
+    normalized = compiler._normalize_semantics(intent, structured_fork_data(),
+        compiler._effects(structured_fork_data(), intent))
+    assert ('W1', 'W2') in compiler._semantic_graph(normalized)[1]
+    assert ('W1', 'C1') not in compiler._semantic_graph(normalized)[1]
+
+
+def test_structured_partition_n11_overlapping_targets():
+    data = structured_fork_data()
+    data['requested_effects'][1]['target'] = data['requested_effects'][0]['target']
+    intent = structured_partition(data=data)
+    with pytest.raises(compiler.Compile_error, match='overlap'):
+        compiler._plan_controller_local(data, intent, tuple(e for r in intent.partition.assignments for e in r.effects))
+
+
+@pytest.mark.parametrize('fault', ['missing_effect', 'missing_authority', 'wrong_authority', 'missing_graph'])
+def test_structured_partition_n2_n4_n7_fail_closed(fault):
+    data = structured_fork_data()
+    feature = STRUCTURED_FORK_FEATURE
+    if fault == 'missing_effect': data['requested_effects'].pop(1)
+    elif fault == 'missing_authority': data['bindings'].pop()
+    elif fault == 'wrong_authority': data['requested_effects'][1]['positive_authority_binding'] = 'effect_authority_0'
+    else:
+        start = feature.index('  ```text'); end = feature.index('  ```', start + 8) + 5
+        feature = feature[:start] + feature[end:]
+    result = compile_contract(feature, yaml.safe_dump(data))
+    assert not result.prompt
+    assert result.compiler_result != 'COMPILED_CONFORMING_CANDIDATE'
+
+
+def test_structured_controller_local_complete_projection():
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data()))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    assert result.receipt['traceability']['complete']
+    edges = {(e['source'], e['target']) for e in result.receipt['workflow_visualization']['generated_graph']['connectors']}
+    assert ('W1', 'W2') not in edges and ('W2', 'W1') not in edges
+    assert {('W1', 'C1'), ('W2', 'C1'), ('C1', 'C2')} <= edges
+    assert result.receipt['isolation_verification']['carrier_mode'] == 'controller_local'
+
+
+def test_structured_n1_typed_independence_conflicts_with_serial_graph():
+    data = separate_parallel_data()
+    intent = compiler.parse_gherkin(GRAPH_PARALLEL, 'fixture')
+    graph = compiler._draw_ascii({s.semantic_id for s in intent.steps}, set(zip(
+        ['G1', 'W1', 'W2', 'C1', 'I1', 'R1'], ['W1', 'W2', 'C1', 'I1', 'R1', 'T1'])))
+    feature = GRAPH_PARALLEL.replace(intent.workflow_diagram, graph)
+    old_ids = {step.line: step.semantic_id for step in intent.steps}
+    new_lines = {step.semantic_id: step.line for step in compiler.parse_gherkin(feature, 'fixture').steps}
+    for effect in data['requested_effects']:
+        effect['requested_by_step'] = new_lines[old_ids[effect['requested_by_step']]]
+    result = compile_contract(feature, yaml.safe_dump(data))
+    assert result.compiler_result == 'WORKFLOW_GRAPH_INCONSISTENT'
+    assert not result.prompt
+
+
+def test_structured_ref_operation_is_not_inferred_from_ref_effect_alone():
+    feature = STRUCTURED_FORK_FEATURE.replace('controller commits exactly', 'controller advances exactly')
+    result = compile_contract(feature, yaml.safe_dump(structured_fork_data(feature)))
+    assert not result.prompt
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+
+
+# Lexical target identities must agree before and after controller-local planning.
+TRACKED_IDENTITY_CASES = [
+    ("n11a", "docs/page.md", "docs/page.md", False),
+    ("n11b", "docs/page.md", "docs/./page.md", False),
+    ("n11c", "docs/page.md", "./docs/page.md", False),
+    ("n11d", "docs/page.md", "docs//page.md", False),
+    ("n11e", "docs/dir", "docs/./dir/file.md", False),
+    ("ancestor_reverse", "./docs//dir/file.md", "docs/dir/", False),
+    ("n11f", "docs/a.md", "docs/sub/../page.md", False),
+    ("n11g", "docs/a.md", "/tmp/page.md", False),
+    ("trailing_separator", "docs/page.md", "docs/page.md/", False),
+    ("root_only", "docs/a.md", "./", False),
+    ("empty", "docs/a.md", "", False),
+    ("p8", "docs/a.md", "docs/b.md", True),
+    ("p9", "docs/a/page.md", "docs/b/page.md", True),
+    ("p10", "docs/a", "docs/ab", True),
+    ("positive_aliases", "./docs//a.md", "docs/./b.md/", True),
+    ("case_sensitive", "docs/A.md", "docs/a.md", True),
+]
+
+
+def structured_target_data(first, second):
+    data = structured_fork_data()
+    feature = STRUCTURED_FORK_FEATURE
+    for index, target in enumerate((first, second)):
+        effect = data['requested_effects'][index]
+        old = effect['target']
+        feature = feature.replace(old, target)
+        effect['target'] = target
+        binding = next(b for b in data['bindings'] if b['binding_id'] == effect['positive_authority_binding'])
+        binding['target'] = target
+        binding['claim'] = binding['claim'].replace(old, target)
+        for scope in (data['prompt']['allowed_to_modify'],
+                      data['prompt']['heavy_command_permissions']['allowed_to_modify']):
+            scope['TOP26006_fw'][index] = target
+    return feature, data
+
+
+def controller_plan(data):
+    intent = structured_partition(data=data)
+    effects = tuple(e for row in intent.partition.assignments for e in row.effects)
+    data['stages'] = compiler._plan_controller_local(data, intent, effects)
+    return data['stages']
+
+
+@pytest.mark.parametrize('case,first,second,accepted', TRACKED_IDENTITY_CASES,
+                         ids=[row[0] for row in TRACKED_IDENTITY_CASES])
+def test_tracked_identity_planner_verifier_agreement(case, first, second, accepted):
+    feature, data = structured_target_data(first, second)
+    if accepted:
+        stages = controller_plan(data)
+        compiler._verify_carrier_isolation(data, 'controller_local_workflow', [], {})
+        identities = [compiler._tracked_target_identity(p, 'COMPILER_INVARIANT_FAILURE')
+                      for p in (first, second)]
+        commit = stages[-1]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['git_index_entries']
+        assert sorted(compiler._tracked_target_identity(p, 'COMPILER_INVARIANT_FAILURE') for p in commit) == sorted(identities)
+        assert [s['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['tracked_paths'][0]
+                for s in stages[:2]] == [first, second]  # retain raw authorized spelling
+    else:
+        with pytest.raises(compiler.Compile_error):
+            controller_plan(data)
+        # Challenge the verifier independently, bypassing the rejected planner.
+        baseline = structured_fork_data()
+        stages = controller_plan(baseline)
+        for stage, target in zip(stages[:2], (first, second)):
+            stage['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['tracked_paths'] = [target]
+            stage['authorized_commit_scope']['TOP26006_fw'] = [target]
+        stages[-1]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['git_index_entries'] = [first, second]
+        stages[-1]['authorized_commit_scope']['TOP26006_fw'] = [first, second]
+        with pytest.raises(compiler.Compile_error):
+            compiler._verify_carrier_isolation(baseline, 'controller_local_workflow', [], {})
+
+
+@pytest.mark.parametrize('case,first,second,accepted',
+                         [row for row in TRACKED_IDENTITY_CASES if row[0] != 'empty'],
+                         ids=[row[0] for row in TRACKED_IDENTITY_CASES if row[0] != 'empty'])
+def test_tracked_identity_complete_compile(case, first, second, accepted):
+    feature, data = structured_target_data(first, second)
+    result = compile_contract(feature, yaml.safe_dump(data))
+    if accepted:
+        assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+        assert result.prompt
+    else:
+        assert result.compiler_result != 'COMPILED_CONFORMING_CANDIDATE'
+        assert not result.prompt
+
+
+@pytest.mark.parametrize('fault', ['duplicate_index_alias', 'missing_index', 'extra_index',
+                                  'wrong_commit_scope', 'writer_commit_scope', 'wrong_repository'])
+def test_tracked_identity_postplan_commit_union_tampering(fault):
+    data = structured_fork_data(); stages = controller_plan(data)
+    commit = stages[-1]
+    area = commit['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']
+    if fault == 'duplicate_index_alias':
+        area['git_index_entries'] = area['git_index_entries'] + ['./' + area['git_index_entries'][0]]
+    elif fault == 'missing_index':
+        area['git_index_entries'] = area['git_index_entries'][:1]
+    elif fault == 'extra_index':
+        area['git_index_entries'] = area['git_index_entries'] + ['docs/foreign.md']
+        commit['authorized_commit_scope']['TOP26006_fw'] = area['git_index_entries'][:]
+    elif fault == 'wrong_commit_scope':
+        commit['authorized_commit_scope']['TOP26006_fw'] = ['docs/foreign.md']
+    elif fault == 'writer_commit_scope':
+        stages[0]['authorized_commit_scope']['TOP26006_fw'] = ['docs/foreign.md']
+    else:
+        commit['stage_effect_permissions']['allowed_to_modify'] = {'foreign_repo': area}
+    with pytest.raises(compiler.Compile_error):
+        compiler._verify_carrier_isolation(data, 'controller_local_workflow', [], {})
+
+
+def test_tracked_identity_does_not_authorize_an_unbound_target():
+    feature, data = structured_target_data('./docs/a.md', 'docs/b.md')
+    data['bindings'][1]['target'] = 'docs/foreign.md'
+    result = compile_contract(feature, yaml.safe_dump(data))
+    assert result.compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
+    assert not result.prompt

@@ -786,13 +786,13 @@ def _workflow_visualization(intent: Semantic_intent, data: dict[str, Any], shape
     stages = data.get("stages", [])
     execution_nodes, execution_edges = set(nodes), set(edges)
     failure_edges: set[tuple[str, str]] = set()
-    if stages and shape == "orchestrated_workflow":
+    if stages and shape in {"orchestrated_workflow", "controller_local_workflow"}:
         # Stage dependencies are already lowered from the normalized ownership
         # partition. Geometry projects that plan; it never assigns ownership.
         action_rows = {row.source_line: row for row in _partition_rows(intent)
                        if row.domain != "non_action"}
         explicit_nodes = {owner: row.semantic_id for row in action_rows.values()
-                          if row.domain == "ordered_lifecycle" or intent.partition.separate_parallel
+                          if row.domain in {"ordered_lifecycle", "structured_action"} or intent.partition.separate_parallel
                           for owner in row.owners}
         stage_nodes = {stage["stage_id"]: explicit_nodes.get(stage["stage_id"], "derived_" + stage["stage_id"])
                        for stage in stages}
@@ -987,9 +987,59 @@ def _relation_edge(bindings: tuple[Binding, ...], edges: list[Trace_edge],
     edges.append(Trace_edge(identity, f"stage:{stage_id}", "consumed_by"))
 
 
+def _tracked_target_identity(target: str, failure_result: str) -> tuple[str, ...]:
+    """Lexical repository-relative identity; source spelling remains provenance."""
+    _require(isinstance(target, str) and bool(target) and not target.startswith("/") and
+             ".." not in target.split("/"), failure_result,
+             "tracked target is not repository relative")
+    components = tuple(part for part in target.split("/") if part not in {"", "."})
+    _require(bool(components), failure_result, "tracked target has no repository-relative identity")
+    return components
+
+
+def _tracked_targets_disjoint(identities: list[tuple[str, ...]]) -> bool:
+    """Reject equality or ancestor overlap, using canonical components only."""
+    return all(a[:len(b)] != b and b[:len(a)] != a
+               for i, a in enumerate(identities) for b in identities[i + 1:])
+
+
 def _verify_carrier_isolation(data: dict[str, Any], shape: str,
                               edges: list[Trace_edge], audit: dict[str, Any]) -> None:
     """Check all material mutable carriers after their local relations are bound."""
+    if shape == "controller_local_workflow":
+        carrier = data["_controller_local_carrier"]
+        _require(all(stage.get("working_directory") == carrier["worktree"] and
+                     (stage["stage_mode"] == "validation_only" or
+                      "refs/heads/" + stage["target_branch"] == carrier["ref"])
+                     for stage in data["stages"]), "COMPILER_INVARIANT_FAILURE",
+                     "controller-local plan changed the bound carrier")
+        targets = [target for stage in data["stages"] if stage["stage_mode"] == "coding"
+                   for area in stage["stage_effect_permissions"].get("allowed_to_modify", {}).values()
+                   for target in area.get("tracked_paths", [])]
+        failure = "COMPILER_INVARIANT_FAILURE"
+        identities = [_tracked_target_identity(target, failure) for target in targets]
+        _require(_tracked_targets_disjoint(identities), failure,
+                 "controller-local emitted write scopes overlap")
+        repo = carrier["repository"]
+        for stage in data["stages"]:
+            if stage["stage_mode"] == "validation_only":
+                continue
+            scope = stage["stage_effect_permissions"].get("allowed_to_modify", {})
+            commit_scope = stage.get("authorized_commit_scope", {})
+            _require(set(scope) == set(commit_scope) == {repo}, failure,
+                     "controller-local scope changed the bound repository")
+            category = "tracked_paths" if stage["stage_mode"] == "coding" else "git_index_entries"
+            local = [_tracked_target_identity(target, failure) for target in scope[repo].get(category, [])]
+            committed = [_tracked_target_identity(target, failure) for target in commit_scope[repo]]
+            _require(_tracked_targets_disjoint(local) and _tracked_targets_disjoint(committed) and
+                     sorted(local) == sorted(committed), failure,
+                     "controller-local commit scope differs from target identities")
+            if stage["stage_mode"] == "commit_preparation":
+                _require(sorted(local) == sorted(identities), failure,
+                         "controller-local commit targets differ from writer union")
+        audit.update(carrier_mode="controller_local", bound_carrier=carrier,
+                     cross_role_isolation="not_applicable", cross_repository_isolation="not_applicable")
+        return
     if shape not in {"orchestrated_workflow", "multi_repository_coordination"}:
         audit.update(cross_role_isolation="not_applicable",
                      cross_repository_isolation="not_applicable")
@@ -1229,6 +1279,8 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
                  protected[0] in continuation.accepted_closure_layers,
                  'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', "Q04 accepted writer identity or common base missing")
         return "orchestrated_workflow"
+    if any(row.domain == "structured_action" for row in _partition_rows(intent)):
+        return "controller_local_workflow"
     action_text = " ".join(intent.actions).lower()
     repositories = data.get("repositories", {})
     by_binding_id = {binding.binding_id: binding for binding in bindings}
@@ -1272,7 +1324,7 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
 
 def _planned_mode(shape: str, intent: Semantic_intent,
                   effects: tuple[Effect_intent, ...]) -> str:
-    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
         return "orchestrated_workflow"
     kinds = {effect.effect for effect in effects}
     if kinds & {"scheduler_submit_condor", "scheduler_submit_work_queue", "production_storage_write"}:
@@ -1411,7 +1463,45 @@ def _normalize_semantics(intent: Semantic_intent, data: dict[str, Any],
             _require(not tail or max(separate[w] for w in ("writer_a", "writer_b")) < min(tail),
                      "NOT_READY_NEW_DECISION_BOUNDARY", "join must follow both writer actions")
             _require(tail == sorted(tail), "NOT_READY_NEW_DECISION_BOUNDARY", "parallel tail dependencies reversed")
-    # This normalized dependency graph is the source for geometry validation.
+    # Graph geometry contributes topology only. Typed legacy ownership retains
+    # its independent consistency constraint; unclassified structured actions
+    # must not acquire source-order dependencies.
+    structured = (not lifecycle and not ordered_bindings and not worker_roles and not parallel_rows and
+                  len(data.get("repositories", {})) == 1 and
+                  len({e.requested_by_step for e in effects if e.effect == "tracked_write"}) > 1)
+    if structured:
+        graph = _ascii_graph(intent.workflow_diagram)
+        by_id = {step.semantic_id: step for step in intent.steps}
+        _require(len(by_id) == len(intent.steps) and set(graph["nodes"]) == set(by_id),
+                 "WORKFLOW_GRAPH_INCONSISTENT", "graph nodes differ from semantic source")
+        dependencies = {(by_id[e["source"]].line, by_id[e["target"]].line)
+                        for e in graph["connectors"]}
+        # Reuse the graph cycle checker without changing or repairing geometry.
+        _draw_ascii(set(by_id), {(e["source"], e["target"]) for e in graph["connectors"]})
+        steps = {step.line: step for step in intent.steps}
+        normalized = []
+        for row in rows:
+            predecessors = tuple(sorted(a for a, b in dependencies if b == row.source_line))
+            successors = tuple(sorted(b for a, b in dependencies if a == row.source_line))
+            if steps[row.source_line].keyword != "When":
+                normalized.append(replace(row, predecessors=predecessors, successors=successors))
+                continue
+            kinds = {effect.effect for effect in row.effects}
+            kind = ("write" if kinds == {"tracked_write"} else
+                    "commit" if kinds == {"local_git_ref_write"} and re.match(
+                        r"(?:[A-Za-z][A-Za-z0-9_]*\s+)?commits?\s+", steps[row.source_line].text, re.I) else
+                    "review_join" if not kinds and len(predecessors) > 1 else "unclassified")
+            owners = {effect.stage_id for effect in row.effects if effect.stage_id}
+            _require(len(owners) <= 1, "NOT_READY_MISSING_AUTHORITY_BINDING",
+                     "source action has conflicting effect owners", row.source_line)
+            owner = next(iter(owners), "action_" + str(row.source_line))
+            local = tuple(replace(effect, stage_id=owner) for effect in row.effects)
+            normalized.append(replace(row, domain="structured_action", owners=(owner,),
+                effects=local, ordered_action=Action_intent(kind, row.source_line, row.semantic_id, owner),
+                predecessors=predecessors, successors=successors,
+                provenance=("validated_source_graph:topology_only", "source_local_typed_effects", "source_keyword")))
+        return replace(intent, partition=Semantic_partition(tuple(normalized), (), False))
+    # Legacy typed contracts remain a separate consistency constraint.
     dependencies: set[tuple[int, int]] = set()
     for index in range(len(intent.scenarios)):
         steps = [s for s in intent.steps if s.scenario_index == index]
@@ -1507,6 +1597,10 @@ def _assertion_paths(intent: Semantic_intent, shape: str,
     paths: list[tuple[int, int, str]] = []
     # The composition/integration dependency owns common validation. Assertion
     # wording can refer to that gate, but cannot enable or disable the mechanic.
+    if shape == "controller_local_workflow":
+        return [(step.line, 1, "gate:" + row.owners[0])
+                for step in intent.steps if step.keyword == "Then"
+                for row in _partition_rows(intent) if step.line in row.successors and row.owners]
     common_required = bool(_composition_dependencies(intent))
     if common_required:
         _require(bool(data.get("common_validation_contract")),
@@ -1938,6 +2032,90 @@ def _plan_dependent(data: dict[str, Any], intent: Semantic_intent,
     return stages
 
 
+def _plan_controller_local(data: dict[str, Any], intent: Semantic_intent,
+                           effects: tuple[Effect_intent, ...]) -> list[dict[str, Any]]:
+    """Project a bounded fork/review/commit onto one existing controller carrier."""
+    prompt = data["prompt"]
+    _require(prompt.get("delegation_policy") == "forbidden" and not data.get("worker_contract") and
+             len(data["repositories"]) == 1, "IMPLEMENTATION_GAP",
+             "controller-local projection requires one repository and forbidden delegation")
+    rows = [row for row in _partition_rows(intent) if row.domain == "structured_action"]
+    writers = [row for row in rows if row.ordered_action.kind == "write"]
+    joins = [row for row in rows if row.ordered_action.kind == "review_join"]
+    commits = [row for row in rows if row.ordered_action.kind == "commit"]
+    _require(len(writers) >= 2 and len(joins) == len(commits) == 1 and
+             len(rows) == len(writers) + 2, "IMPLEMENTATION_GAP",
+             "structured projection requires disjoint writes, one review join and separate commit")
+    join, commit = joins[0], commits[0]
+    writer_lines = {row.source_line for row in writers}
+    _require(set(join.predecessors) == writer_lines and commit.predecessors == (join.source_line,) and
+             all(row.successors == (join.source_line,) for row in writers) and
+             all(not (set(row.predecessors) & writer_lines) for row in writers),
+             "IMPLEMENTATION_GAP", "unsupported structured action dependencies")
+    targets = [effect.target for row in writers for effect in row.effects]
+    identities = [_tracked_target_identity(target, "NOT_READY_MISSING_AUTHORITY_BINDING")
+                  for target in targets]
+    _require(_tracked_targets_disjoint(identities),
+             "NOT_READY_MISSING_AUTHORITY_BINDING", "independent controller writes overlap")
+    repo = next(iter(data["repositories"]))
+    location = prompt["repo_locations"][repo]
+    refs = {effect.target for effect in commit.effects}
+    _require(len(refs) == 1 and _safe_local_branch_ref(next(iter(refs))),
+             "NOT_READY_MISSING_AUTHORITY_BINDING", "commit needs exactly one safe bound ref")
+    ref = next(iter(refs)); branch = ref.removeprefix("refs/heads/")
+    _require(isinstance(location, str) and location.startswith("/") and
+             data["repositories"][repo].get("path", location) == location and
+             prompt.get("target_branch", branch) == branch,
+             "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "controller carrier differs from bound repository/ref")
+    steps = {step.line: step for step in intent.steps}
+    _require(all(row.predecessors and all(steps[line].keyword == "Given" for line in row.predecessors)
+                 for row in writers) and commit.successors and
+             all(steps[line].keyword == "Then" for line in commit.successors) and len(commit.effects) == 1,
+             "IMPLEMENTATION_GAP", "structured fork needs premise inputs and a terminal commit result")
+    by_line = {row.source_line: row for row in rows}
+    outputs = {row.source_line: ("frozen_postimages" if row in writers else
+               "reviewed_union" if row is join else "observed_commit_head") for row in rows}
+    schedule = sorted(writers, key=lambda row: row.source_line) + [join, commit]
+    stages = []
+    for row in schedule:
+        sid = row.owners[0]; kind = row.ordered_action.kind
+        inputs = ["stage:" + by_line[line].owners[0] + ":" + outputs[line]
+                  for line in row.predecessors if line in by_line]
+        paths = sorted(effect.target for effect in row.effects) if kind == "write" else sorted(targets)
+        scope = {repo: {"tracked_paths": paths}} if kind == "write" else {
+            repo: {"git_index_entries": paths, "local_refs": [ref],
+                   "git_effects": ["create_one_prompt_local_commit"]}}
+        item = {"stage_id": sid, "stage_mode": "coding" if kind == "write" else
+                "validation_only" if kind == "review_join" else "commit_preparation",
+                "stage_goal": steps[row.source_line].text,
+                "stage_effect_permissions": {} if kind == "review_join" else {"allowed_to_modify": scope},
+                "stage_inputs": inputs, "stage_outputs": [outputs[row.source_line]],
+                "stage_acceptance_gate": ("Freeze exact owned postimages and review this requested outcome independently."
+                    if kind == "write" else "Review every predecessor independently; accept only the exact union; preserve failures."
+                    if kind == "review_join" else "Reopen the accepted union and exact staged diff; commit only those paths; read back commit and master noninterference."),
+                "stage_failure_behavior": "stop and preserve state; no retry of an ambiguous effect",
+                "stage_branch_policy": "read_only_current_branch" if kind == "review_join" else "continue_existing_branch",
+                "repository_id": repo, "working_directory": location,
+                "generation_provenance": {"role": sid, "semantic_line": row.source_line,
+                    "rule_source": "governance/contracts/review_and_evidence.md" if kind == "review_join" else
+                    "governance/contracts/git_lifecycle.md", "evidence_gate": "gate:" + sid,
+                    "provenance_class": "requested_behavior"}}
+        item["runtime_carrier_readback"] = {
+            "working_directory": location, "attached_ref": ref,
+            "branch_argv": ["git", "-C", location, "symbolic-ref", "--quiet", "HEAD"],
+            "head_argv": ["git", "-C", location, "rev-parse", "HEAD"],
+            "require_task_ownership": True, "preserve_foreign_work": True,
+            "before_effects": True, "on_mismatch": "stop_before_effect_and_preserve_state"}
+        if kind != "review_join":
+            item.update(target_branch=branch, authorized_commit_scope={repo: paths},
+                explicitly_adopted_inherited_changes="none", foreign_dirty_change_policy="preserve_and_exclude",
+                staging_policy="exact_path_only")
+        if kind == "write": item["deferred_commit_stage"] = commit.owners[0]
+        stages.append(item)
+    data["_controller_local_carrier"] = {"repository": repo, "worktree": location, "ref": ref}
+    return stages
+
+
 def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effects: tuple[Effect_intent, ...],
                  roles: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     """Build the two bounded dependent patterns; supplied stage prose is inert.
@@ -1973,6 +2151,8 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
         if epilogue:
             epilogue[0]["stage_inputs"].append("stage:" + body_stages[-1]["stage_id"] + ":" + body_stages[-1]["stage_outputs"][0])
         return prelude + body_stages + epilogue
+    if shape == "controller_local_workflow":
+        return _plan_controller_local(data, intent, effects)
     if shape == "ordered_workflow":
         return _plan_ordered(data, intent, effects)
     if shape == "dependent_continuation":
@@ -2306,7 +2486,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
 def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
                  effects: tuple[Effect_intent, ...], shape: str) -> list[Trace_edge]:
     stages = data.get("stages", [])
-    if shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+    if shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
         _require(not stages and not data.get("worker_contract"), "COMPILER_INVARIANT_FAILURE",
                  "caller stages are not a compiler-selected minimum-sufficient workflow")
         return []
@@ -2316,7 +2496,17 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
     then = next((step for step in intent.steps if step.keyword == "Then"), None)
     _require(when is not None and then is not None, "COMPILER_INVARIANT_FAILURE",
              "workflow needs action and observable result")
-    if shape == "dependent_continuation":
+    if shape == "controller_local_workflow":
+        rows = [row for row in _partition_rows(intent) if row.domain == "structured_action"]
+        expected = [row.owners[0] for row in sorted(rows, key=lambda row: (
+            {"write": 0, "review_join": 1, "commit": 2}[row.ordered_action.kind], row.source_line))]
+        by_line = {row.source_line: row for row in rows}
+        graph = data["_result_graph"]
+        for row in rows:
+            _require(graph.predecessors(row.owners[0]) == {
+                by_line[line].owners[0] for line in row.predecessors if line in by_line},
+                "COMPILER_INVARIANT_FAILURE", "physical schedule changed semantic dependencies")
+    elif shape == "dependent_continuation":
         expected = ['readback'] + ([] if data['accepted_effect_state']['consumer_outcome'] == 'OUTCOME_UNKNOWN'
                                    else ['integrate_topeft'])
         _require(not data.get('automatic_retry') and not data.get('automatic_rollback'),
@@ -2419,7 +2609,7 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
         if related_effects:
             edges.extend(Trace_edge(f"effect:{effect.effect_id}", f"stage:{stage_id}", "implemented_by")
                          for effect in related_effects)
-        elif shape in {"ordered_workflow", "dependent_continuation"} or (shape == "orchestrated_workflow" and stage_id not in _parallel_roles(intent)):
+        elif shape in {"ordered_workflow", "dependent_continuation", "controller_local_workflow"} or (shape == "orchestrated_workflow" and stage_id not in _parallel_roles(intent)):
             edges.append(Trace_edge(source, f"stage:{stage_id}", "requires_validation_stage"))
         elif stage_id in {"independent_review", "common_validation", data.get("candidate_pair_validation_stage"),
                           data.get("worker_contract", {}).get("independent_review_stage"),
@@ -2634,6 +2824,9 @@ def _effect_carrier(effect: Effect_intent, repo: str, data: dict[str, Any],
         # A simple repository-local effect executes in its declared repository.
         location = data["prompt"]["repo_locations"].get(repo)
         return location.get("path") if isinstance(location, dict) else location
+    if data.get("_controller_local_carrier"):
+        carrier = data["_controller_local_carrier"]
+        return carrier["worktree"] if carrier["repository"] == repo else None
     workers = data.get("worker_contract", {})
     for worker in workers.get("writers", []):
         if worker["stage_id"] == effect.stage_id:
@@ -2859,7 +3052,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     if branch:
         _canonical_branch(str(branch), contents)
         _branch_fields(prompt, "branch_policy")
-    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
         _require(mode == "orchestrated_workflow" and not branch and "heavy_command_permissions" not in prompt,
                  "COMPILER_INVARIANT_FAILURE", "orchestrated output has invalid outer mode/permissions")
         _require({"workflow_goal", "workflow_stop_policy", "workflow_stage_ledger_path",
@@ -2940,7 +3133,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             _require(data.get("automatic_retry") is False, "COMPILER_INVARIANT_FAILURE", "no-new-effect constraint requires no automatic retry")
         elif data.get("deterministic_edit") and re.search(r"no worker.*workflow is invented", assertion, re.I):
             _require(not data.get("stages") and shape == "simple_non_orchestrated", "COMPILER_INVARIANT_FAILURE", "small-edit constraint forbids generated workflow")
-        elif shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow"}:
+        elif shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "controller_local_workflow"}:
             _error('IMPLEMENTATION_GAP',
                    f"negative assertion has no bounded constraint checker: {assertion}")
     if not effects:
@@ -3106,7 +3299,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         relation = data["accepted_effect_state"]
         _relation_edge(bindings, edges, "continuation.accepted_effect_state", relation,
                        "topcoffea", "readback", "accepted_evidence")
-    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
         isolation_audit["relation_local_consistency"] = True
         _verify_carrier_isolation(data, shape, edges, isolation_audit)
     if data.get("retirement") and shape == "orchestrated_workflow":
@@ -3306,7 +3499,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                 effect.stage_id == "integration" and bool(_composition_dependencies(intent)))
         _require(source_step.keyword == "When" and
                  (bool(re.search(EFFECT_ACTION_WORDS[effect.effect], source_step.text, re.I)) or
-                  implicit_commit or semantic_integration),
+                  implicit_commit or semantic_integration or shape == "controller_local_workflow"),
                  "COMPILER_INVARIANT_FAILURE", f"{effect.effect} is not traced to matching When action",
                  effect.requested_by_step)
         binding = by_id.get(effect.positive_authority_binding)
@@ -3422,6 +3615,12 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                  (any(effect.target == target or
                                      (category == "git_index_entries" and effect.effect == "tracked_write" and
                                       effect.target == target) for effect in local_effects) or
+                                  (category == "git_index_entries" and shape == "controller_local_workflow" and
+                                   stage["stage_mode"] == "commit_preparation" and
+                                   any(e.effect == "tracked_write" and e.target == target and
+                                       e.stage_id in {ancestor for parent in data["_result_graph"].predecessors(stage_id)
+                                                     for ancestor in data["_result_graph"].predecessors(parent)}
+                                       for e in effects)) or
                                   (category == "git_index_entries" and stage["stage_mode"] == "integration_only" and
                                    any(e.effect == "tracked_write" and e.target == target and
                                        f"stage:{e.stage_id}:observed_commit_head" in stage["stage_inputs"]
@@ -3432,7 +3631,10 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                 target_stage = next((s for s in data["stages"] if s["stage_id"] == closure), {})
                 _require((closure == "exact_union" or
                           (target_stage.get("stage_mode") == "commit_preparation" and
-                           f"stage:{stage_id}:frozen_postimages" in target_stage["stage_inputs"] and
+                           (f"stage:{stage_id}:frozen_postimages" in target_stage["stage_inputs"] or
+                            (shape == "controller_local_workflow" and stage_id in {
+                                ancestor for parent in data["_result_graph"].predecessors(closure)
+                                for ancestor in data["_result_graph"].predecessors(parent)})) and
                            target_stage.get("repository_id") == stage.get("repository_id"))) and
                          stage["stage_outputs"] == ["frozen_postimages"] and
                          not any(e.effect == "local_git_ref_write" for e in local_effects) and
@@ -3668,7 +3870,7 @@ def _rule_routing(data: dict[str, Any], shape: str, effects: tuple[Effect_intent
     if effects and any(e.effect in {"tracked_write", "local_git_ref_write", "delete_local_branch",
                                    "delete_remote_branch", "remote_git_write", "publication", "merge"} for e in effects):
         routes["git_lifecycle"] = "governance/contracts/git_lifecycle.md"
-    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+    if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
         routes["stage_isolation"] = "governance/contracts/orchestration.md"
         routes["independent_review_prose"] = "CONTRIBUTING.md"
     if any("@production" in step.tags for step in data["_intent"].steps) or any(
@@ -3757,6 +3959,8 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         bindings = _bindings(data)
         effects = _effects(data, intent)
         intent = _normalize_semantics(intent, data, effects)
+        if any(row.domain == "structured_action" for row in _partition_rows(intent)):
+            effects = tuple(effect for row in _partition_rows(intent) for effect in row.effects)
         receipt["semantic_partition"] = asdict(intent.partition)
         continuation = _continuation(data)
         shape = _shape(data, intent, effects, bindings, continuation)
@@ -3777,6 +3981,18 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             protected = set(state.get("completed_stages", []))
             receipt["reused_accepted_effects"] = [e.effect_id for e in effects if e.stage_id in protected]
             effects = tuple(e for e in effects if e.stage_id not in protected)
+        if shape == "controller_local_workflow":
+            context = data["prompt"]
+            context["prompt_mode"] = "orchestrated_workflow"
+            grants = context.pop("heavy_command_permissions", None)
+            if grants is not None:
+                _require("workflow_effect_envelope" not in context, "COMPILER_INVARIANT_FAILURE",
+                         "conflicting outer permission maps")
+                context["workflow_effect_envelope"] = grants
+            context.pop("branch_policy", None)
+            context.setdefault("workflow_goal", context["decision_question"])
+            context.setdefault("workflow_stop_policy", "stop_on_failed_gate_or_new_decision_boundary")
+            context.setdefault("workflow_stage_ledger_path", context["prompt_id"] + "_stage_ledger.yaml")
         data["_assertion_paths"] = _assertion_paths(intent, shape, data)
         receipt["selected_execution_shape"] = shape
         _check_closed_fields(data["prompt"], data.get("stages", []), contents)
@@ -3788,8 +4004,11 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             for repo_id in roles}
         data["_intent"] = intent
         routes = _rule_routing(data, shape, effects, contents, roles)
-        if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation"}:
+        if shape in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "dependent_continuation", "controller_local_workflow"}:
             data["stages"] = _plan_stages(data, intent, shape, effects, roles)
+            if shape == "controller_local_workflow":
+                for field in ("target_branch", "authorized_commit_scope", "explicitly_adopted_inherited_changes"):
+                    data["prompt"].pop(field, None)
         try:
             data['_result_graph'] = Result_graph.from_stages(data.get('stages', []))
         except ValueError as exc:
