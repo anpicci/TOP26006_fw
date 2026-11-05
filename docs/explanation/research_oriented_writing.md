@@ -39,8 +39,7 @@ Verb choice helps separate observation, hypothesis, conclusion, limit, and
 decision. “The inspected outputs differ” records an observation; “a changed
 normalization may explain the difference” proposes a hypothesis. “The traced
 configuration accounts for this difference” needs evidence for that connection.
-“Other configurations were not inspected” states a limit; “the responsible
-researcher accepts this bounded explanation” records a decision with a remit.
+“Other configurations were not inspected” states a limit; “the scientific lead accepts this bounded interpretation within their scientific remit” records a scientific decision; task/evidence acceptance remains separate.
 Correlation is not automatically causation, and compatibility is not proof.
 These distinctions guide an argument; they do not prescribe five report headings.
 
