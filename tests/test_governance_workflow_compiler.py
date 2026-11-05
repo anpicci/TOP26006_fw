@@ -3822,6 +3822,11 @@ def structured_fork_data(feature=STRUCTURED_FORK_FEATURE):
                   allowed_to_modify={'TOP26006_fw': paths + ['.git/index', ref]},
                   heavy_command_permissions={'allowed_to_modify': {'TOP26006_fw': paths + ['.git/index', ref]}},
                   foreign_dirty_change_policy='preserve_and_exclude', staging_policy='exact_path_only')
+    namespace = '/workspace/reports/diagnostics/' + prompt['prompt_id'] + '/'
+    prompt['workflow_stage_ledger_path'] = namespace + 'workflow_stage_ledger.yaml'
+    prompt['allowed_to_modify']['TOP26006_fw'].append(namespace)
+    prompt['heavy_command_permissions']['allowed_to_modify']['TOP26006_fw'].append(namespace)
+    prompt['heavy_command_permissions']['storage_writes'] = True
     data['requested_effects'] = []
     actions = [step for step in compiler.parse_gherkin(feature, 'fixture').steps if step.keyword == 'When']
     for i, (step, kind, target) in enumerate(zip([actions[0], actions[1], actions[3]],
@@ -4203,3 +4208,151 @@ def test_closed_vocabulary_n16_membership_is_not_authority(fault, closed_vocabul
     assert result.compiler_result != 'COMPILED_CONFORMING_CANDIDATE'
     assert not result.prompt
     assert 'source-derived live dirty_worktree_policy' not in str(result.receipt.get('diagnostics'))
+
+
+# Ancillary evidence is a separate authority class, never a requested task effect.
+def test_ancillary_p20_p21_n20_fresh_standalone_consumer():
+    data = structured_fork_data()
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    prompt = prompt_yaml(result)
+    assert [e['effect_id'] for e in result.receipt['requested_effects']] == ['effect_0', 'effect_1', 'effect_2']
+    relations = result.receipt['derived_ancillary_evidence']
+    assert len(relations) == 6
+    for stage in prompt['workflow_stages']:
+        grants = stage['stage_effect_permissions']
+        assert grants['storage_writes'] is True
+        paths = grants['allowed_to_modify']['TOP26006_fw']['storage_paths']
+        assert paths == [r['target'] for r in relations if r['stage_id'] == stage['stage_id']]
+        if stage['stage_mode'] == 'validation_only':
+            assert set(grants['allowed_to_modify']['TOP26006_fw']) == {'storage_paths'}
+            assert not any(e['stage_id'] == stage['stage_id'] for e in result.receipt['requested_effects'])
+        assert not any(grants.get(k) for k in ['production_execution', 'condor_submission', 'pr_or_mr_write'])
+    assert not any(e['effect'] == 'production_storage_write' for e in result.receipt['requested_effects'])
+    assert 'derived_ancillary_evidence' in result.prompt
+
+
+@pytest.mark.parametrize('target', [
+    'docs/how_to/compile_governance_workflow.md',
+    'docs/explanation/governance_workflow_compiler_architecture.md',
+    '.git/index', 'refs/heads/governance/workflow-compiler-remediation',
+    '/workspace/reports/diagnostics/another/workflow_stage_ledger.yaml'])
+def test_ancillary_p22_reverse_scope_rejects_task_and_unrelated_targets(monkeypatch, target):
+    project = compiler._project_ancillary_evidence
+    def tamper(data, shape):
+        project(data, shape)
+        data['stages'][2]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['storage_paths'] = [target]
+    monkeypatch.setattr(compiler, '_project_ancillary_evidence', tamper)
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data()))
+    assert not result.prompt
+    assert 'ancillary storage grant' in str(result.receipt['diagnostics'])
+
+
+def test_ancillary_p23_envelope_without_stage_grant(monkeypatch):
+    project = compiler._project_ancillary_evidence
+    def tamper(data, shape):
+        project(data, shape)
+        data['stages'][2]['stage_effect_permissions'].pop('storage_writes')
+    monkeypatch.setattr(compiler, '_project_ancillary_evidence', tamper)
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data()))
+    assert not result.prompt
+    assert 'ancillary storage grant' in str(result.receipt['diagnostics'])
+
+
+def test_ancillary_p24_outside_authorized_scope():
+    data = structured_fork_data()
+    data['prompt']['allowed_to_modify']['TOP26006_fw'] = data['prompt']['allowed_to_modify']['TOP26006_fw'][:4]
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert not result.prompt
+    assert 'ancillary evidence lacks exact authorized storage scope' in str(result.receipt['diagnostics'])
+
+
+def test_ancillary_p25_stale_identity_and_existing_collision(tmp_path):
+    data = structured_fork_data()
+    data['prompt']['workflow_stage_ledger_path'] = '/workspace/reports/diagnostics/prior_round/workflow_stage_ledger.yaml'
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert not result.prompt
+    assert 'ancillary evidence lacks exact authorized storage scope' in str(result.receipt['diagnostics'])
+    data = structured_fork_data()
+    folder = tmp_path / 'diagnostics' / data['prompt']['prompt_id']
+    folder.mkdir(parents=True)
+    ledger = folder / 'workflow_stage_ledger.yaml'
+    ledger.write_text('protected prior bytes')
+    data['prompt']['workflow_stage_ledger_path'] = str(ledger)
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert not result.prompt
+    assert 'ancillary ledger identity/collision boundary' in str(result.receipt['diagnostics'])
+    assert ledger.read_text() == 'protected prior bytes'
+
+
+def test_ancillary_n21_owner_task_binding_remains_mandatory():
+    data = structured_fork_data()
+    data['bindings'] = [b for b in data['bindings'] if b['binding_id'] != 'effect_authority_0']
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert not result.prompt
+    assert result.compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
+
+
+def test_ancillary_n22_simple_prompt_has_no_bookkeeping():
+    result = run()
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert result.receipt['derived_ancillary_evidence'] == []
+    assert 'storage_writes' not in prompt_yaml(result)['heavy_command_permissions']
+
+
+@pytest.mark.parametrize('category', ['tracked_paths', 'git_index_entries', 'local_refs', 'git_effects',
+                                     'production_execution', 'local_git_write'])
+def test_ancillary_c32_a_category_isolation(monkeypatch, category):
+    project = compiler._project_ancillary_evidence
+    def tamper(data, shape):
+        project(data, shape)
+        grants = data['stages'][2]['stage_effect_permissions']
+        if category in {'production_execution', 'local_git_write'}:
+            grants[category] = True
+        else:
+            grants['allowed_to_modify']['TOP26006_fw'][category] = ['unauthorized']
+    monkeypatch.setattr(compiler, '_project_ancillary_evidence', tamper)
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data()))
+    assert not result.prompt
+    assert 'ancillary category leakage' in str(result.receipt['diagnostics'])
+
+
+def test_ancillary_c32_b_custom_namespace_and_d_trace(tmp_path):
+    data = structured_fork_data()
+    namespace = str(tmp_path / 'custom_evidence' / 'independent_name') + '/'
+    prompt = data['prompt']
+    prompt['workflow_stage_ledger_path'] = namespace + 'workflow_stage_ledger.yaml'
+    for scope in [prompt['allowed_to_modify'], prompt['heavy_command_permissions']['allowed_to_modify']]:
+        scope['TOP26006_fw'][-1] = namespace
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt.get('diagnostics')
+    for relation in result.receipt['derived_ancillary_evidence']:
+        node = 'ancillary:' + relation['stage_id'] + ':' + relation['purpose']
+        edges = [e for e in result.receipt['traceability']['edges'] if e['output'] == node]
+        sources = {e['source'] for e in edges}
+        if relation['purpose'] == 'stage_ledger':
+            assert relation['rule_source'] == 'governance/contracts/orchestration.md'
+            assert 'prompt:workflow_stage_ledger_path' in sources
+        else:
+            assert relation['rule_source'] == 'AGENTS.md'
+            assert {'prompt:prompt_id', 'prompt:allowed_to_modify', 'governance:AGENTS.md'} <= sources
+            assert 'prompt:workflow_stage_ledger_path' not in sources
+
+
+def test_ancillary_c32_c_repository_order_and_ambiguity():
+    data = structured_fork_data()
+    data['prompt']['workflow_effect_envelope'] = data['prompt'].pop('heavy_command_permissions')
+    data['stages'] = [{'stage_id': 'review'}]
+    data['repositories'] = {'unrelated': {}, 'TOP26006_fw': {}}
+    expected = compiler._derive_ancillary_evidence(data, 'controller_local_workflow')
+    assert {r.repository_id for r in expected} == {'TOP26006_fw'}
+    data['repositories'] = dict(reversed(list(data['repositories'].items())))
+    assert compiler._derive_ancillary_evidence(data, 'controller_local_workflow') == expected
+    data['repositories'] = {'unrelated': {}}
+    with pytest.raises(compiler.Compile_error, match='ancillary evidence lacks exact authorized storage scope'):
+        compiler._derive_ancillary_evidence(data, 'controller_local_workflow')
+    data['repositories']['TOP26006_fw'] = {}
+    for scope in [data['prompt']['allowed_to_modify'], data['prompt']['workflow_effect_envelope']['allowed_to_modify']]:
+        scope['unrelated'] = deepcopy(scope['TOP26006_fw'])
+    with pytest.raises(compiler.Compile_error, match='ambiguous repository authority'):
+        compiler._derive_ancillary_evidence(data, 'controller_local_workflow')

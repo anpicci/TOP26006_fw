@@ -2039,6 +2039,79 @@ def _plan_dependent(data: dict[str, Any], intent: Semantic_intent,
     return stages
 
 
+@dataclass(frozen=True)
+class _Ancillary_evidence:
+    stage_id: str
+    repository_id: str
+    target: str
+    purpose: str
+    authority_class: str = "derived_governance_evidence"
+    rule_source: str = "governance/contracts/orchestration.md"
+
+
+def _derive_ancillary_evidence(data: dict[str, Any], shape: str) -> tuple[_Ancillary_evidence, ...]:
+    """Derive bounded controller bookkeeping independently of owner task effects."""
+    if shape != "controller_local_workflow":
+        return ()
+    prompt = data["prompt"]
+    ledger = Path(prompt["workflow_stage_ledger_path"])
+    pid = prompt["prompt_id"]
+    _require(ledger.is_absolute() and str(ledger) == prompt["workflow_stage_ledger_path"] and
+             ledger.name == "workflow_stage_ledger.yaml" and
+             ledger.resolve() == ledger and not ledger.exists(),
+             "NOT_READY_MISSING_AUTHORITY_BINDING", "ancillary ledger identity/collision boundary")
+    envelope = prompt["workflow_effect_envelope"]
+    def bounded(surface: dict[str, Any], repo: str, target: str) -> bool:
+        area = surface.get(repo, {})
+        paths = area.get("storage_paths", []) if isinstance(area, dict) else area
+        return target in paths or str(ledger.parent) + "/" in paths
+    targets = [(str(ledger), "stage_ledger"),
+               (str(ledger.parent / (pid + "_report.md")), "final_report"),
+               (str(ledger.parent / (pid + "_worktree_diff.patch")), "final_patch")]
+    eligible = [repo for repo in data["repositories"] if all(
+        bounded(prompt["allowed_to_modify"], repo, target) and
+        bounded(envelope.get("allowed_to_modify", {}), repo, target)
+        for target, _ in targets)]
+    _require(len(eligible) == 1, "NOT_READY_MISSING_AUTHORITY_BINDING",
+             "ancillary evidence lacks exact authorized storage scope or has ambiguous repository authority")
+    repo, = eligible
+    _require(envelope.get("storage_writes") in (True, "yes") and all(
+        Path(target).resolve() == Path(target) and not Path(target).exists()
+        for target, _ in targets), "NOT_READY_MISSING_AUTHORITY_BINDING",
+        "ancillary evidence lacks exact authorized storage scope or has collision")
+    stages = data["stages"]
+    return tuple(_Ancillary_evidence(stage["stage_id"], repo, target, purpose,
+                 rule_source="governance/contracts/orchestration.md" if purpose == "stage_ledger" else "AGENTS.md")
+                 for stage in stages for target, purpose in targets
+                 if purpose == "stage_ledger" or stage is stages[-1])
+
+
+def _project_ancillary_evidence(data: dict[str, Any], shape: str) -> None:
+    relations = _derive_ancillary_evidence(data, shape)
+    data["_ancillary_evidence"] = relations
+    for relation in relations:
+        stage = next(s for s in data["stages"] if s["stage_id"] == relation.stage_id)
+        grants = stage["stage_effect_permissions"]
+        grants["storage_writes"] = True
+        area = grants.setdefault("allowed_to_modify", {}).setdefault(relation.repository_id, {})
+        area.setdefault("storage_paths", []).append(relation.target)
+
+
+def _verify_ancillary_evidence(data: dict[str, Any], shape: str) -> tuple[_Ancillary_evidence, ...]:
+    expected = _derive_ancillary_evidence(data, shape)
+    _require(data.get("_ancillary_evidence", ()) == expected, "COMPILER_INVARIANT_FAILURE",
+             "ancillary relation differs from authoritative derivation")
+    for stage in data.get("stages", []):
+        grants = stage["stage_effect_permissions"]
+        actual = [(repo, target) for repo, area in grants.get("allowed_to_modify", {}).items()
+                  for target in area.get("storage_paths", [])]
+        local = [(r.repository_id, r.target) for r in expected if r.stage_id == stage["stage_id"]]
+        if expected:
+            _require(sorted(actual) == sorted(local) and grants.get("storage_writes") in (True, "yes"),
+                     "COMPILER_INVARIANT_FAILURE", "untraced or missing ancillary storage grant")
+    return expected
+
+
 def _plan_controller_local(data: dict[str, Any], intent: Semantic_intent,
                            effects: tuple[Effect_intent, ...]) -> list[dict[str, Any]]:
     """Project a bounded fork/review/commit onto one existing controller carrier."""
@@ -2593,6 +2666,7 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
             _require(actual.index('common_validation') < actual.index('integration') and
                      'stage:common_validation:common_validation_evidence' in integration['stage_inputs'],
                      'COMPILER_INVARIANT_FAILURE', 'integration lacks the candidate validation dependency')
+    ancillary = _verify_ancillary_evidence(data, shape)
     edges = list(_composition_dependencies(intent))
     for stage in stages:
         stage_id = stage["stage_id"]
@@ -2610,9 +2684,15 @@ def _stage_trace(data: dict[str, Any], intent: Semantic_intent,
                                 f"stage:{stage_id}", "governed_by"))
         related_effects = [effect for effect in effects if effect.stage_id == stage_id]
         if not related_effects:
+            grants = stage.get("stage_effect_permissions", {})
+            local_ancillary = [r for r in ancillary if r.stage_id == stage_id]
+            ancillary_only = (bool(local_ancillary) and
+                set(grants) == {"storage_writes", "allowed_to_modify"} and
+                all(set(area) == {"storage_paths"}
+                    for area in grants["allowed_to_modify"].values()))
             _require(stage.get("stage_mode") in {"investigation_only", "validation_only"} and
-                     stage.get("stage_effect_permissions") == {}, "COMPILER_INVARIANT_FAILURE",
-                     f"stage {stage_id} has unrequested executable mechanics")
+                     (grants == {} or ancillary_only), "COMPILER_INVARIANT_FAILURE",
+                     f"stage {stage_id} has unrequested task mechanics or ancillary category leakage")
         if related_effects:
             edges.extend(Trace_edge(f"effect:{effect.effect_id}", f"stage:{stage_id}", "implemented_by")
                          for effect in related_effects)
@@ -3600,12 +3680,21 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                  "NOT_READY_MISSING_AUTHORITY_BINDING", "simple tracked edit lacks exact index/ref commit authority")
     if not data.get("stages"):
         _verify_simple_scope(prompt, effects, bindings, data["repositories"])
+    ancillary = _verify_ancillary_evidence(data, shape)
+    for relation in ancillary:
+        node = "ancillary:" + relation.stage_id + ":" + relation.purpose
+        sources = (["prompt:workflow_stage_ledger_path"] if relation.purpose == "stage_ledger" else
+                   ["prompt:prompt_id", "prompt:allowed_to_modify"])
+        edges.extend(Trace_edge(source, node, "derives_governance_evidence") for source in sources)
+        edges.extend((Trace_edge("governance:" + relation.rule_source, node, "governed_by"),
+                      Trace_edge(node, "stage:" + relation.stage_id, "grants_exact_evidence_target")))
     grant_maps = [prompt.get("heavy_command_permissions", {})] if not data.get("stages") else [
         stage["stage_effect_permissions"] for stage in data["stages"]]
     for grants in grant_maps:
         for key in _positive_keys(grants):
             _require(any(_grant_key_matches_effect(key, e) and _declared_grant(e, prompt, data.get("stages", []))
-                         for e in effects), "COMPILER_INVARIANT_FAILURE", f"untraced positive grant {key}")
+                         for e in effects) or (bool(ancillary) and key in {"storage_writes", "allowed_to_modify"}),
+                     "COMPILER_INVARIANT_FAILURE", f"untraced positive grant {key}")
     if data.get("stages"):
         for stage in data["stages"]:
             stage_id = stage["stage_id"]
@@ -3646,7 +3735,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                          stage["stage_outputs"] == ["frozen_postimages"] and
                          not any(e.effect == "local_git_ref_write" for e in local_effects) and
                          any(e.stage_id == closure and e.effect == "local_git_ref_write" for e in effects) and
-                         all(set(area) <= ({"tracked_paths"} if closure == "exact_union" else {"tracked_paths", "git_index_entries"})
+                         all((set(area) - ({"storage_paths"} if ancillary else set())) <= ({"tracked_paths"} if closure == "exact_union" else {"tracked_paths", "git_index_entries"})
                              for area in scope.values()),
                          "NOT_READY_MISSING_AUTHORITY_BINDING", "invalid deferred writer closure")
             elif stage["stage_mode"] == "coding":
@@ -3655,7 +3744,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                          _scope_contains(scope, ref),
                          "NOT_READY_MISSING_AUTHORITY_BINDING", f"{stage_id} commit has no exact ref authority")
             for key in _positive_keys(stage["stage_effect_permissions"]):
-                _require(any(e.stage_id == stage["stage_id"] and _grant_key_matches_effect(key, e) for e in effects),
+                _require(any(e.stage_id == stage["stage_id"] and _grant_key_matches_effect(key, e) for e in effects) or
+                         (key in {"storage_writes", "allowed_to_modify"} and
+                          any(r.stage_id == stage_id for r in ancillary)),
                          "COMPILER_INVARIANT_FAILURE", f"stage {stage['stage_id']} has untraced grant {key}")
     if data.get("foreign_dirty"):
         _require(prompt.get("foreign_dirty_change_policy") == "preserve_and_exclude" and
@@ -4029,6 +4120,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                                             "cross_repository_isolation": (False if shape == "multi_repository_coordination"
                                                                            else "not_applicable")}
         receipt["isolation_verification"] = isolation_audit
+        _project_ancillary_evidence(data, shape)
         edges, authorized, excluded = _verify(data, intent, bindings, effects, continuation, shape,
                                                contents, roles, isolation_audit)
         try:
@@ -4139,6 +4231,12 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         if safety_constraints:
             lines.extend(["## Bound safety and readback constraints", "", "```yaml",
                           yaml.safe_dump(canonical_mapping(safety_constraints), sort_keys=False, allow_unicode=True).rstrip(), "```", ""])
+        ancillary_rows = [asdict(r) for r in data.get("_ancillary_evidence", ())]
+        if ancillary_rows:
+            lines.extend(["## Derived governance evidence (documentary trace)", "", "```yaml",
+                          yaml.safe_dump({"derived_ancillary_evidence": ancillary_rows}, sort_keys=False).rstrip(),
+                          "```", ""])
+        receipt["derived_ancillary_evidence"] = ancillary_rows
         prompt = "\n".join(lines)
         try:
             lint = _validator(prompt, policy)
