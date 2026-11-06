@@ -1,6 +1,6 @@
 # Validation ceilings
 
-[AGENTS.md section 17](../../AGENTS.md) is authoritative. The current literal ceilings are:
+[AGENTS.md — Modes and validation ceilings](../../AGENTS.md#modes-and-validation-ceilings) is authoritative. The current literal ceilings are:
 
 | Value | Maximum class |
 | --- | --- |

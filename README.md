@@ -1,11 +1,27 @@
-# TOP26006_fw: coordination for AI-assisted research
+# TOP26006_fw
 
-`TOP26006_fw` is the TOP-26-006 coordination and governance repository. It helps researchers identify the right repository, frame bounded work, collect reproducible evidence, and retain human scientific review. It is not the scientific analysis or a container of the independent research repositories.
+TOP26006_fw is a coordination workspace and practical manual for AI-assisted research, developed for the TOP-26-006 analysis. It brings together guidance, task templates, and small teaching examples to help researchers turn questions into bounded work with evidence they can inspect.
 
-**Start with the [manual index](docs/index.md), then [getting started](docs/getting_started.md).** The [first tutorial](docs/tutorials/01_prepare_a_research_project.md) works in any sensible local checkout name and uses a synthetic example; no project-specific oral setup is assumed.
+It is for researchers and collaborators who want to use AI assistance while keeping scientific judgment in human hands. The aim is to make assumptions, inputs, checks, and limitations clear enough that another person can understand and challenge the work. Analysis code and scientific documents remain in their own repositories.
 
-The research method can be [adapted to another AI provider](docs/how_to/adapt_to_another_ai_provider.md), with each mechanism checked for the chosen version and surface. The concrete [OpenAI/Codex reference procedure](docs/how_to/providers/openai_reference_procedure.md) is documented here. A [Claude Code adaptation](docs/how_to/providers/anthropic_adaptation.md) maps official mechanisms but is **not locally tested or qualified** for TOP26006_fw. See [provider compatibility](docs/reference/provider_compatibility.md), [why the limits matter](docs/explanation/provider_independence_and_limits.md), and the [TOP-26-006 worked deployment](docs/examples/top26006_reference_deployment.md).
+## Start here
 
-Apache-2.0 is the owner's **intended future** repository-wide license. An effective open-source grant and public release are not established pending Notre Dame institutional rights disposition. This private repository must not be described as already Apache-2.0 licensed or publicly released.
+**[Start with the manual](docs/index.md)** for a short introduction or guidance for a specific research task. It connects the research approach, practical lessons, explanations, and reference material.
 
-For current binding rules, read [AGENTS.md](AGENTS.md), [CPC.md](CPC.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [repository registry](governance/repositories.md). The manual explains their use; it does not grant actions or scientific authority.
+If you already want to learn through guided exercises, go directly to the [tutorial learning path](docs/tutorials/index.md). It explains where to begin and which lessons are optional.
+
+## A concrete starting point
+
+The first research exercise asks what common value summarizes [five synthetic measurements](examples/repeated_measurements/README.md). Inspect the input, then reproduce the maintained calculation in a terminal or its companion notebook using a prepared local environment. Explain the assumptions behind the summary and what agreement with the displayed result leaves unproven. The data are invented for teaching; reproducing the result does not establish that the model suits real measurements.
+
+Later lessons develop the same evidence discipline through a bounded change, review, continuation, recovery, and collaborator handoff. Each lesson states its own starting point and what you should finish with.
+
+## Read first; set up tools when needed
+
+Reading the manual and example files in a browser requires no local environment. Running the calculation or notebook requires a local checkout and prepared tools: follow [Getting started](docs/getting_started.md) and the lesson's setup instructions when you reach that step.
+
+AI assistance can help frame a question, inspect material, and explain an observation. It does not replace checking sources, reviewing evidence, or making a scientific decision.
+
+## Repository visibility and licensing
+
+The canonical GitHub repository `anpicci/TOP26006_fw` is public. Resolve live remote/ref/visibility freshly when material; public visibility does not establish remote publication of current local commits. Public visibility does not establish an effective open-source license. Apache-2.0 remains the project's intended future repository-wide license; an effective open-source grant is not established pending Notre Dame institutional rights disposition.

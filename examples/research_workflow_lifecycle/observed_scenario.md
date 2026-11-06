@@ -1,5 +1,19 @@
 # Observed synthetic lifecycle (one local diagnostic run)
 
+This page is the factual source for this simulated lifecycle event, including
+its acceptance actor/function, layer and scope. Generic meanings come from
+[decision layers](../../docs/explanation/evidence_reproducibility_and_acceptance.md);
+this record creates no live authority. When an event field changes, compare
+actual consumers of that field, not every page linking here. The acceptance
+fact is repeated in the [fixture overview](README.md), the
+[evidence explanation](../../docs/explanation/evidence_reproducibility_and_acceptance.md),
+[review lesson](../../docs/tutorials/05_review_and_accept_returned_evidence.md),
+[continuation lesson](../../docs/tutorials/06_continue_from_existing_evidence.md)
+and [evidence-transfer lesson](../../docs/tutorials/07_coordinate_a_multi_repository_change.md).
+The change lesson uses quantities/provenance and recovery/handoff lessons use
+stop and closure facts; inspect the fields they actually consume before marking
+them stale. An actor correction alone does not invalidate the arithmetic.
+
 This is a compact, human-readable record of one diagnostics-local run. New
 scratch Git histories will have different commit IDs. The full command and
 output receipt is in the local Prompt-003 diagnostics package, not required for
@@ -18,11 +32,11 @@ using this teaching fixture.
 | Methods evidence HEAD | `09a97e3ced516e662a8e448f01b9199805c3ea80`; separate scratch Git history, `methods_note.md` only |
 | Intentional stop | expected and observed analysis HEAD were the provenance repair HEAD; status was ` M interpretation.md`; diff added `unexpected local edit after accepted commit`; no retry or cleanup |
 
-The review and owner roles were simulated within this one-executor diagnostic
-run. The review exercise qualified only the synthetic arithmetic under the
-stated independent Gaussian model; its illustrative owner decision accepted
-that bounded record after provenance repair. No separate human scientific
-review or acceptance was performed. This is a teaching decision in scratch
+The reviewer and research coordinator roles were simulated within this
+one-executor diagnostic run. The review exercise qualified only the synthetic
+arithmetic under the stated independent Gaussian model. After provenance repair,
+the simulated research coordinator accepted that bounded task/evidence record.
+No separate human scientific review or acceptance was performed. This is a teaching decision in scratch
 repositories; it establishes no real-data result or project child-repository
 authority. A successor would need the source identity, input hash, assumptions,
 review, acceptance scope, residual dirty-state decision, and checks not to

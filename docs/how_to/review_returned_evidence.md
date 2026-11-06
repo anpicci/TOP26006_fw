@@ -17,6 +17,16 @@ Read the authorized task, reported result, direct receipts, complete relevant di
 7. If authorized destructive removal occurred, verify that the portable result and evidence were preserved first. Then read back the final state to confirm that only the exact temporary files, worktrees, or refs created for this task were removed and that permanent or unrelated state remains intact.
 8. State which scientific, application, affected-consumer, test, and runtime checks were actually performed. Repository and workflow evidence alone does not certify those claims. Record unchecked boundaries and recommend acceptance, bounded repair, or stop to the decision-maker.
 
+Before or alongside dense identifiers and status, explain what concrete result
+was established, why it matters for the practical or scientific question,
+which material limit remains, and what decision or boundary follows. Explain
+a nonblocking or future-phase limit through its consequence: for example,
+an uninspected configuration limits coverage to the inspected configuration.
+Keep the exact evidence, classification, and full review depth supporting that
+account. The [research writing explanation](../explanation/research_oriented_writing.md)
+develops this practice; readable prose does not turn a recommendation into
+acceptance.
+
 ## Verify the result
 
 Each finding cites direct evidence and explains its effect on the bounded claim. A recommendation is distinct from acceptance; the [acceptance guide](record_a_result_acceptance.md) owns the next step.

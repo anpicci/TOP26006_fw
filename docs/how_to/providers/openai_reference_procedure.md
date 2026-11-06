@@ -1,12 +1,36 @@
 # Use the OpenAI/Codex reference procedure
 
-**How-to; documentation snapshot: 2026-10-23.** TOP26006_fw currently uses OpenAI/Codex as its concrete execution reference. This page describes the local Codex procedure relevant to this manual. Cloud, ChatGPT Work, apps, and other OpenAI surfaces need their own observed controls before a task relies on them. Read the live [project execution policy](../../../AGENTS.md), [prompt contract](../../../CPC.md), and [permissions route](../../reference/permissions.md) for exact current project rules.
+Use this concrete project reference after framing a [bounded research task](../ask_an_assistant_to_prepare_a_task.md). The common [research method](../../explanation/research_workflow.md) and [roles](../../explanation/roles_and_authority.md) come first. Product descriptions, the project operating model and local execution facts answer different questions.
 
-1. **Start with the research decision.** Identify the question, owner, authorized repository and paths, evidence, stop boundary, and validation ceiling. The coordinating prompt author uses live project governance and the [prompt validator](../validate_a_prompt_before_execution.md). A mechanical validator result does not grant permission or judge the science.
-2. **Check the instruction chain.** Codex [documents](https://learn.chatgpt.com/docs/agent-configuration/agents-md) global instructions and a project-root-to-working-directory search. In each directory it considers `AGENTS.override.md`, then `AGENTS.md`, then configured fallbacks; it includes at most one file and applies a size limit. Check applicable nested guidance for the actual task paths. Project governance can also require reading documents such as `CPC.md` and a repository module; their authority comes from the project contract, not automatic `AGENTS.md` discovery. `AGENTS.md` supplies model guidance and context, not operating-system access control.
-3. **Observe the effective local controls.** At this snapshot, Codex [lists](https://learn.chatgpt.com/docs/sandboxing) `read-only`, `workspace-write`, and `danger-full-access` sandbox modes. Its [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) lists `approval_policy` values `on-request`, `never`, or a `granular` object; explicit `untrusted` is unsupported and `on-failure` is deprecated. Record requested settings separately from observed sandbox and approval behavior. A stronger technical capability does not expand the prompt's authorization.
-4. **Separate network paths and effects.** Record whether the prompt permits network reading, exactly which domains or tools, and whether command networking, hosted search, apps, or MCP are in use. A command-network setting does not cover every hosted or connected surface. A permitted HTTPS read does not authorize a Git fetch, push, PR, merge, or account change; each effect needs its own project grant.
-5. **Record model and surface identity honestly.** Put requested model/profile and observed runtime model/profile in separate fields. Use `not_observable` when the exact runtime identity is unavailable. Do not infer that a local CLI result applies to a cloud or Work session, or vice versa.
-6. **Return reviewable evidence.** Preserve source identity, current branch and HEAD where relevant, commands, outputs, limits, patch and report. Reopen the evidence before claiming completion. A provider approval or code review is an action or code check; [independent project review](../../explanation/evidence_reproducibility_and_acceptance.md) and human scientific acceptance remain separate.
+## Product mechanisms observed from official documentation
 
-For another provider, use the [adaptation worksheet](../adapt_to_another_ai_provider.md). For the project-specific installation and branch example, see the [TOP-26-006 reference deployment](../../examples/top26006_reference_deployment.md).
+Official sources checked **2026-11-02 (America/New_York; 2026-11-03 UTC)**: [ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) describes Chat for conversational help, Work for longer research and deliverables, and Codex for software/repository work. Availability and controls vary with surface, account and workspace; check the current documentation and actual access before relying on a feature.
+
+[Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt) describes grouping related chats, files and instructions. Work can use project context where supported. Treat that context as supplied material: check its revision and completeness against current sources before a decision. Product memory is not canonical project state.
+
+These are dated mechanism observations. Recheck relevant behavior at use time; no plan entitlements, model roster, quota, price or menu sequence is part of this procedure.
+
+## TOP26006's project-local role mapping
+
+The accepted project model assigns these responsibilities; OpenAI documentation does not grant scientific or project authority:
+
+| Project role | Responsibility in this project |
+|---|---|
+| Chat | Continuity, governance-aware framing and interpretation |
+| Work | Bounded research, source comparison, audit and finished deliverables |
+| Codex | Repository/code work, tests and bounded technical execution when authorized |
+
+The human defines scientific purpose, assumptions, permissions and acceptance. Chat can help apply governance but cannot grant effects or decide the science. A researcher can use only the roles the question needs; product handoffs are not automatic and do not transfer authority or source access. Git records source history; reviewer findings and human acceptance remain separate from execution.
+
+## Follow the reference on the actual installation
+
+1. **Prepare the task.** Identify the question, research lead, repository/path scope, permitted effects, validation ceiling, expected evidence and stop boundary. The prompt author follows current [AGENTS.md](../../../AGENTS.md), [CPC.md](../../../CPC.md), applicable modules/native policy and [mechanical prompt validation](../validate_a_prompt_before_execution.md). Validator PASS is not authorization or scientific correctness.
+2. **Check local facts.** Use the maintained [local-profile procedure](../configure_your_local_profile.md) to resolve paths, wrapper and interpreter. Freshly observe branch, HEAD and relevant changes. A profile describes an installation; it grants no action.
+3. **Inspect effective controls.** Read applicable instructions and observe the chosen session's sandbox, approvals, file/network reach and tool paths. Consult current official documentation for the selected surface. Record unavailable or unobserved facts honestly; instructions and requested settings do not prove enforcement.
+4. **Execute only the authorized task.** Product access or an approval prompt cannot enlarge its scope. A shell, hosted web tool and connected service require separate access/effect checks; permission for a documentation read does not authorize remote Git or publication.
+5. **Return reviewable evidence.** Record exact sources, actual commands/results, relevant local state, patch/report and limits. Distinguish requested from observable runtime identity when material. Reopen durable evidence before claiming completion; an interrupted action needs readback before any retry.
+6. **Review and decide.** Use the [review lesson](../../tutorials/05_review_and_accept_returned_evidence.md). A separate context or product code review alone does not establish independent project review. The human with actual remit for the stated layer and scope records bounded task/evidence acceptance after required review, asks for repair or leaves it unresolved. Scientific acceptance of method or interpretation remains a separate decision within scientific remit; see [decision layers](../../explanation/evidence_reproducibility_and_acceptance.md). [Continuation](../../tutorials/06_continue_from_existing_evidence.md) reuses still-valid evidence.
+
+## Evidence status and next route
+
+OpenAI/Codex is the project reference procedure. This guide supplies no per-feature runtime qualification for Chat, Work, Codex, local, cloud or connected-app surfaces. Existing project use is not evidence for an unobserved feature or another installation. Check the [compatibility reference](../../reference/provider_compatibility.md) for the distinction; use the [adaptation guide](../adapt_to_another_ai_provider.md) for another provider and the [manual](../../index.md) to return to research tasks.

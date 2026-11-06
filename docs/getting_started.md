@@ -1,11 +1,25 @@
 # Getting started
 
-You can begin the coordination workflow without real data. The [synthetic repeated-measurements example](../examples/repeated_measurements/README.md) supplies a small question, method, and checkable output. The TOPEFT lesson in Tutorial 2 assumes access to a separate local checkout; Tutorial 3's synthetic task works without it.
+Start with a research question and the evidence you would need to check an answer. TOP26006_fw helps you describe a manageable task, use AI assistance, and inspect the result. You can begin by reading the pages and example files in your browser; no local profile or analysis checkout is needed for that orientation.
 
-The sequence is [prepare a research project](tutorials/01_prepare_a_research_project.md), [connect an already-governed analysis repository](tutorials/02_add_an_analysis_repository.md), then [complete a read-only task](tutorials/03_complete_a_first_read_only_task.md). Tutorial 2 uses a separately available TOPEFT checkout and reads its maintained `fullR3_run.sh` command chain. The example dry run prints a delegated request; it does not run an analysis.
+## Understand the approach
 
-Continue with a [bounded analysis note](tutorials/04_make_a_bounded_analysis_change.md), [independent review and narrow acceptance](tutorials/05_review_and_accept_returned_evidence.md), [continuation from valid evidence](tutorials/06_continue_from_existing_evidence.md), [sequential transfer to a methods repository](tutorials/07_coordinate_a_multi_repository_change.md), [a stopped-task recovery boundary](tutorials/08_recover_from_a_stopped_task.md), and [handoff](tutorials/09_transfer_work_to_a_collaborator.md). These later exercises use only two diagnostics-local synthetic scratch repositories. Their [observed scenario](../examples/research_workflow_lifecycle/observed_scenario.md) labels simulated review and acceptance roles explicitly.
+Start with [AI-assisted research foundations](foundations/ai_assisted_research.md). It explains what AI can contribute, how it can be wrong, and how to move from a question to evidence you can check before making a scientific decision.
 
-The [provider adaptation guide](how_to/adapt_to_another_ai_provider.md) starts from research responsibilities and checks each provider mechanism. Use the [OpenAI/Codex reference procedure](how_to/providers/openai_reference_procedure.md) for this project's concrete arrangement. The [Claude Code adaptation](how_to/providers/anthropic_adaptation.md) is documentary and **not locally tested** here. Read the [compatibility matrix](reference/provider_compatibility.md), [provider limits](explanation/provider_independence_and_limits.md), and [TOP-26-006 worked deployment](examples/top26006_reference_deployment.md). The private release and intended-license boundary is in the [root README](../README.md).
+Read [the research workflow](explanation/research_workflow.md) for the connection between a question, assumptions, a bounded task, and evidence. You remain responsible for judging whether the method and result make sense. [Choosing an AI tool for a research task](how_to/choose_an_ai_tool_for_a_research_task.md) introduces the different contributions people and tools can make.
 
-Keep four sources separate: the [project repository map](../governance/repositories.md) names stable repository roles; your ignored [local YAML profile](reference/local_profile.md) supplies installation paths; fresh Git commands show current branch and HEAD; the scientific owner decides whether evidence supports an accepted result. [Repository identity](explanation/repository_and_workspace_identity.md) explains the distinctions. The coordination rules use progressive disclosure: [AGENTS.md](../AGENTS.md) is the compact authority and reading router; [CPC.md](../CPC.md) is the compact prompt-construction contract; triggered `governance/contracts/*` supply conditional detail; [model policy](../governance/model_policy.md) owns model and reasoning routing; the project repository map, selected module, and native policy supply repository-specific constraints. Executor output, a passing test, and reviewer agreement do not constitute owner acceptance.
+## Explore one bounded task
+
+Open the [synthetic repeated-measurements example](../examples/repeated_measurements/README.md). Read its question, inputs, method, and limitations. The data are invented for teaching; you do not need real research data or a TOPEFT checkout to understand the example.
+
+When you are ready to reproduce and check it, follow [Tutorial 3: complete a first read-only task](tutorials/03_complete_a_first_read_only_task.md). It asks whether the CSV, formula, and script support the displayed results under the stated assumptions. The companion notebook presents the same calculation in an interactive form. When you want to run it locally, follow the setup instructions at the start of the notebook.
+
+If you want to run the commands locally, first follow [Tutorial 1: prepare a research project](tutorials/01_prepare_a_research_project.md) to set up your local checkout and tools, then return to Tutorial 3. You can skip Tutorial 2 for this synthetic task.
+
+## Work in an analysis repository when you need to
+
+The optional [Add an analysis repository](tutorials/02_add_an_analysis_repository.md) lesson uses a separately available TOPEFT checkout. It is relevant when your task concerns that repository, rather than a prerequisite for the introductory example. Work in another native research repository needs that repository's own setup and rules.
+
+## Continue when the task grows
+
+After your first task, follow the [tutorial learning path](tutorials/index.md) for the full guided curriculum. It explains how the later lessons on change, review, continuation, recovery, and handoff fit together, and when to take an optional extension. The [advanced and maintainer routes](index.md#advanced-and-maintainer-routes) are available when you need broader coordination, provider details, or project configuration.

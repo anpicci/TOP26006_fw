@@ -1,29 +1,32 @@
 # Adapt the research workflow to another AI provider
 
-**How-to.** Use this sequence when a researcher wants to carry a bounded project workflow to a selected provider, version, and execution surface. The [research responsibilities](../explanation/roles_and_authority.md) can be assigned without assuming that two products load instructions or restrict actions alike. Start with the [compatibility status](../reference/provider_compatibility.md) and the [provider limits](../explanation/provider_independence_and_limits.md).
+Start with the research question and the [accepted research method](../explanation/research_workflow.md): a bounded task, authority and permissions, evidence, review, and human interpretation or acceptance. The [responsibilities of people and tools](../explanation/roles_and_authority.md) remain in place when a provider changes. A provider need not divide its products into the same roles or use the same names.
 
-1. **Name the research purpose and responsibilities.** Record the question, scientific owner, prompt author or coordinator, source-comparison researcher, executor, independent reviewer, and person who can accept the result. A single person may hold several responsibilities, but an executor's self-review is not independent review.
-2. **List the mechanisms the current task actually uses.** Read live project governance and the prompt. Identify instruction files, validator, permission and sandbox controls, network and tool paths, continuity records, returned evidence, and review route. The [OpenAI reference procedure](providers/openai_reference_procedure.md) is a worked provider procedure, not a universal template.
-3. **Choose an exact target.** Record provider, product surface, installed version, local or hosted environment, operating system, settings sources, and working directory. Consult the provider's current official documentation for that combination. Record access dates and URLs.
-4. **Trace instruction discovery.** Determine which root, ancestor, nested, private, imported, and path-scoped instructions load, in what order, and when. Confirm the *observed* instruction chain in the target session. Similar file names do not prove equivalent loading.
-5. **Map action controls.** Determine permission modes, allow/ask/deny rules, settings precedence, sandbox scope, escalation behavior, and any hooks. Separate behavioral guidance from technical enforcement and from the owner's authorization.
-6. **Map each access path.** Check shell commands, built-in file tools, hosted search or web fetch, connectors, MCP servers, and delegated agents separately. Record filesystem and network coverage for each path. A shell network restriction says nothing by itself about hosted search or a connector.
-7. **Map continuity and evidence.** Identify how a session resumes or loses context; how the operator records source versions, commands, outputs, artifacts, and limits; and where a separate reviewer can inspect them. A product's action approval or code review does not accept a scientific claim.
-8. **Classify every required mechanism.** Use the worksheet below. For any missing control, narrow the task to what the provider can actually enforce. For example, use read-only analysis or a smaller file scope until an independently enforced boundary is available. Do not broaden permissions to simulate equivalence.
-9. **Qualify locally before deployment claims.** In the intended installation, verify the version, instruction chain, effective settings, allowed/denied actions, all relevant file and network paths, evidence capture, and stop behavior with bounded, harmless probes. Record failures and the exact environment. Only then claim support for that qualified surface and scope. The [Anthropic adaptation](providers/anthropic_adaptation.md) is documentary guidance; it has no TOP26006_fw local Claude Code qualification.
+Use this guide for a selected task and surface. The [OpenAI reference procedure](providers/openai_reference_procedure.md) is the project's concrete example; the [Claude Code adaptation](providers/anthropic_adaptation.md) is documentary and not locally qualified. Read the [compatibility status](../reference/provider_compatibility.md) for the evidence limits, and [provider independence and limits](../explanation/provider_independence_and_limits.md) for the reasoning.
+
+## Map the task before choosing mechanisms
+
+1. **Bound the work.** Name the research purpose, responsible human, exact sources, permitted effects and useful finish. Use the [task-preparation guide](ask_an_assistant_to_prepare_a_task.md). Keep scientific choices with the responsible researchers.
+2. **List only the needs this task has.** Use the worksheet below. Discussion may be enough; a repository task or external data access introduces different mechanisms. Delegation is optional and separately authorized, not a required adaptation step.
+3. **Acquire the provider's current official description.** Identify product, surface, version where observable, local or hosted execution, and the specific mechanism. Record the source title, URL, access date and conditions. Distinguish provider documentation, project reference use and direct local observations.
+4. **Check the actual controls.** Under the task's authorization, inspect instruction discovery, effective settings and their precedence, permission/approval behavior, filesystem reach and every network/tool path the task needs. Record requested settings separately from observed controls. A shell restriction alone does not establish another tool's coverage. Do not translate permission labels by name.
+5. **Preserve the authority and evidence boundaries.** Follow live [AGENTS.md](../../AGENTS.md), [CPC.md](../../CPC.md), the selected [repository/native authority](../../governance/repositories.md), and the research lead's grant. An action approval, instruction file or connected service cannot enlarge that grant. Context retained by a product is not authoritative current project state.
+6. **Record the mapping and its limits.** Preserve source/input revisions, commands and outputs actually obtained, a patch when changed, and unresolved observations. Identify evidence capture, restart/readback and the reviewer before relying on the result. Resume from durable evidence and fresh material state, not remembered completion.
+7. **Stop only the unsupported dependent effect.** If a needed mechanism is unverified, report the missing observation and propose a narrower task. A narrower task still needs authorization. Any local qualification probes require their own bounded grant; reading this guide does not authorize installation, configuration, execution or deployment. Claim support only for the exact surface and checks actually exercised.
 
 ## Adaptation worksheet
 
-Copy the table into the task's evidence record. For each row choose **documented close equivalent**, **documented partial equivalent**, **concept only**, **not verified**, or **not applicable**. A documented mapping is still **not locally tested** until the intended installation is checked.
+Record each applicable row in the task's existing evidence record. Label its evidence as **documented mapping**, **locally observed within stated scope**, **not verified**, or **not applicable**. These describe support for a need, not a universal compatibility score or equivalent product role.
 
-| Research need or mechanism | Current project use | Target provider, version, surface | Official URL and date | Classification | Local observation and limit |
-| --- | --- | --- | --- | --- | --- |
-| Human authority and scientific acceptance | Owner decision after review | | | | |
-| Instruction discovery and nested guidance | Applicable `AGENTS.md` plus project governance | | | | |
-| Prompt validation | Project validator around the provider | | | | |
-| Permission and sandbox enforcement | Prompt grant plus effective runtime controls | | | | |
-| File, network, web and connector paths | Separate grants and observations | | | | |
-| Context/session continuity | Evidence and handoff record | | | | |
-| Returned evidence and independent review | Report, patch, source locators, reviewer | | | | |
+| Task need | What to map and preserve |
+|---|---|
+| Conversational or research assistance | Which surface supports discussion, source comparison or a finished deliverable; who checks the claims |
+| Repository/code execution | Exact checkout, instructions, working paths, execution controls and allowed validation |
+| External tools and data | Each service/tool path, permitted reads or mutations, connectivity, data scope and actual reach |
+| Permissions and approval mechanics | Effective settings, approval/enforcement behavior and limits, separately from project grants |
+| Persistent or project context | What context is available, its source revision and how current material state is refreshed |
+| Delegated or parallel workers | Authorized responsibilities, write boundaries and review independence; separate contexts alone establish none of these |
+| Evidence capture and restartability | Source identities, actual actions/results, artifacts, preserved unknown outcomes and safe readback before retry |
+| Human review and acceptance | Separate reviewer and acceptance decision maker with actual remit for the stated layer and scope: bounded task/evidence or scientific acceptance; preserve the reviewed claim and residual limits as explained in [decision layers](../explanation/evidence_reproducibility_and_acceptance.md). Provider agreement cannot accept it |
 
-If a row is **concept only** or **not verified** and matters to the proposed effect, stop at that narrower boundary. Treat an official feature description as documentation evidence, not as a local test result.
+For each row add the official locator/date, exact target surface/version, local observation or missing check, and claim ceiling. Recheck any decision-material mechanism at use time, especially after a product, configuration or surface change. A mechanism rename reopens that mapping, not the research method or unrelated accepted work.

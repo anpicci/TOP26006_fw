@@ -4,7 +4,7 @@ Use this guide when valid accepted research evidence supports a further bounded 
 
 ## Before you start
 
-Have the accepted claim, review/owner decision locator, source identity, and a fresh task-scope status readback. Use the [continuation template](../../templates/continuation_prompt.md) with live [CPC.md](../../CPC.md).
+Have the accepted claim, review and task/evidence or scientific acceptance decision locators, source identity, and a fresh task-scope status readback. Use the [continuation template](../../templates/continuation_prompt.md) with live [CPC.md](../../CPC.md).
 
 ## Procedure
 
@@ -30,4 +30,4 @@ After a provenance-only repair, cite the accepted synthetic mean, request a meth
 
 ## What this does not establish
 
-A continuation does not make stale Git state current or broaden owner acceptance.
+A continuation does not make stale Git state current or broaden the scope of task/evidence or scientific acceptance.

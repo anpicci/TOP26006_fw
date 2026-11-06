@@ -4,7 +4,7 @@
 
 Start with a research question you might later investigate, such as whether five synthetic calibration measurements are consistent with one common value. Keep scientific interpretation separate from installing the tools.
 
-1. Obtain the private TOP26006_fw coordination repository through an approved project access route. For the commands in these first tutorials, suppose you placed it at `/home/alice/work/TOP26006_fw` and have a separate TOPEFT checkout at `/home/alice/work/topeft`. These are example installation paths, not observed or required locations. Set `checkout` to **your actual TOP26006_fw checkout**, whatever its directory name:
+1. Obtain the TOP26006_fw coordination repository through the project access route documented in the [README](../../README.md#repository-visibility-and-licensing). Read access alone grants no permission to execute or modify project files. For the commands in these first tutorials, suppose you placed it at `/home/alice/work/TOP26006_fw` and have a separate TOPEFT checkout at `/home/alice/work/topeft`. These are example installation paths, not observed or required locations. Set `checkout` to **your actual TOP26006_fw checkout**, whatever its directory name:
 
    ```sh
    checkout=/home/alice/work/TOP26006_fw
@@ -51,4 +51,4 @@ Start with a research question you might later investigate, such as whether five
 
    The second command selects the checkout's `.top26006/local_profile.yml` even if the caller later works from another directory. A representative resolved excerpt is `workspace_root: /home/alice/work/TOP26006_fw` and `repositories.TOP26006_fw.path: /home/alice/work/TOP26006_fw`; your values must match your installation. The resolver validates profile shape, path normalization, and placeholder rejection. `--execution-ready` is only profile shape/path readiness; it does **not** qualify a provider, repository, branch, scientific method, task permission, or accepted result. Compare the resolved paths with local evidence before use. [Inspect resolution](../how_to/inspect_the_resolved_configuration.md) explains the fields.
 
-**Checkpoint:** you have a local execution route and can identify the coordination Git root. Continue to [Tutorial 2](02_add_an_analysis_repository.md), where a stable repository ID meets a local path. The [research workflow](../explanation/research_workflow.md) keeps the scientific question visible.
+**Checkpoint:** you have a local execution route and can identify the coordination Git root. Continue to [Tutorial 3](03_complete_a_first_read_only_task.md) for the first synthetic task; it needs no native analysis checkout. [Tutorial 2](02_add_an_analysis_repository.md) is an optional bridge when you have a separate TOPEFT checkout and want to connect a stable repository ID to a local path. Return to the [tutorial learning path](index.md) to choose your route. The [research workflow](../explanation/research_workflow.md) keeps the scientific question visible.

@@ -1,10 +1,10 @@
 # Register a repository identity
 
-Use this guide to **propose** a stable identity for a research repository that has a distinct scientific or technical owner. Drafting a row does not authorize a registry mutation.
+Use this guide to **propose** a stable identity for a research repository that has a distinct scientific lead or repository maintainer. Drafting a row does not authorize a registry mutation.
 
 ## Before you start
 
-Identify its native policy, owner, consumers, and whether it is an active repository, dependency, or pinned evidence. Read the [typed registry](../../governance/repositories.md), an adjacent row of the same class, and [AGENTS.md](../../AGENTS.md) repository boundaries.
+Identify its native policy, responsible scientific lead or repository maintainer, consumers, and whether it is an active repository, dependency, or pinned evidence. Read the [typed registry](../../governance/repositories.md), an adjacent row of the same class, and [AGENTS.md](../../AGENTS.md) repository boundaries.
 
 ## Procedure
 
@@ -12,16 +12,16 @@ Identify its native policy, owner, consumers, and whether it is an active reposi
 2. Choose the existing registry class and project role that describe how evidence flows. State the native scientific/technical authority and its upstream policy; project governance does not replace them.
 3. Choose `repositories.<repository_id>.path` as the local-profile key. A user maps that key to a checkout path in their ignored profile; do not write a personal path into the registry.
 4. Decide whether root rules suffice (`module: inherited`) or a bounded repository-specific [module](add_or_update_a_governance_module.md) is needed. Explain the concrete constraint, not merely a preference for another file.
-5. Present a proposed row for review in the live table's eight-column order, for example: `sample_methods | PROJECT_IMPLEMENTATION_REPOSITORY | repositories.sample_methods.path — local path | Live resolution | read-only unless exact task grant | native methods owner | inherited | consumes qualified analysis evidence`. Match the registry's precise column meanings and vocabulary before an authorized edit.
-6. Only after an owner-authorized governance task, inspect the exact registry diff, reread links/module path and profile-key consistency, and validate the resulting row against native policy.
+5. Present a proposed row for review in the live table's eight-column order, for example: `sample_methods | PROJECT_IMPLEMENTATION_REPOSITORY | repositories.sample_methods.path — local path | Live resolution | read-only unless exact task grant | native methods scientific lead | inherited | consumes qualified analysis evidence`. Match the registry's precise column meanings and vocabulary before an authorized edit.
+6. Only after a governance task authorized by the research lead, inspect the exact registry diff, reread links/module path and profile-key consistency, and validate the resulting row against native policy.
 
 ## Verify the result
 
-The reviewed row retains the same ID across checkout renames, names its owner and consumers, and has an intentional module decision. A later local-profile resolution and `git -C "$repo" rev-parse --show-toplevel` establish local installation state separately.
+The reviewed row retains the same ID across checkout renames, names its responsible scientific lead or repository maintainer and its consumers, and has an intentional module decision. A later local-profile resolution and `git -C "$repo" rev-parse --show-toplevel` establish local installation state separately.
 
 ## Stop instead of proceeding if...
 
-Ownership, class, native policy, or authorization is unclear, or the proposed ID duplicates an existing role. Do not register the [Tutorial 2](../tutorials/02_add_an_analysis_repository.md) scratch repository as a real project repository. A row cannot grant writes, scientific acceptance, or remote access.
+Ownership, class, native policy, or authorization is unclear, or the proposed ID duplicates an existing role. Do not register a synthetic teaching copy, such as the [lifecycle fixture](../../examples/research_workflow_lifecycle/README.md), as a real project repository. [Tutorial 2](../tutorials/02_add_an_analysis_repository.md) instead connects an existing native analysis checkout to its own documentation and authority; it does not register a new repository. A row cannot grant writes, scientific acceptance, or remote access.
 
 ## Generic example
 
