@@ -10,6 +10,17 @@ The smallest execution model that can produce that result is usually clearest. A
 
 The lifecycle can continue without repeating valid work. Accepted evidence remains usable while its identity, inputs, assumptions, and relevant interfaces still hold. A changed dependency calls for review of that dependency and directly coupled interactions. A bounded local repair preserves unaffected valid results and repeats the affected check. If a new choice or unsafe uncertainty appears, record the direct state and stop only the dependent action; independent authorized work may continue. Requirements for a later phase do not automatically block a correct current result.
 
+The authoring mechanism is a separate choice within this lifecycle. Use the
+[D8 compiler route](../how_to/compile_governance_workflow.md) only when its
+qualified subset faithfully represents the bounded task; otherwise use a
+[manual governed prompt](../how_to/write_a_prompt_manually.md). Switching the
+mechanism alone neither invalidates accepted evidence nor authorizes replay.
+The author fixes authority, roles, scope/effects, validation, stops and real
+choices. Dispatchability permits entry to mandatory runtime pre-effect
+verification, where consumed current governance and resource facts are checked.
+Runtime cannot change those semantics. Compilation/receipt, dispatch, execution,
+review and bounded or scientific acceptance remain distinct.
+
 For documentation maintenance, follow two different semantic relationships.
 First, a generic explanation supplies concepts to procedures and summaries:
 [roles](roles_and_authority.md), [decision layers](evidence_reproducibility_and_acceptance.md)

@@ -27,6 +27,31 @@ First prepare a workspace, then inspect and reproduce a small synthetic result. 
 
 The order is pedagogical. It does not imply that one lesson produced the live state used by the next. Tutorial 4 prepares its own scratch history; the later documentary exercises use stated stages of a maintained scenario and do not require that scratch history. Read each lesson's prerequisites and restart instructions. Learning order transfers no permissions, scientific authority, shell variables, repository state, execution evidence, or acceptance between lessons.
 
+```mermaid
+flowchart LR
+    accTitle: Ordinary learning path and optional branches
+    accDescr: Follow Tutorials 1, 3, 4, 5, 6, 8 and 9. Tutorial 2 is an optional native analysis bridge after Tutorial 3. Tutorial 7 and Advanced coordination are optional extensions after the ordinary lifecycle.
+    t1["T1: Prepare"] --> t3["T3: Inspect and reproduce"]
+    t3 --> t4["T4: Bounded change"]
+    t4 --> t5["T5: Review evidence"]
+    t5 --> t6["T6: Continue"]
+    t6 --> t8["T8: Assess a stop"]
+    t8 --> t9["T9: Handoff"]
+    t3 -. Optional .-> t2["T2: Native analysis bridge"]
+    t2 -. Return .-> t4
+    t9 -. Optional .-> t7["T7: Two repositories"]
+    t9 -. Optional .-> advanced["Advanced coordination"]
+```
+
+The diagram repeats the ordinary order above. Dotted branches are optional:
+Tutorial 2 connects to native analysis, Tutorial 7 crosses repository boundaries,
+and Advanced adds coordination only when needed. These are learning choices,
+not transfers of permission or evidence. D8 is an authoring option within a
+bounded task, not a new prerequisite or numbered lesson. Use the
+[compiler/manual authoring bridge](../how_to/compile_governance_workflow.md#choose-the-authoring-route)
+after defining behavior and authority; the ordinary research curriculum remains
+the starting point.
+
 ## Optional bridges
 
 **Tutorial 2 connects the method to a native analysis repository.** It requires a separately available TOPEFT checkout, so it is not a prerequisite for Tutorial 3's synthetic task. For a newcomer who wants this bridge, the recommended placement is **Tutorial 1 → Tutorial 3 → Tutorial 2**: complete one bounded evidence loop before tracing a real analysis source chain. Then return to the ordinary path at Tutorial 4. If you already have TOPEFT and specifically want the native bridge first, you may enter Tutorial 2 after Tutorial 1. The lesson produces a dated source-reading note, not an executed or qualified analysis.

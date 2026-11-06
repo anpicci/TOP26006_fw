@@ -41,6 +41,14 @@ Use the existing [continuation template](../../templates/continuation_prompt.md)
 
 The proposed sentence is a documentation delta, not a new calculation or evidence transfer to another repository. If it is already present, report that no write is needed. If it conflicts with the existing note or needs new scientific interpretation, stop that delta.
 
+A real continuation may use [D8](../how_to/compile_governance_workflow.md) when
+its qualified subset faithfully represents the delta and protected evidence.
+Otherwise use the [manual governed route](../how_to/write_a_prompt_manually.md).
+An authoring-mechanism change alone neither invalidates accepted evidence nor
+authorizes replay. Reopen only a changed material dependency and its consumers;
+retain the same authority, invalidation boundary and protected checks in either
+representation. This teaching draft remains non-executing.
+
 ## Review the draft before dispatch
 
 The observable output is your saved continuation draft, including the scenario identity and an explicit unresolved-state list. Compare it with each template field. It must say who owns the next decision, which exact file may change after authorization, which evidence will demonstrate that delta, and what stops the action.

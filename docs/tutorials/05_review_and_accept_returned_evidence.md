@@ -39,6 +39,22 @@ Read the scenario's output row: five measurements; mean `10.060000`; model-based
 
 Record the initial provenance finding separately from the reported repair. A repair can name an earlier source identity; a commit cannot cite its own final identity inside its own contents. The scenario reports that the numerical run was not repeated. Do not run it merely to complete this review lesson.
 
+## If the returned task used the compiler
+
+A [generated prompt and compilation receipt](../how_to/compile_governance_workflow.md)
+can show the source contract, bound claims, translation and mechanical checks.
+They prove neither execution nor independent review nor acceptance. Obtain the
+actual returned evidence for the claim being reviewed. A hash records byte
+identity; it does not prove correctness, containment or authorization. Lint PASS
+does not establish governance completeness or semantic/scientific correctness.
+
+Package-authored booleans do not constitute a reviewer/owner decision or close
+a finding. The external caller/reviewer must own the controlling review manifest;
+a required declared gate must actually resolve and evaluate the cited evidence.
+The utility does not cryptographically authenticate human reviewer identity.
+These distinctions do not change the fixed scenario or turn this exercise into
+a compiler run or evidence-package execution.
+
 ## Recommend, qualify, and leave a decision
 
 Your review should contain the artifact path/hash, stage identities, executor claims, direct observations, blocking and nonblocking findings, checks not performed, recommendation, and researcher responsible for the decision. Mark independent checks of the underlying historical note, diff, and runtime receipt as **not performed**. Same-person teaching review is not independent replication.

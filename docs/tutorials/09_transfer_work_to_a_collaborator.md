@@ -12,6 +12,15 @@ For a provider-to-consumer handoff, record both commits and the claim relied upo
 
 **Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
 
+For a task prepared with [D8](../how_to/compile_governance_workflow.md), the
+handoff may additionally carry its behavior contract, acquired bindings,
+generated prompt, compilation receipt and their source identities. Explain what
+each establishes and which author review/runtime checks remain pending. Transfer
+of those artifacts is neither authority transfer nor evidence of recipient
+comprehension. The recipient must locate, read and understand them, refresh
+consumed volatile facts, and retain the task's real permission and acceptance
+boundaries. A receipt alone is not execution or acceptance evidence.
+
 ## Optional documentary practice: prepare a successor handoff
 
 You are the researcher preparing a successor to assess a stopped local task without oral project history. You will write a **personal handoff draft** using the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md) and the existing [handoff template](../../templates/handoff.md), both read-only. You need read access and somewhere to save your draft. No previous tutorial execution, scratch repositories, shell variables, historical Git objects or contact with another person is required. A saved [Tutorial 8](08_recover_from_a_stopped_task.md) assessment is optional supporting work.

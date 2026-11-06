@@ -56,6 +56,18 @@ Save outputs before making a decision. If another path changed, or the original 
 
 The person with actual edit/effect authorization remit in a later task may authorize a bounded edit or adoption after establishing provenance. A responsible researcher may hold that remit, but the title alone does not grant it; see [responsibilities](../explanation/roles_and_authority.md). Such authorization is distinct from acceptance of the returned task evidence or a scientific claim. That would be a new authorized continuation with its own diff and review. Until then, “preserved, unresolved, next readback identified” is a useful recovery result; it is not task completion or acceptance.
 
+## Distinguish an authoring limitation from a stopped effect
+
+If the [compiler](../how_to/compile_governance_workflow.md) reports an
+`IMPLEMENTATION_GAP`, preserve its source, bindings and diagnostic receipt.
+That is a mechanism limitation, not proof that the research task failed or
+permission to retry a compiler or runtime effect. An independently valid
+[manual governed route](../how_to/write_a_prompt_manually.md) may remain
+available under the existing authority and checks. Do not widen scope, infer
+execution from a receipt or rewrite the behavior to force compilation. A new
+substantive choice returns to the responsible decision-maker; an ambiguous
+effect still requires readback before any separately authorized retry.
+
 ## Restart and preserve closure
 
 Save the assessment, source hash, last completed step, unknowns, and next decision. After interruption, reopen those notes and the source. If unchanged, resume at the missing assessment or readback; do not introduce the dirty line again. If changed, preserve both observations and re-evaluate only the affected boundary.

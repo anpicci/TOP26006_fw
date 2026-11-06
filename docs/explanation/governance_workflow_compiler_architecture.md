@@ -7,31 +7,27 @@ repository. None of those roles can replace another.
 
 ## Qualification and canonical authority
 
-The isolated candidate is undergoing prospective D8-G qualification. It is not
-canonical governance, an activated project workflow or a stable rollout. The
-accepted functional qualification and compiler repairs are continuation
-evidence; they do not accept the real D8-G task or promote the candidate.
-Current canonical project master remains authoritative outside the exact
-owner-approved qualification scope. An acquired qualification policy carrier
-can support that bounded test without becoming project canonical master or
-an authority for other work.
+The owner has approved D8 adoption for the qualified initial supported subset,
+including accepted pre-cutover foundational hardening. D8 is not active on
+public master. This candidate is not canonical governance, universal Gherkin
+support or a stable rollout. Current `refs/heads/master` remains normative for
+prompt validation. Master promotion and later rollout remain separate
+owner-controlled boundaries.
 
-The owner-approved order remains:
+A compile, mechanical lint, author-side semantic review, dispatch, runtime
+verification, execution, evidence review and acceptance are distinct results.
+The [authoring route](../how_to/compile_governance_workflow.md#choose-the-authoring-route)
+shows the compiler/manual choice and the exact author/runtime split. A manually
+governed task remains first-class when the supported subset cannot represent it.
 
-```text
-D8-G
-  -> full pre-rollout adversarial readiness audit
-  -> D8-H owner readiness/activation
-  -> canonical promotion
-  -> post-integration conformance verification
-  -> stable rollout
-```
-
-Each boundary requires its own evidence and owner disposition. A successful
-compile, mechanical lint, faithful generated prompt, task execution, lane
-acceptance and canonical adoption are distinct results. D8-G does not authorize
-D8-H, promotion or stable rollout; promotion alone does not establish
-post-integration conformance. No compiler receipt can skip this order.
+| Evidence or surface | Claim ceiling |
+| --- | --- |
+| `allowed_to_modify` | Contractual authority/scope, not an OS ACL or proof of sandbox capability. |
+| Hash | Byte identity evidence, not correctness, containment or authorization. Source containment needs its own traversal controls. |
+| Lint and receipt | Mechanical checks and compilation provenance, not governance/semantic/scientific correctness, dispatch, execution, review or acceptance. |
+| Review package | Package-authored booleans cannot close findings. The external caller/reviewer owns the controlling manifest and the required gate must resolve/evaluate its evidence locator; the utility does not cryptographically authenticate human reviewer identity. |
+| Command-directory collision checks | Declared directory → successful entry → checks in that context → command; no race-free or atomic publication claim. |
+| Dependent validation | The generated dependency graph and synthetic dependent-consumer fixture show that mandatory FAIL leaves the dependency unsatisfied and blocks consumer entry; PASS satisfies it and permits entry. This does not qualify a real production/runtime executor. |
 
 ## Intent, bindings, planning and serialization
 
@@ -135,8 +131,8 @@ NOT_EVALUATED. Git-specific runtime prose is conditional on Git lifecycle effect
 Portable accepted results survive unrelated carrier/OID
 drift, while consumed artifact bytes, repository-local grants, foreign-work
 isolation, ambiguity readback and destructive compare-and-delete retain their
-existing checks. This describes the intended stable semantics; canonical
-integration, real-task qualification and stable adoption remain separate owner
+existing checks. Qualified subset adoption does not turn the compiler into a
+runtime executor; canonical integration and stable rollout remain separate owner
 boundaries.
 
 The compiler receipt binds the hashes of the entrypoint and both internal

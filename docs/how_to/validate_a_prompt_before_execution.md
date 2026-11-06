@@ -16,6 +16,20 @@ byte identity is a runtime input only when that file is explicitly supplied
 as an input to the task. Author prompt-file lint and live-state checks answer
 different questions; neither substitutes for the other.
 
+For both the [compiler route](compile_governance_workflow.md) and the
+[manual route](write_a_prompt_manually.md), the author fixes authority,
+repository/role semantics, exact scope/effects, true choices, validation and
+stop boundaries. Review the final prompt semantically against current
+`refs/heads/master`; candidate governance cannot validate itself. A compiled
+receipt does not replace that review.
+
+Dispatchable means ready to enter mandatory runtime pre-effect verification.
+Runtime verifies consumed current-master, branch/HEAD, dirty/index/conflict and
+worktree facts against the author's fixed semantics before the dependent effect.
+It cannot widen scope or decide a new owner/scientific/governance choice. Failed
+applicability stops that effect. Author-side lint neither proves runtime
+applicability nor requires inventing unavailable volatile observations.
+
 ## Before you start
 
 Read the live [validator instructions](../../.agents/skills/correction-lib-prompt-contract/SKILL.md), [CPC.md](../../CPC.md), [AGENTS.md](../../AGENTS.md), registry and native policy. Resolve `wrap`, `python_env`, and `checkout` from the local profile. Use a filled prompt Markdown path, not an unresolved [template](../../templates/bounded_change_prompt.md).

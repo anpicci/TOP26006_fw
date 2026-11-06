@@ -46,6 +46,19 @@ The four copied files form the clean seed; `interpretation.md` is absent. Preser
 
 The [bounded-change template](../../templates/bounded_change_prompt.md) helps state the task: the person with actual scientific remit decides interpretation; the prompt author bounds authorized effects; the executor returns evidence. Review and acceptance are separate functions with their own scope. Fill it against live governance before an assistant dispatch. It grants no effects on its own. For this practice, the sole post-seed write is the scratch note plus its exact local commit and evidence outside that repository; no runtime, network, production, or publication is needed.
 
+## Choose an authoring route for a real bounded task
+
+First define the bounded behavior, observable result and exclusions. If a real
+task is faithfully represented by the qualified
+[D8 subset](../how_to/compile_governance_workflow.md#choose-the-authoring-route),
+an authorized author may use supported Gherkin and acquired bindings to prepare
+its prompt. Otherwise the [manual governed route](../how_to/write_a_prompt_manually.md)
+remains first-class. Neither route grants effects: `allowed_to_modify` expresses
+contractual scope, not an OS ACL or proof of sandbox permission. Both require
+author-side semantic review and runtime applicability checks before effects.
+This lesson keeps its existing scratch-note exercise; compiling a prompt is not
+a prerequisite or evidence that its note was written.
+
 ## Make the bounded change
 
 Open a text editor at the explicit path `/absolute/path/to/TOP26006_fw/reports/diagnostics/tutorial04_practice/analysis_repository/interpretation.md`. Write a short note containing:

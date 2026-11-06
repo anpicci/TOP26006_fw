@@ -2,10 +2,56 @@
 
 The non-normative D8 compiler prepares an inspectable CPC prompt candidate and
 a YAML compilation receipt. It does not dispatch a prompt, perform an effect,
-evaluate execution evidence, or accept a result. The isolated D8 candidate is
-being prospectively qualified in D8-G; it is not canonical governance or a
-stable rollout. Current project master remains authoritative outside this
-bounded qualification.
+evaluate execution evidence, or accept a result. The owner has approved D8
+adoption for the qualified initial supported subset. D8 is not active on public
+master; this candidate does not change canonical governance or establish a
+stable rollout. Current `refs/heads/master` remains the normative policy source.
+
+## Choose the authoring route
+
+Start with the already-authorized bounded task. If the qualified subset can
+represent its behavior faithfully, supply supported Gherkin plus acquired
+bindings and compile a prompt candidate and receipt. Otherwise use the
+[first-class manual governed route](write_a_prompt_manually.md). Do not weaken
+the task to fit the compiler or infer that an implementation gap is task failure.
+
+```mermaid
+flowchart TD
+    accTitle: Governed authoring and runtime applicability
+    accDescr: An authorized task takes the supported compiler route or the manual governed route. Both require author review, dispatchability, mandatory runtime verification and a separate applicability gate before execution, evidence, review and acceptance.
+    task["Authorized bounded task"] --> supported{"Faithfully supported by D8?"}
+    supported -->|Yes| source["Supported Gherkin and acquired bindings"]
+    source --> compile["Compile"]
+    compile --> generated["Generated prompt and receipt"]
+    supported -->|No| manual["Manual governed prompt"]
+    generated --> author["Author semantic and governance review"]
+    manual --> author
+    author --> dispatchable{"Dispatchable?"}
+    dispatchable -->|No| missing["Obtain missing decision or evidence, or valid fallback"]
+    dispatchable -->|Yes| runtime["Dispatch to mandatory runtime pre-effect verification"]
+    runtime --> applicable{"Runtime applicable?"}
+    applicable -->|No| stop["Stop dependent effect; obtain real decision if needed"]
+    applicable -->|Yes| execute["Execute"]
+    execute --> evidence["Evidence"]
+    evidence --> review["Review"]
+    review --> acceptance["Bounded or scientific acceptance decision"]
+```
+
+In prose: authorized task → supported Gherkin/bindings and compilation, or manual
+prompt → author-side review → dispatchability → mandatory runtime pre-effect
+verification → applicability → execution → evidence → review → acceptance as
+applicable. If author review is incomplete, obtain the missing decision/evidence
+or use a legitimate fallback. If runtime is inapplicable, stop the dependent
+effect and obtain a real decision when needed. No arrow supplies permission.
+
+| Boundary | Responsibility and limit |
+| --- | --- |
+| Author | Fix authority, repository/role semantics, scope/effects, real choices, validation and stop boundaries. Review the exact prompt against current master. |
+| Dispatchable | Safe to enter mandatory runtime verification; not permission to mutate under arbitrary future state. Compilation and lint alone do not establish it. |
+| Runtime | Verify consumed current branch/HEAD, dirty/index/conflict, worktree and master facts against the fixed semantics. Do not choose new authority, widen scope or settle a new scientific/governance choice. |
+| Result | Execution produces evidence. Review challenges it; the responsible decision-maker separately accepts the bounded evidence or scientific claim. |
+
+## Invoke the compiler
 
 Use the Python wrapper and interpreter resolved from the local YAML profile:
 
@@ -14,6 +60,10 @@ Use the Python wrapper and interpreter resolved from the local YAML profile:
   --feature task.feature --bindings task_bindings.yml \
   --prompt-out generated_prompt.md --receipt-out compilation_receipt.yml
 ```
+
+Enter the declared command directory successfully before checking output
+collisions and invoking the command in that same effective context. Collision
+checks do not establish race-free or atomic output publication.
 
 Policy and the maintained validator are acquired from one frozen
 `refs/heads/master` Git snapshot, including repository modules. Checkout edits
@@ -32,7 +82,7 @@ mechanical-only claim ceiling.
 See the [architecture explanation](../explanation/governance_workflow_compiler_architecture.md)
 for the typed result graph and independent safety verification.
 
-## Lane author path for an already-authorized task
+## Author path for an already-authorized task
 
 Write the semantic task first: premises, requested actions, observable outcomes,
 negative boundaries and their dependency graph. Use the supported Gherkin subset
@@ -44,14 +94,14 @@ Use this division of responsibility:
 
 | Participant | Input or responsibility |
 | --- | --- |
-| Lane author | Already-authorized behavior, exact substantive scope, semantic dependencies, observable outcomes and explicit exclusions |
+| Task author | Already-authorized behavior, exact substantive scope, semantic dependencies, observable outcomes and explicit exclusions |
 | Trusted upstream binder | Acquired owner/evidence claims, repository and target roles, existing CPC context and the exact positive effect inventory |
 | Compiler | Supported execution shape, modes, stage bodies/order, local grants, gates, commit mechanics, trace and generated workflow diagram |
 | Executor | Current-governance review, scoped runtime preflight, authorized effects and result readback |
 | Owning lane | Acceptance of the returned evidence and any new substantive decision |
 
 Reuse the task's acquired binding and CPC context at the binder boundary. The
-lane author need not reconstruct generated CPC fields, technical stages or Git
+task author need not reconstruct generated CPC fields, technical stages or Git
 commands, nor predict future commit OIDs. The CLI still requires separate
 binding YAML; it does not acquire owner authority, discover a trusted context
 or convert arbitrary prose into one. If a required context or material binding
@@ -76,10 +126,11 @@ For a supported bounded task:
    and current governance. Check semantic dependencies separately from physical
    scheduling, exact local grants, negative scope, material evidence gates and
    foreign-work controls. Mechanical lint is only one check.
-5. Execute only after the existing owner authority and separate conformance
-   gate are satisfied. Acquire current branch/resource/index state where the
-   generated effect consumes it, then retain distinct execution and result
-   evidence. Compilation does not prove those checks happened.
+5. Dispatch only after existing owner authority and separate author-side
+   conformance review are satisfied. At runtime, verify current applicability
+   and acquire branch/resource/index state where the effect consumes it before
+   execution. Retain distinct execution and result evidence. Compilation proves
+   none of these runtime checks or acceptance decisions.
 
 For the supported controller-local fork/review/commit shape, independent
 writers have disjoint tracked targets, feed one read-only review join and then
@@ -384,8 +435,9 @@ read-only plans use `empty_no_changes`, and supported tracked mutation plans
 use `prompt_local`. Other patch kinds are unsupported until exact provenance
 semantics are implemented. The maintained prompt validator checks mechanical
 validity and internal consistency only; governance completeness remains unassessed. A
-generated prompt, receipt, or validator PASS is neither execution nor
-acceptance nor normative D8 adoption. Current D8-F qualification comprises
+generated prompt, receipt, or validator PASS proves neither dispatch nor
+execution, review, acceptance or activation on public master. The accepted
+functional qualification comprises
 35 functional cases: Q01-Q20 (20), H1-H5 (5) and N01-N10 (10). Q01, Q16 and
 Q20 cover simple bounded work, minimum-sufficient execution and the governed
 manual fallback. H1-H5 cover separable work and join, continuation, accepted
@@ -397,8 +449,8 @@ The compiler trusts the upstream acquisition/binder layer's `acquired` claim.
 Gherkin text never creates acquisition or authority. `source_identity` records
 provenance/locator identity; exact `observed_state` relations are required for
 identity-critical planning. The compiler does not independently authenticate
-or byte-verify each source. Keep that boundary visible in the later global
-audit and D8-F before any normative adoption decision.
+or byte-verify each source. External review must retain that trust boundary;
+qualified subset adoption does not erase it.
 
 If the compiler cannot express a manually valid task, use the existing
 [manual prompt guide](write_a_prompt_manually.md) and
@@ -475,19 +527,74 @@ is reserved for generated nodes. No renderer, external dependency, or separate
 ````gherkin
 Feature: bounded inspection
   ```text
-  [G1] Given
-    |
-    v
-  [W1] Inspect
-    |
-    v
-  [T1] Evidence
+  [G1] --> [W1] --> [T1]
   ```
   Scenario: inspect one document
     Given [G1] the document identity is acquired
     When [W1] I inspect the document
     Then [T1] the report cites evidence
 ````
+
+### A compiled reader example, without dispatch
+
+The three-step source above was compiled once as a bounded read-only inspection
+of `docs/explanation/research_workflow.md`. It uses the maintained simple task
+class, with neither `Background` nor `Scenario Outline`. The separately acquired
+binding context authorized preparation of this example only, not execution.
+It supplied the resolved local repository path, the selected document and its
+recorded pre-compilation identity, no requested effects and no dispatch-gate
+bindings. No owner or conformance approval for child dispatch was invented.
+
+The substantive CPC portion of that binding file was:
+
+```yaml
+prompt_mode: investigation_only
+branch_policy: read_only_current_branch
+allowed_to_modify: {}
+read_only:
+  TOP26006_fw:
+  - docs/explanation/research_workflow.md
+validation_ceiling: static_inspection_only
+patch_kind_expected: empty_no_changes
+heavy_command_permissions:
+  network_access: false
+```
+
+This is an excerpt, not a complete binding file or execution prompt. An actual
+author must acquire the task's own authority, provenance and resolved paths;
+copying the excerpt creates none. The generic `Given` is traced as documentary
+in this example, not as an executable acquisition check. The selected document
+and its recorded identity are explicit in the CPC evidence context. A genuinely
+material premise still needs its real consumer binding and supported check.
+
+With the source and complete acquired binding file in the declared directory,
+the maintained invocation has this form:
+
+```bash
+"$wrapper" "$python_interpreter" tools/governance_workflow_compiler.py \
+  --feature reader_example.feature --bindings reader_example_bindings.yml \
+  --prompt-out reader_example_generated_prompt.md \
+  --receipt-out reader_example_compiler_receipt.yml
+```
+
+The recorded run also used `--policy-repository` to select the canonical checkout
+sharing this candidate's refs. The observed receipt reported
+`COMPILED_CONFORMING_CANDIDATE`, execution shape
+`simple_non_orchestrated`, complete traceability, consistent visualization,
+no authorized effects and `dispatchable: false`. Owner-authorization and manual
+governance-review dispatch bindings were absent. Execution and result assertions
+remained `NOT_EVALUATED`. The generated text graph retained `G1 → W1 → T1` and
+added an external evidence/owner acceptance boundary with `effect: false`.
+The generated prompt required current-rule and consumed-target/material-fact
+readback before any dependent effect and left “the report cites evidence” as a
+post-execution assertion. It did not acquire runtime evidence.
+
+The maintained validator reported `mechanical_validity: true`,
+`internal_consistency: true` and `governance_completeness: not_assessed`.
+The child prompt was never dispatched. This demonstrates compilation, trace
+and mechanical checks only, without claiming runtime applicability,
+execution, review or acceptance. The Mermaid route above explains authoring;
+the compiler consumes the ASCII source diagram, not Mermaid.
 
 The source diagram describes semantic dependencies at the granularity of the
 steps. Given premises feed actions; observable assertions depend on their
