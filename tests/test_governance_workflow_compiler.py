@@ -4356,3 +4356,60 @@ def test_ancillary_c32_c_repository_order_and_ambiguity():
         scope['unrelated'] = deepcopy(scope['TOP26006_fw'])
     with pytest.raises(compiler.Compile_error, match='ambiguous repository authority'):
         compiler._derive_ancillary_evidence(data, 'controller_local_workflow')
+
+
+@pytest.mark.parametrize("value", ["create_feature_branch_from_reference", "continue_existing_branch", "read_only_current_branch"])
+def test_foundational_f6_valid_branch_policy(value):
+    contents, _ = compiler._canonical_sources()
+    compiler._canonical_branch(value, contents)
+
+
+@pytest.mark.parametrize("value", ["reference_branch", "target_branch", "current_checked_out_branch", "For", "or", "branch", "never", "unrelated_bogus"])
+def test_foundational_f6_prose_is_not_branch_policy(value):
+    contents, _ = compiler._canonical_sources()
+    with pytest.raises(compiler.Compile_error):
+        compiler._canonical_branch(value, contents)
+    contents["CPC.md"] += "\nUnrelated prose: " + value
+    with pytest.raises(compiler.Compile_error):
+        compiler._canonical_branch(value, contents)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_foundational_f8_duplicate_binding_keys_fail_closed(nested):
+    feature, bindings = fixture_graph(SIMPLE, yaml.safe_dump(base_data()))
+    assert compiler.compile_contract(feature, bindings).compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    if nested:
+        ambiguous = bindings.replace("  prompt_mode: investigation_only", "  prompt_mode: coding\n  prompt_mode: investigation_only")
+    else:
+        ambiguous = "repositories: {wrong_repository: {}}\n" + bindings
+    assert ambiguous != bindings
+    result = compiler.compile_contract(feature, ambiguous)
+    assert result.compiler_result == "COMPILER_INVARIANT_FAILURE"
+    assert not result.prompt
+    assert "duplicate" in str(result.receipt["diagnostics"]).lower()
+    assert result.receipt["manual_fallback"] == "independently_evaluable_under_canonical_governance"
+
+
+@pytest.mark.parametrize("validation_result", ["PASS", "FAIL"])
+def test_foundational_r3_validation_failure_blocks_dependent_consumer(tmp_path, validation_result):
+    result = run(PARALLEL, parallel_data())
+    assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
+    stages = prompt_yaml(result)["workflow_stages"]
+    graph = compiler.Result_graph.from_stages(stages)
+    validation = next(s for s in stages if s["stage_id"] == "common_validation")
+    consumer = next(s for s in stages if s["stage_id"] == "integration")
+    assert validation["stage_acceptance_gate"].startswith("must_pass:")
+    assert "stage:common_validation:common_validation_evidence" in consumer["stage_inputs"]
+    evidence_path = tmp_path / "common_validation.yaml"
+    evidence_path.write_text(yaml.safe_dump({"result": validation_result}))
+    observed = yaml.safe_load(evidence_path.read_text())["result"]
+    completed = graph.predecessors("integration") - {"common_validation"}
+    if observed == "PASS":
+        completed.add("common_validation")
+    # The existing emitted result graph is the consumer's dependency contract.
+    delivered_mechanics = []
+    if graph.predecessors("integration") <= completed:
+        delivered_mechanics.append(consumer)
+        (tmp_path / "integration.yaml").write_text(yaml.safe_dump({"entered": True}))
+    assert bool(delivered_mechanics) == (validation_result == "PASS")
+    assert (tmp_path / "integration.yaml").exists() == (validation_result == "PASS")

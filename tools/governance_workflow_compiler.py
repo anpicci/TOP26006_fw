@@ -416,10 +416,16 @@ def _canonical_mode(value: str, contents: dict[str, str]) -> None:
 
 
 def _canonical_branch(value: str, contents: dict[str, str]) -> None:
-    paragraph = contents["CPC.md"].split("Branch policies remain ", 1)[1].split("\n\n", 1)[0]
-    _require(bool(re.search(r"(?<![A-Za-z0-9_])" + re.escape(value) + r"(?![A-Za-z0-9_])", paragraph)),
-             "UNSUPPORTED_CANONICAL_CONSTRUCT", f"{value!r} is not a live branch policy",
-             contract="CPC.md#Construction: Branch policies remain")
+    # The Git lifecycle contract owns the closed vocabulary. CPC prose cannot
+    # silently introduce a policy merely by mentioning a word or field name.
+    match = re.search(r"Both\s+use\s+the\s+same\s+closed\s+vocabulary:\s*"
+                      r"```text\n((?:[a-z][a-z_]*\n)+)```",
+                      contents["governance/contracts/git_lifecycle.md"])
+    _require(match is not None, "IMPLEMENTATION_GAP", "cannot extract canonical branch policies")
+    policies = set(match.group(1).splitlines())
+    _require(value in policies, "UNSUPPORTED_CANONICAL_CONSTRUCT",
+             f"{value!r} is not a live branch policy",
+             contract="governance/contracts/git_lifecycle.md#Branch policy")
 
 
 def _canonical_ceiling(value: str, contents: dict[str, str]) -> None:
@@ -4015,6 +4021,27 @@ def _stage_readiness(graph: Result_graph, effects: tuple[Effect_intent, ...],
     return rows
 
 
+class Unique_binding_loader(yaml.SafeLoader):
+    """Reject ambiguous mappings throughout the local binding document."""
+
+    def construct_mapping(self, node, deep=False):
+        self.flatten_mapping(node)
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                if key in seen:
+                    raise yaml.constructor.ConstructorError(
+                        "binding mapping", node.start_mark,
+                        f"duplicate binding key: {key!r}", key_node.start_mark)
+                seen.add(key)
+            except TypeError as exc:
+                raise yaml.constructor.ConstructorError(
+                    "binding mapping", node.start_mark,
+                    "unhashable binding key", key_node.start_mark) from exc
+        return super().construct_mapping(node, deep=deep)
+
+
 def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline", *,
                      policy_repository: Optional[Path] = None) -> Compile_result:
     """Return a candidate and receipt, or a diagnostic receipt with no prompt."""
@@ -4036,7 +4063,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
     intent: Optional[Semantic_intent] = None
     shape: Optional[str] = None
     try:
-        data = yaml.safe_load(bindings_yaml)
+        data = yaml.load(bindings_yaml, Loader=Unique_binding_loader)
         _require(isinstance(data, dict), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "binding input must be mapping")
         data = canonical_mapping(data)
         _require(isinstance(data.get("bindings", []), list) and
