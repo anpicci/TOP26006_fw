@@ -20,6 +20,7 @@ Concrete Codex model labels:
 ```text
 gpt-6-luna
 gpt-6.1-sol
+gpt-6.1-terra
 gpt-6-sol
 gpt-6-astra
 ```
@@ -36,6 +37,14 @@ an explicit project adoption decision. This policy update adopts prospective
 defaults; it does not claim that a migration evaluation has occurred or
 silently migrate an existing dispatch. The hardest open or adversarial
 reasoning retains `gpt-6-astra` / `high` as its preferred default.
+
+By owner decision on 2026-11-05, `gpt-6.1-terra` is a recognized specialized
+option for bounded visual reasoning, computer-use, concise-writing and scoped
+code-fix tasks. Normally select `medium`; select `high` only with a useful,
+task-specific rationale. This is a local routing option, not an availability,
+project superiority or equivalence claim. Product, plan and workspace access
+remain separately observed facts. The five Luna/Sol/Astra defaults below are
+unchanged; no new comparative benchmark is implied.
 
 Legacy/fallback-only concrete labels, subject to the conditions below:
 

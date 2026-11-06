@@ -93,6 +93,13 @@ wider claim, remote, production, scheduler, or publication effects, destructive
 cleanup, foreign-work adoption, or a different unbound result identity. It
 cannot waive a real stop boundary to keep a workflow moving.
 
+For recurring or propagated defects, reconstruct the root cause and invariant,
+identify the canonical source/owner and dependent consumers, and freeze both
+positive and negative counterexamples before another repair. Fix the smallest
+shared mechanism at the proper architectural layer. Requalify only behavior
+invalidated by that repair and preserve valid accepted closure. This rule
+creates no new framework, audit programme, scope or effect authority.
+
 ## Authoring and review
 
 When applicable, prompts bind accepted_prior_evidence,

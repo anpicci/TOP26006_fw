@@ -31,6 +31,13 @@ instead of copying history. Use snake_case; preserve real paths, API names,
 branches and flags. Use fenced blocks; one outer copyable Markdown block only
 when requested. Do not invent profiles, environment variables or approvals.
 
+One authorized Codex task uses one self-contained, versioned `CODEX_PROMPT*.md`.
+A second prompt, local instructional companion or reconstruction package of
+previous prompt instructions must not be a runtime instruction dependency.
+Canonical governance, source/configuration, actual data/input artifacts and
+prior standalone Codex reports as evidence/provenance remain allowed inputs;
+they do not supply a second task mandate. No filename hash gate is implied.
+
 Every actionable prompt contains:
 prompt_id, short_title, prompt_mode, preferred_codex_model, reasoning_level,
 delegation_policy, model_selection_rationale, workspace_root, repo_locations,

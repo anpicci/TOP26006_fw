@@ -187,6 +187,16 @@ Do not persist authentication, SSH, startup or Codex configuration changes
 without explicit configuration-work authorization. Remote Git/gh/glab commands
 follow the direct-command rules in the Git contract.
 
+The author fixes canonical governance, repository identity/role, semantic
+branch/target roles and real owner/scientific choices, authorized scope/effects,
+validation and stop conditions. Runtime pre-effect verification may rebind the
+current branch, HEAD/ancestry, dirty/index/conflict state, worktree registration,
+current master identity and other volatile applicability facts against those
+fixed semantics. It must not select a new authority, silently expand scope or
+resolve a real owner/scientific/governance choice. Dispatchable means safe to
+enter mandatory runtime pre-effect verification, not unconditional permission
+to mutate. Author-side observation of volatile facts is not universally required.
+
 Default preflight_profile is compact_preflight; default dirty_worktree_policy
 is require_clean_worktree (tracked/index/conflict clean, not physically
 empty). Alternatives are work_on_dirty_branch_as_is,
