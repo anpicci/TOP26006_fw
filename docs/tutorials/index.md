@@ -46,7 +46,8 @@ flowchart LR
 The diagram repeats the ordinary order above. Dotted branches are optional:
 Tutorial 2 connects to native analysis, Tutorial 7 crosses repository boundaries,
 and Advanced adds coordination only when needed. These are learning choices,
-not transfers of permission or evidence. D8 is an authoring option within a
+not transfers of permission or evidence. The governance workflow compiler is an
+optional authoring tool within a
 bounded task, not a new prerequisite or numbered lesson. Use the
 [compiler/manual authoring bridge](../how_to/compile_governance_workflow.md#choose-the-authoring-route)
 after defining behavior and authority; the ordinary research curriculum remains

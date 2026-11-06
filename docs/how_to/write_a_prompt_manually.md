@@ -1,6 +1,6 @@
 # Write a prompt manually
 
-Use this first-class governed route when an authorized author prepares an exact research-task prompt. It remains available when the qualified [D8 compiler subset](compile_governance_workflow.md) cannot represent the task faithfully. Human manual authorship is optional; the [assistant preparation route](ask_an_assistant_to_prepare_a_task.md) can also translate the research lead's mandate. Choose the mechanism after defining the task, without changing its authority or evidence requirements.
+Use this first-class governed route when an authorized author prepares an exact research-task prompt. It remains available when the [governance workflow compiler's supported patterns](compile_governance_workflow.md) cannot represent the task faithfully. Human manual authorship is optional; the [assistant preparation route](ask_an_assistant_to_prepare_a_task.md) can also translate the research lead's mandate. Choose the mechanism after defining the task, without changing its authority or evidence requirements.
 
 ## Before you start
 
@@ -58,11 +58,11 @@ for the normative reuse and capability lifecycle requirements.
 
 ## Verify the result
 
-Label states precisely: `prepared` means drafted; `conformant` means checked
-against the applicable contract; `authorized/dispatchable` requires the research
-lead's grant and author-side semantic/governance review and means ready to enter
-mandatory runtime pre-effect verification. It is not unconditional permission
-to mutate.
+A drafted prompt still needs review against the applicable contract. Before
+execution, establish the research lead's grant and author review of the task's
+meaning and governance. The execution environment must then check the current
+facts on which the task depends before any effect. Neither a draft nor its
+review grants unconditional permission to change repository state.
 
 The author fixes authority, repository/target roles, scope/effects, validation,
 stop boundaries and real choices. Runtime verifies current applicability,

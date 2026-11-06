@@ -41,8 +41,9 @@ Use the existing [continuation template](../../templates/continuation_prompt.md)
 
 The proposed sentence is a documentation delta, not a new calculation or evidence transfer to another repository. If it is already present, report that no write is needed. If it conflicts with the existing note or needs new scientific interpretation, stop that delta.
 
-A real continuation may use [D8](../how_to/compile_governance_workflow.md) when
-its qualified subset faithfully represents the delta and protected evidence.
+A real continuation may use the
+[governance workflow compiler](../how_to/compile_governance_workflow.md) when
+its supported workflow patterns faithfully represent the delta and protected evidence.
 Otherwise use the [manual governed route](../how_to/write_a_prompt_manually.md).
 An authoring-mechanism change alone neither invalidates accepted evidence nor
 authorizes replay. Reopen only a changed material dependency and its consumers;

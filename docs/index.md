@@ -58,10 +58,11 @@ Use this gateway when you maintain the framework or translate an authorized task
 | Register or update a repository identity | [Repository registration](how_to/register_repositories.md) |
 | Add or update repository-specific governance | [Governance modules](how_to/add_or_update_a_governance_module.md) |
 | Write a governed prompt manually | [Manual prompt authoring](how_to/write_a_prompt_manually.md) |
+| Prepare a prompt for a supported workflow pattern | [Governance workflow compiler](how_to/compile_governance_workflow.md) |
 | Mechanically check a completed prompt | [Prompt validation](how_to/validate_a_prompt_before_execution.md) |
 | Look up the prompt contract | [Prompt contract reference](reference/prompt_contract.md) |
 
-Manual governed prompt authoring is the current operational route, whether the author is a person or an authorized assistant. The D8 governance-workflow compiler is present in the repository but is not operationally adopted as the default governed authoring path. Its presence does not make it normative or an optional operational route for newcomers. Normal prompt authoring remains current; later operational adoption requires an explicit project decision and a separate qualification boundary. Its guide is not needed for the routes above.
+Manual governed prompt authoring remains a first-class route for any task that can be expressed within the manual contract, whether the author is a person or an authorized assistant. The governance workflow compiler is an optional authoring aid for supported workflow patterns. It produces an inspectable prompt and compilation receipt; it does not create authority, dispatch, execute, review or accept the task. Use manual governed authoring when the required pattern is not supported. The compiler guide is not a prerequisite for the research tutorials.
 
 The guides explain procedures; live [AGENTS.md](../AGENTS.md), [CPC.md](../CPC.md), the [repository registry](../governance/repositories.md) and its applicable modules/contracts remain the authority. Use [governance precedence](reference/governance_precedence.md) and the [file map's authority locators](reference/file_map.md#normative-governance-authority) to find those sources; [CONTRIBUTING.md](../CONTRIBUTING.md) governs contribution and review prose. A prompt-validator PASS establishes supported mechanical checks, not governance completeness, authorization or scientific correctness.
 

@@ -20,12 +20,13 @@ For both the [compiler route](compile_governance_workflow.md) and the
 [manual route](write_a_prompt_manually.md), the author fixes authority,
 repository/role semantics, exact scope/effects, true choices, validation and
 stop boundaries. Review the final prompt semantically against current
-`refs/heads/master`; candidate governance cannot validate itself. A compiled
+`refs/heads/master`; proposed governance changes cannot validate themselves. A compiled
 receipt does not replace that review.
 
-Dispatchable means ready to enter mandatory runtime pre-effect verification.
-Runtime verifies consumed current-master, branch/HEAD, dirty/index/conflict and
-worktree facts against the author's fixed semantics before the dependent effect.
+After authority and author review are established, the execution environment
+must check current applicability before effects. It verifies the consumed
+current-master, branch/HEAD, dirty/index/conflict and worktree facts against the
+author's fixed semantics before the dependent effect.
 It cannot widen scope or decide a new owner/scientific/governance choice. Failed
 applicability stops that effect. Author-side lint neither proves runtime
 applicability nor requires inventing unavailable volatile observations.

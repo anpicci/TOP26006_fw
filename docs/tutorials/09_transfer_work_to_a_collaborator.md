@@ -12,7 +12,8 @@ For a provider-to-consumer handoff, record both commits and the claim relied upo
 
 **Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
 
-For a task prepared with [D8](../how_to/compile_governance_workflow.md), the
+For a task prepared with the
+[governance workflow compiler](../how_to/compile_governance_workflow.md), the
 handoff may additionally carry its behavior contract, acquired bindings,
 generated prompt, compilation receipt and their source identities. Explain what
 each establishes and which author review/runtime checks remain pending. Transfer

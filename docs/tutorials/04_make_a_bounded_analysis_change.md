@@ -49,8 +49,8 @@ The [bounded-change template](../../templates/bounded_change_prompt.md) helps st
 ## Choose an authoring route for a real bounded task
 
 First define the bounded behavior, observable result and exclusions. If a real
-task is faithfully represented by the qualified
-[D8 subset](../how_to/compile_governance_workflow.md#choose-the-authoring-route),
+task is faithfully represented by the
+[compiler's supported workflow patterns](../how_to/compile_governance_workflow.md#choose-the-authoring-route),
 an authorized author may use supported Gherkin and acquired bindings to prepare
 its prompt. Otherwise the [manual governed route](../how_to/write_a_prompt_manually.md)
 remains first-class. Neither route grants effects: `allowed_to_modify` expresses

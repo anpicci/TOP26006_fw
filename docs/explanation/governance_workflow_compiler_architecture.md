@@ -5,14 +5,13 @@ evidence evaluation and owner acceptance remain external. Its source inputs are
 bounded Gherkin intent, explicit upstream binder claims and an acquired policy
 repository. None of those roles can replace another.
 
-## Qualification and canonical authority
+## Supported patterns and canonical authority
 
-The owner has approved D8 adoption for the qualified initial supported subset,
-including accepted pre-cutover foundational hardening. D8 is not active on
-public master. This candidate is not canonical governance, universal Gherkin
-support or a stable rollout. Current `refs/heads/master` remains normative for
-prompt validation. Master promotion and later rollout remain separate
-owner-controlled boundaries.
+The governance workflow compiler is an optional authoring aid for supported
+workflow patterns, not a policy authority or a universal Gherkin implementation.
+Use it when those patterns faithfully represent the task; otherwise use manual
+governed authoring. Current `refs/heads/master` remains normative for prompt
+validation. Compiler output cannot change that authority.
 
 A compile, mechanical lint, author-side semantic review, dispatch, runtime
 verification, execution, evidence review and acceptance are distinct results.
@@ -20,7 +19,7 @@ The [authoring route](../how_to/compile_governance_workflow.md#choose-the-author
 shows the compiler/manual choice and the exact author/runtime split. A manually
 governed task remains first-class when the supported subset cannot represent it.
 
-| Evidence or surface | Claim ceiling |
+| Evidence or surface | What it establishes and its limits |
 | --- | --- |
 | `allowed_to_modify` | Contractual authority/scope, not an OS ACL or proof of sandbox capability. |
 | Hash | Byte identity evidence, not correctness, containment or authorization. Source containment needs its own traversal controls. |
@@ -63,7 +62,7 @@ at their actual boundary rather than acquiring an invented stage or grant.
 `governance_workflow_ir.py` owns the canonical policy snapshot and typed produced
 results. `Policy_source_binding` reads exact master Git objects and records
 consumed dependencies, including modules and validator bytes. It revalidates
-those dependencies before returning a candidate. A development checkout's
+those dependencies before returning a prepared prompt. A development checkout's
 policy edits do not enter this snapshot. Repository selection is trusted
 installation context; observed Git identities document acquisition and do not
 grant authority.
@@ -82,9 +81,9 @@ They have different granularity and neither creates an effect grant.
 `Validation_relation` binds a supported predicate to exact ordered operand
 pairs and frozen outcomes. Every operand must be an available declared input.
 The generated contract, receipt graph and empirical test consume the same
-relation. In H4 the four tuples use provider baseline, consumer baseline,
-consumer candidate and the provider result established by ambiguous-effect
-readback. Expected outcomes remain PASS, PASS, FAIL_EXPECTED and PASS.
+relation. In the fixture for dependent repositories, the four tuples use provider
+baseline, consumer baseline, the proposed consumer result and the provider result
+established by ambiguous-effect readback. Expected outcomes remain PASS, PASS, FAIL_EXPECTED and PASS.
 
 `governance_workflow_semantics.py` checks lifecycle safety directly from source
 assignments and bound resources. It checks action coverage/order, preservation,
@@ -95,25 +94,27 @@ continuation protection, bounded assertions and canonical vocabulary. Equality
 between two planner invocations is not a semantic proof.
 
 Serialization canonicalizes mappings while preserving meaningful source,
-candidate-pair and validation-case order. Raw input hashes retain raw input
+proposed result pair and validation-case order. Raw input hashes retain raw input
 identity. Traces are sorted projections. Generic corruption tests challenge
 planner output, policy-source changes and missing result dependencies.
 
 The binder's acquired claims remain trust assertions. The compiler does not
 authenticate arbitrary evidence or infer dispatch authority from a receipt.
-The maintained validator reports mechanical consistency only. Current D8-F
-qualification uses 35 functional cases: Q01-Q20, H1-H5 and N01-N10. The five
-complex capabilities are functional requirements; retrospective equivalence
-with historical manual workflows is not a completion prerequisite. Q01, Q16
-and Q20 retain simple bounded execution and the manual canonical governance
-fallback. Functional tests do not establish execution or owner acceptance.
+The maintained validator reports mechanical consistency only. Functional checks
+cover simple bounded execution and manual governed authoring, separable work and
+join, continuation, accepted result preservation and lifecycle, dependent
+repositories, and governed multi-action sequences. These checks concern the
+supported patterns; they do not imply arbitrary workflow support or require
+equivalence with historical manual workflows. Functional tests do not establish
+execution or owner acceptance.
 
 Identity and similar metadata track acquisition by default; only a concrete
 consumed authority, safety, scientific or result property makes them a gate.
 Authors bind unambiguous semantic targets and runtime checks rather than relay
-volatile host facts. A candidate may be dispatchable without generic live
-readback; execution must still preflight current master and the exact effect's
-resource, dirty/index state and material premises. Required conformance
+volatile host facts. Once authority and author review are established, a prompt
+may enter current execution checks without generic author-side live readback.
+Before effects, the execution environment must still check current master and
+the exact effect's resource, dirty/index state and material premises. Required conformance
 evidence is not a duplicate owner approval. Unknown blocks its dependent
 claim/effect; non-applicability is not failure, and a pertinent failure cannot
 become PASS. Independent progression requires modeled independence; no gate
@@ -124,16 +125,16 @@ its actual consumer. All stage inputs must pass before any local effect, and
 blocked stages publish no outputs. Independent writer roots may therefore
 progress while a later composition consumer and its descendants remain fenced.
 A simple prompt remains atomic. Global owner and conformance bindings remain
-required, and eligible effects alone never make a workflow dispatchable.
+required; eligible effects alone never permit a workflow to enter execution checks.
 `COMPILED_CONFORMING_CANDIDATE` can describe that partial entry path; excluded
 effects and unresolved evidence remain explicit and execution assertions stay
 NOT_EVALUATED. Git-specific runtime prose is conditional on Git lifecycle effects.
 Portable accepted results survive unrelated carrier/OID
 drift, while consumed artifact bytes, repository-local grants, foreign-work
 isolation, ambiguity readback and destructive compare-and-delete retain their
-existing checks. Qualified subset adoption does not turn the compiler into a
-runtime executor; canonical integration and stable rollout remain separate owner
-boundaries.
+existing checks. The compiler prepares prompts; a separately authorized executor
+performs effects, and the responsible humans decide evidence and scientific
+acceptance.
 
 The compiler receipt binds the hashes of the entrypoint and both internal
 modules. Missing canonical validator bytes produce a diagnostic receipt.

@@ -33,13 +33,14 @@ a finding unresolved; neither a successful command nor a review recommendation
 supplies acceptance. Continuation, recovery and handoff preserve valid evidence
 and identify the next authorized delta.
 
-Prompt preparation fits between authorization and execution. For a task that
-can be represented faithfully by the qualified subset, the
-[D8 compiler route](../how_to/compile_governance_workflow.md) turns supported
-Gherkin and acquired bindings into a prompt candidate and receipt. The
-[manual governed route](../how_to/write_a_prompt_manually.md) is first-class
-when that representation is unavailable. The owner has approved D8 adoption
-for the qualified initial supported subset; D8 is not active on public master.
+Prompt preparation fits between authorization and execution. The
+[governance workflow compiler](../how_to/compile_governance_workflow.md) is an
+optional authoring tool when its supported workflow patterns faithfully represent
+the task. It turns supported Gherkin and acquired bindings into an inspectable
+prompt and compilation receipt. The
+[manual governed route](../how_to/write_a_prompt_manually.md) remains first-class
+for any task within the manual contract, including unsupported compiler patterns.
 Neither authoring route creates authority or changes scientific responsibility.
-Both need author-side semantic/governance review and mandatory runtime
-pre-effect verification before execution.
+Both need author review of the task's meaning and governance, followed by current
+execution checks before effects. Compilation and its receipt establish neither
+execution, evidence review nor acceptance.

@@ -1,34 +1,35 @@
-# Prepare a governance workflow prompt with the D8 compiler
+# Prepare a prompt with the governance workflow compiler
 
-The non-normative D8 compiler prepares an inspectable CPC prompt candidate and
-a YAML compilation receipt. It does not dispatch a prompt, perform an effect,
-evaluate execution evidence, or accept a result. The owner has approved D8
-adoption for the qualified initial supported subset. D8 is not active on public
-master; this candidate does not change canonical governance or establish a
-stable rollout. Current `refs/heads/master` remains the normative policy source.
+The governance workflow compiler is an optional authoring aid for supported
+workflow patterns. It prepares an inspectable CPC prompt and a YAML compilation
+receipt. It does not create authority, dispatch a prompt, perform an effect,
+evaluate execution evidence, review or accept a result. Manual governed authoring
+remains first-class for any task within the manual contract, including patterns
+the compiler cannot represent. Current `refs/heads/master` remains the normative
+policy source for prompt validation.
 
 ## Choose the authoring route
 
-Start with the already-authorized bounded task. If the qualified subset can
+Start with the already-authorized bounded task. If the supported workflow patterns can
 represent its behavior faithfully, supply supported Gherkin plus acquired
-bindings and compile a prompt candidate and receipt. Otherwise use the
+bindings and compile an inspectable prompt and receipt. Otherwise use the
 [first-class manual governed route](write_a_prompt_manually.md). Do not weaken
 the task to fit the compiler or infer that an implementation gap is task failure.
 
 ```mermaid
 flowchart TD
     accTitle: Governed authoring and runtime applicability
-    accDescr: An authorized task takes the supported compiler route or the manual governed route. Both require author review, dispatchability, mandatory runtime verification and a separate applicability gate before execution, evidence, review and acceptance.
-    task["Authorized bounded task"] --> supported{"Faithfully supported by D8?"}
+    accDescr: An authorized task takes the supported compiler route or the manual governed route. Both require author review, established authority and current execution checks with a separate applicability gate before execution, evidence, review and acceptance.
+    task["Authorized bounded task"] --> supported{"Faithfully represented by supported patterns?"}
     supported -->|Yes| source["Supported Gherkin and acquired bindings"]
     source --> compile["Compile"]
     compile --> generated["Generated prompt and receipt"]
-    supported -->|No| manual["Manual governed prompt"]
+    supported -->|No| manual["Manual governed authoring"]
     generated --> author["Author semantic and governance review"]
     manual --> author
-    author --> dispatchable{"Dispatchable?"}
-    dispatchable -->|No| missing["Obtain missing decision or evidence, or valid fallback"]
-    dispatchable -->|Yes| runtime["Dispatch to mandatory runtime pre-effect verification"]
+    author --> authorized{"Authority and author review established?"}
+    authorized -->|No| missing["Obtain missing decision or evidence, or valid authoring route"]
+    authorized -->|Yes| runtime["Check current facts before effects"]
     runtime --> applicable{"Runtime applicable?"}
     applicable -->|No| stop["Stop dependent effect; obtain real decision if needed"]
     applicable -->|Yes| execute["Execute"]
@@ -38,8 +39,8 @@ flowchart TD
 ```
 
 In prose: authorized task → supported Gherkin/bindings and compilation, or manual
-prompt → author-side review → dispatchability → mandatory runtime pre-effect
-verification → applicability → execution → evidence → review → acceptance as
+prompt → author review and established authority → current execution checks →
+applicability → execution → evidence → review → acceptance as
 applicable. If author review is incomplete, obtain the missing decision/evidence
 or use a legitimate fallback. If runtime is inapplicable, stop the dependent
 effect and obtain a real decision when needed. No arrow supplies permission.
@@ -47,7 +48,7 @@ effect and obtain a real decision when needed. No arrow supplies permission.
 | Boundary | Responsibility and limit |
 | --- | --- |
 | Author | Fix authority, repository/role semantics, scope/effects, real choices, validation and stop boundaries. Review the exact prompt against current master. |
-| Dispatchable | Safe to enter mandatory runtime verification; not permission to mutate under arbitrary future state. Compilation and lint alone do not establish it. |
+| Before execution | Establish authority and author review, then check current applicability before effects. Compilation and lint do not establish those decisions or checks. |
 | Runtime | Verify consumed current branch/HEAD, dirty/index/conflict, worktree and master facts against the fixed semantics. Do not choose new authority, widen scope or settle a new scientific/governance choice. |
 | Result | Execution produces evidence. Review challenges it; the responsible decision-maker separately accepts the bounded evidence or scientific claim. |
 
@@ -73,11 +74,11 @@ Use `--policy-repository /exact/trusted/repository` to select a separately
 acquired policy repository. That selection remains a trusted binder input;
 the compiler does not authenticate ownership of an arbitrary repository.
 The receipt records the observed master OID and consumed blob identities.
-No expected master OID must be authored. Before returning a candidate, the
+No expected master OID must be authored. Before returning a prepared prompt, the
 compiler compares all consumed policy dependencies with current master and
 stops if any changed. An unrelated master commit does not itself invalidate
 the snapshot. Validator bytes come from the same snapshot and retain their
-mechanical-only claim ceiling.
+limit to mechanical checks.
 
 See the [architecture explanation](../explanation/governance_workflow_compiler_architecture.md)
 for the typed result graph and independent safety verification.
@@ -98,7 +99,7 @@ Use this division of responsibility:
 | Trusted upstream binder | Acquired owner/evidence claims, repository and target roles, existing CPC context and the exact positive effect inventory |
 | Compiler | Supported execution shape, modes, stage bodies/order, local grants, gates, commit mechanics, trace and generated workflow diagram |
 | Executor | Current-governance review, scoped runtime preflight, authorized effects and result readback |
-| Owning lane | Acceptance of the returned evidence and any new substantive decision |
+| Responsible decision-maker | Acceptance of the returned evidence and any new substantive decision |
 
 Reuse the task's acquired binding and CPC context at the binder boundary. The
 task author need not reconstruct generated CPC fields, technical stages or Git
@@ -176,7 +177,7 @@ gates and ordering do not become the executable plan. Supply stable worker
 branch/worktree bindings in `worker_contract`, repository and branch roles in
 `repositories`, and exact deletion/preservation resource bindings in `retirement`.
 Git observations are optional tracking evidence; future results are stage outputs. The planner binds later stages to prior observed outputs rather
-than assuming requested candidate heads are observed facts. An independent
+than assuming planned result heads are observed facts. An independent
 review stage requires compatible delegation. A supported tracked writer needs
 an exact owner-bound local ref effect and index/ref scope for commit closure.
 An authorized effect alone cannot request integration: the `When` must request
@@ -215,36 +216,36 @@ For every bounded parallel-writer composition followed by integration, supply an
 exact `common_validation_contract` with a named `tests/...py` `test_target` and
 the composition branch as `target`. Add one acquired `accepted_evidence`
 relation under `common_validation.target_relation` that binds the locator,
-repository, controller worktree/branch, generated candidate head and claimed
+repository, controller worktree/branch, generated result head and claimed
 coverage of exact union and common validation. The frozen outer validation
 ceiling must be `targeted_unit_test`. The compiler derives the `must_pass` rule;
-the caller cannot supply failure semantics. Missing, failed, unreadable or
-candidate-mismatched results block dependent stages. The stage carries exact
+the caller cannot supply failure semantics. Missing, failed or unreadable results, or results for a different proposed
+revision, block dependent stages. The stage carries exact
 branch, worktree and generated-head posture. Without the relation, or for an
 unrecognized material `Then` clause, compilation fails closed.
 This mechanic follows from the requested composition and permanent advancement,
 represented as semantic dependency edges, even when
-the assertion only requests review of the exact union, composed candidate, or
+the assertion only requests review of the exact union, composed result, or
 combined worker results. Mentioning validation in a title, comment or documentary
-premise creates no gate. The verifier independently checks the candidate → common
+premise creates no gate. The verifier independently checks the proposed result → common
 validation → integration order and the explicit evidence dependency; missing
 contracts or removed dependencies fail closed. The provider/consumer plan
-validates its candidate tuple before separately requested permanent advancement.
+validates its proposed result tuple before separately requested permanent advancement.
 Workflow mode and effect inventory cannot supply that behavior. The bounded
 two-writer action grammar recognizes editing/writing disjoint files, integrating
 or advancing the target, and retiring/removing temporary branches. The assertion
-must identify the reviewed exact union, composed candidate or combined worker
+must identify the reviewed exact union, composed result or combined worker
 results. Mere mentions or negation do not request integration. A bounded partial
 two-writer workflow emits only the requested composition/integration/retirement
 roles. Unrepresented parallel clauses report a compiler implementation gap.
-Candidate-only Q05 is an orchestrated plan
-without this composition/integration dependency and emits no common-validation
-stage. Generic assertions such as `success`, `output exists` or `result is ready`
+The provider/consumer preparation pattern without permanent advancement is an
+orchestrated plan without this composition/integration dependency and emits no
+common-validation stage. Generic assertions such as `success`, `output exists` or `result is ready`
 require an evaluable evidence contract and report missing decision-material
 evidence; they do not establish architectural uncertainty.
 
-The supported Q04 continuation is one two-writer case: one accepted writer
-result from an exact prior artifact and common base, one invalidated writer,
+The supported two-writer continuation has one accepted writer result from an
+exact prior artifact and common base, one invalidated writer,
 and disjoint protection and delta scopes. The accepted writer is absent from
 executable stages; its exact reviewed portable result feeds the rebuilt union.
 The historical writer branch, worktree and current HEAD are not reacquired or
@@ -256,13 +257,13 @@ and requested integration/retirement stages. Contradictory protection requires a
 continuations that the delta planner cannot express are implementation gaps.
 Tracked paths are relative to their selected repository, including when two
 repositories contain the same relative path.
-Local carrier relations and global isolation are separate checks. For Q03 the
+Local carrier relations and global isolation are separate checks. For parallel writers followed by composition, the
 compiler compares normalized lexical worktree paths and repository-local mutable
 refs across active writers and the controller, and excludes the permanent
-integration target from those candidate refs before common validation. For Q05
-it compares candidate worktrees with each other and with both repository roots;
-repository roots may share a location when neither is a candidate carrier.
-Candidate branches remain repo-local and follow their distinct native
+integration target from those source refs before common validation. For provider/consumer preparation,
+it compares source worktrees with each other and with both repository roots;
+repository roots may share a location when neither carries a proposed result.
+Source branches remain repo-local and follow their distinct native
 namespaces. Equal branch strings in distinct repositories do not establish an
 alias. The receipt records local
 relation consistency, cross-role isolation and cross-repository isolation.
@@ -272,24 +273,25 @@ an upstream trust assertion, not compiler authentication. Unimplemented safe
 cases fail locally and leave the manually governed workflow available.
 The bounded provider/consumer planner starts from `NOT_STARTED`. The action
 `provider and consumer write candidates` stops at a validated repo-local
-candidate pair. Adding `and integrate` requests sequential permanent advancement
+proposed result pair. Adding `and integrate` requests sequential permanent advancement
 of the provider and consumer after independent review and common pair validation.
 Each repository must already have an
-authorized candidate carrier in its native feature namespace, with exact
-permanent-start/candidate relation and local write/ref authority. The compiler
+authorized source worktree and branch in its native feature namespace, with exact
+relation between its permanent starting point and proposed result, plus local
+write/ref authority. The compiler
 does not create a carrier. For advancement, each repository explicitly binds
-`permanent_target_branch` to its native live branch, distinct from its candidate.
+`permanent_target_branch` to its native live branch, distinct from its source branch.
 An acquired `repositories.REPO_ID.permanent_target` relation binds repository,
 worktree, attached branch and head; each `integrate_REPO_ID` stage needs its own
 exact local-ref effect and owner binding within that repository's scope and
-the envelope. Candidate authority alone cannot supply this grant.
+the envelope. Authority over a proposed result alone cannot supply this grant.
 A `pair_validation_contract` names a test locator and covers
 provider, consumer and common contract; an acquired tuple relation binds that
-locator to both generated candidate heads. The validation stage must pass on
-the exact pair. Permanent stages consume that evidence and both candidate
+locator to both generated result heads. The validation stage must pass on
+the exact pair. Permanent stages consume that evidence and both proposed result
 identities. Their pre-effect gates require exact source/target readback, a clean
 index/worktree and fast-forward ancestry. The consumer additionally requires
-the provider's observed advancement. Each stage preserves candidate/effect
+the provider's observed advancement. Each stage preserves proposed result/effect
 evidence and stops downstream work on failure. A failure before the effect and
 `OUTCOME_UNKNOWN` have distinct outcomes; the latter requires authoritative
 repo-local readback before any separately authorized retry. No global
@@ -311,16 +313,17 @@ provenance and is not a universal dispatch gate. Lack of author live-host
 access does not force a draft when the semantic target,
 repository/worktree/branch roles, effects and required runtime checks are
 unambiguous. The generated evidence requirements assign current governance and
-scoped state acquisition to Codex before the dependent effect. Dispatchability
-means readiness to enter that governed preflight, never proof that runtime
-checks passed. Missing owner/conformance evidence still leaves the candidate
-non-dispatchable. A structural or authority failure writes only a diagnostic
+scoped state acquisition to Codex before the dependent effect. Establishing
+authority and author review permits entry to those current execution checks; it
+does not prove that they passed. Missing authority or conformance evidence still
+prevents the prepared prompt from being issued for execution. A structural or authority failure writes only a diagnostic
 receipt. A material `Given` without evidence or a usable preflight may produce
 a prepared prompt with the dependent effects excluded. A simple prompt is atomic
-and remains non-dispatchable in that case. For a staged workflow the existing
+and cannot be issued for execution in that case. For a staged workflow the existing
 `Result_graph` must have an unblocked entry root: only then may the CLI return
-`COMPILED_CONFORMING_CANDIDATE` and, with owner/conformance bindings, the receipt
-be dispatchable. This allows independent governed progression, not completion of
+`COMPILED_CONFORMING_CANDIDATE` and, with owner/conformance bindings,
+record eligibility for current execution checks in the receipt. This allows
+independent governed progression, not completion of
 the whole chain. `stage_readiness` projects initial preflight entry roots, local
 blocked effects and blocked predecessors; it supplies no runtime outputs.
 
@@ -347,7 +350,7 @@ independent roots may enter governed preflight and progress under their own
 exact grants. Missing facts never become PASS. An unsupported input has no
 invented executable check: it must be acquired and revalidated before its
 consumer can run. Without any unblocked entry root the workflow remains
-non-dispatchable and the CLI exits nonzero. Runtime Git/index/dirty-state prose
+unable to enter execution checks and the CLI exits nonzero. Runtime Git/index/dirty-state prose
 is emitted only for workflows with Git lifecycle effects; read-only inspection
 retains only the common current-rule, target, material-fact and retry duties.
 
@@ -358,8 +361,8 @@ The bounded Git properties are `the selected commit branch is checked out`
 repository and local ref consumed by the declared dependent ref effects.
 It derives `git symbolic-ref --quiet HEAD` or `git rev-parse --verify <ref>`,
 the effect carrier, expected value and exit/stdout comparison. Writers use their
-worktree, composition uses the controller worktree, and Q05 uses the repo-local
-candidate. A simple repository-local effect uses its declared repository path.
+worktree, composition uses the controller worktree, and provider/consumer preparation uses the repository-local
+proposed result. A simple repository-local effect uses its declared repository path.
 A Given on permanent integration needs a separate acquired
 `worker_contract.integration_target_carrier` relation containing `repository`,
 `worktree`, `attached_branch` and `head`; a repository root is not a fallback.
@@ -378,7 +381,7 @@ including wrong-carrier observations, exclude only their dependent effects.
 Pending, superseded or invalidated current-state observations need a fresh
 compiler-derived check. Generic live-applicability evidence proves no exact fact.
 
-Q04 also recognizes `accepted writer writer_b result names commit <oid>` (or
+This continuation also recognizes `accepted writer writer_b result names commit <oid>` (or
 `writer_a` when that is the protected writer). Link it to the existing exact
 `q04.accepted_writer_result` accepted-evidence relation, with dependencies on
 the consuming exact-union effects. The source must be the continuation's exact
@@ -436,21 +439,19 @@ use `prompt_local`. Other patch kinds are unsupported until exact provenance
 semantics are implemented. The maintained prompt validator checks mechanical
 validity and internal consistency only; governance completeness remains unassessed. A
 generated prompt, receipt, or validator PASS proves neither dispatch nor
-execution, review, acceptance or activation on public master. The accepted
-functional qualification comprises
-35 functional cases: Q01-Q20 (20), H1-H5 (5) and N01-N10 (10). Q01, Q16 and
-Q20 cover simple bounded work, minimum-sufficient execution and the governed
-manual fallback. H1-H5 cover separable work and join, continuation, accepted
-result preservation and lifecycle, dependent repositories, and governed
-multi-action sequences. Historical workflow equivalence is not a completion
-prerequisite.
+execution, review or acceptance. Functional checks cover simple bounded work,
+minimum-sufficient execution and manual governed authoring, as well as separable
+work and join, continuation, accepted result preservation and lifecycle,
+dependent repositories, and governed multi-action sequences. These checks concern
+the supported patterns; they do not imply support for arbitrary workflows or
+require equivalence with historical manual workflows.
 
 The compiler trusts the upstream acquisition/binder layer's `acquired` claim.
 Gherkin text never creates acquisition or authority. `source_identity` records
 provenance/locator identity; exact `observed_state` relations are required for
 identity-critical planning. The compiler does not independently authenticate
 or byte-verify each source. External review must retain that trust boundary;
-qualified subset adoption does not erase it.
+using the compiler does not erase it.
 
 If the compiler cannot express a manually valid task, use the existing
 [manual prompt guide](write_a_prompt_manually.md) and
@@ -486,9 +487,8 @@ turn it back into an architecture question.
 
 Boundary receipts include the semantic pattern, affected steps and effects,
 attempted execution shape, source/section, missing capability, decision options
-and a precise next boundary. D8-B §§3–8,15,17 and D8-C Q03–Q06,Q18,Q20 establish
-these distinctions; current canonical governance owns the actual permission
-and vocabulary contracts. These compiler classes neither revoke a manually
+and a precise next boundary. Current canonical governance owns the actual
+permission and vocabulary contracts. These compiler classes neither revoke a manually
 valid workflow nor authorize its execution. A receipt can identify a gap
 without claiming that the supported architecture has been fully implemented.
 
@@ -511,7 +511,7 @@ writer carrier is irrelevant. For a simple prompt an optional exact relation
 `repositories.<repository_id>.current_carrier` carries `repository`, `worktree`,
 `attached_branch` and `head`; it is compared only where the effect consumes the
 corresponding property. No new observation is fabricated when that relation is
-absent. Q04 portable accepted results have their own result/base/review scope;
+absent. Portable accepted writer results have their own result/base/review scope;
 historical branch movement or disappearance does not enter current-carrier
 comparison and cannot force reacquisition of that retired carrier.
 
@@ -578,7 +578,7 @@ the maintained invocation has this form:
 ```
 
 The recorded run also used `--policy-repository` to select the canonical checkout
-sharing this candidate's refs. The observed receipt reported
+sharing the linked worktree's refs. The observed receipt reported
 `COMPILED_CONFORMING_CANDIDATE`, execution shape
 `simple_non_orchestrated`, complete traceability, consistent visualization,
 no authorized effects and `dispatchable: false`. Owner-authorization and manual
@@ -648,9 +648,9 @@ separate semantic actions retain their source IDs. Compiler stages receive
 explicit derived IDs and source/governance mappings. Local preflight edges reach
 only the consuming effect stage. Failure panels show stop/preservation exits;
 `derived_external_acceptance` is an external evidence and owner boundary, not a
-new executable stage. Q04 reused writer nodes denote portable results, with no
+new executable stage. Reused accepted-writer nodes denote portable results, with no
 writer effect. The generated drawing is parsed again and compared against the
-semantic/execution graph before a conforming candidate is returned. The receipt
+semantic/execution graph before a conforming prompt is returned. The receipt
 retains the compiler, input, prompt and governance digests so that the graph and
 its plan can be reviewed together.
 
@@ -687,11 +687,11 @@ requires an exact result identity; a commit OID must not be relabeled a
 postimage digest. This extension does not automatically repair incomplete
 historical carriers.
 
-A dependent continuation can consume `accepted_effect_state`: exact candidate
+A dependent continuation can consume `accepted_effect_state`: exact proposed source
 and target heads for the provider/consumer pair, completed stage identities,
 review/validation evidence, consumer outcome and readback authority. One exact
 accepted-evidence relation binds that whole state to the continuation artifact.
-Protected candidate preparation, validation and provider advancement are not
+Protected proposed result preparation, validation and provider advancement are not
 replayed. An unknown consumer outcome emits readback only; a certain pre-effect
 failure can permit the separately authorized remaining consumer advancement.
 No automatic retry or rollback is generated. Partial-state strings alone do
@@ -703,7 +703,7 @@ HEAD and index readback before any retry, with `automatic_retry: false` and
 no new effect before explicit idempotence or recovery authority. Qualification
 of this generated contract does not require manufacturing a Git failure.
 
-These extensions prepare candidates only. Current functional qualification
+These extensions prepare prompts only. Current functional qualification
 requires review of the generated prompts and affected behavior; unit-test
 success and a mechanical lint pass do not establish execution or acceptance.
 
@@ -777,7 +777,7 @@ and `consumer` produced-result operands and a frozen `expected` outcome of
 `PASS` or `FAIL_EXPECTED`. Their `matrix` must agree with those case outcomes.
 The supported predicate is `contract equality and protocol membership`.
 Every operand must also be a declared earlier stage input. A matrix without
-exact operands cannot qualify a tuple relation. The H4 empirical fixture
+exact operands cannot qualify a tuple relation. The empirical fixture for dependent repositories
 resolves and evaluates the generated cases, including the producer's
 authoritative result after ambiguous-effect readback. It preserves the frozen
 four outcomes and does not reconstruct a private tuple list.
