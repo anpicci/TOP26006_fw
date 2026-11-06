@@ -767,7 +767,7 @@ def render_collision_checks(command: dict[str, Any]) -> list[str]:
         output_path = shell_quote(output["path"])
         lines.extend(
             [
-                f"if [[ -e {output_path} ]]; then",
+                f"if [[ -e {output_path} || -L {output_path} ]]; then",
                 f"  printf 'Refusing {command_id}: output collision: %s\\n' {output_path} >&2",
                 "  exit 73",
                 "fi",
@@ -838,7 +838,7 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
             lines.append(f'log_dir="${{{variable}:-${{log_dir_default}}}}"')
         else:
             lines.append('log_dir="${log_dir_default}"')
-        lines.extend(['mkdir -p -- "${log_dir}"', ""])
+        lines.extend(['mkdir -p -- "${log_dir}"', 'log_dir="$(CDPATH= cd -- "${log_dir}" && pwd)"', ""])
     lines.extend(
         [
             "run_handoff_command() {",
@@ -907,7 +907,6 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
         )
     lines.extend(["}", ""])
     for command in runnable:
-        lines.extend(render_collision_checks(command))
         call = render_command_call(command)
         override = command.get("working_directory_override")
         lines.extend(["set +e"])
@@ -915,12 +914,14 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
             lines.extend(
                 [
                     "(",
-                    f"  cd -- {shell_quote(override)}",
+                    f"  cd -- {shell_quote(override)} || exit $?",
+                    *["  " + line for line in render_collision_checks(command)],
                     f"  {call}",
                     ")",
                 ]
             )
         else:
+            lines.extend(render_collision_checks(command))
             lines.append(call)
         lines.extend(
             [

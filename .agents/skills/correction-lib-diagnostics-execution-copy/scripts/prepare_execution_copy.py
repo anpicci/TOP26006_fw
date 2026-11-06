@@ -242,6 +242,8 @@ def validate_manifest_shape(manifest: Any) -> Tuple[List[Dict[str, Any]], Dict[O
         source_path = entry["source_path"]
         if not isinstance(source_path, str) or not os.path.isabs(source_path):
             diags.append(make_diag("PATH001", "source_path must be absolute.", entry_id=entry_id, field="source_path"))
+        elif any(component in {".", ".."} for component in source_path.split("/")):
+            diags.append(make_diag("PATH001", "source_path must contain no dot or dot-dot component.", entry_id=entry_id, field="source_path"))
         destination_path = entry["destination_path"]
         if not isinstance(destination_path, str) or not valid_relative_path(destination_path):
             diags.append(make_diag("PATH002", "destination_path must be normalized, relative, and contain no empty, dot, or dot-dot component.", entry_id=entry_id, field="destination_path"))

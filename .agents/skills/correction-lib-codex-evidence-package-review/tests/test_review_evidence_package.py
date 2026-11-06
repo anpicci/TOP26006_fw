@@ -1,6 +1,7 @@
 import csv
 import contextlib
 import importlib.util
+import builtins
 import io
 import json
 import os
@@ -543,7 +544,10 @@ def _run_fixture(record):
         elif kind=="valid_final_integration_acceptance": success=reviewer.validate_cross_records(_consistent_manifest())
         elif kind=="valid_preexisting_nonblocking_finding":
             row={"finding_id":"known","category":"known","severity":"error","status":"confirmed_preexisting","blocking":False,"reviewer_recomputed_pre_delta":True,"pre_delta_evidence":["before"]}
-            findings=reviewer.collect_findings({"x":{"findings":[row]}},{"allowed_nonblocking_preexisting_categories":["known"],"package_claim_only_blocks_acceptance":True}); success=not findings[0]["blocking"]
+            locator={"artifact_id":"proof","locator_type":"text_pattern","locator_value":"before","reviewer_recomputed":True}
+            row["pre_delta_evidence"]=[locator]
+            gate={"evaluator":"text_pattern_present","required":True,"accepted_values":["before"],"evidence_requirements":[locator],"source_of_authority":"reviewer"}
+            findings=reviewer.collect_findings({"x":{"findings":[row]},"proof":"before"},{"allowed_nonblocking_preexisting_categories":["known"],"package_claim_only_blocks_acceptance":True},[gate]); success=not findings[0]["blocking"]
         elif kind=="valid_zip_package_accepted":
             path=root/"safe.zip"; _zip(path,[("pkg/a.txt",b"safe")]); success=reviewer.zip_inventory(path.resolve(),"pkg",reviewer.HARD_LIMITS)[0]["data"]==b"safe"
         elif kind=="invalid_artifact_hash": diagnostics+=_capture_error(lambda: reviewer.validate_identity("a","b",True,"pkg/a"))
@@ -848,12 +852,72 @@ class CorrectiveHardeningTests(unittest.TestCase):
             manifest=_consistent_manifest(); manifest["review_id"]="execution_boundary_review"; manifest["authorizing_prompt"].update({"path":str(prompt),"sha256":prompt_hash,"expected_prompt_id":"TEST","expected_allowed_paths":["allowed/path"],"expected_forbidden_actions":["reviewed_code_execution"]}); manifest["repositories"][0]["repository_path"]=str(workspace); manifest["package"].update({"carrier_path":str(carrier),"package_inventory_sha256":reviewer.inventory_hash(reviewer.directory_inventory(carrier.resolve(),"package_root"))}); manifest_path.write_text(json.dumps(manifest))
             blocked=[]
             def forbidden(*args,**kwargs): blocked.append((args,kwargs)); raise AssertionError("execution boundary reached")
-            targets=["subprocess.run","subprocess.Popen","os.system","os.popen","importlib.import_module","builtins.compile","builtins.eval","builtins.exec"]
-            targets += [f"os.{name}" for name in ("execl","execle","execlp","execlpe","execv","execve","execvp","execvpe") if hasattr(os,name)]
+            targets=[(subprocess,"run"),(subprocess,"Popen"),(os,"system"),(os,"popen"),(importlib,"import_module"),(builtins,"compile"),(builtins,"eval"),(builtins,"exec")]
+            targets += [(os,name) for name in ("execl","execle","execlp","execlpe","execv","execve","execvp","execvpe") if hasattr(os,name)]
             with contextlib.ExitStack() as stack:
-                for target_name in targets: stack.enter_context(mock.patch(target_name,side_effect=forbidden))
+                for target, name in targets: stack.enter_context(mock.patch.object(target,name,side_effect=forbidden))
                 result=reviewer.review(manifest_path,SKILL_ROOT/"references/review_schema.json",output)
             self.assertEqual(result["verdict"],"accepted"); self.assertEqual(blocked,[]); reviewer.validate_generated_outputs(output,reviewer.directory_inventory(carrier.resolve(),"package_root"),result)
+
+
+class FoundationalBoundaryTests(unittest.TestCase):
+
+    def test_foundational_reviewer_owned_evidence(self):
+        for status, field in (("resolved_by_corrective_delta", "corrective_evidence"), ("confirmed_preexisting", "pre_delta_evidence")):
+            locator = {"artifact_id": "proof", "locator_type": "json_pointer", "locator_value": "/verified", "expected_hash_or_value": True, "reviewer_recomputed": True}
+            gate = {"evaluator": "json_pointer_equals", "required": True, "accepted_values": [True], "evidence_requirements": [locator], "source_of_authority": "independent reviewer"}
+            row = {"finding_id": "f", "category": "known", "severity": "error", "status": status, "blocking": False, field: [locator], "reviewer_recomputed_corrective": False, "reviewer_recomputed_pre_delta": False}
+            policy = {"allowed_nonblocking_preexisting_categories": ["known"]}
+            parsed = {"report": {"findings": [row]}, "proof": {"verified": True}}
+            self.assertFalse(reviewer.collect_findings(parsed, policy, [gate])[0]["blocking"])
+            # Existing package content alone, an unresolved reference, a failing
+            # reviewer gate or a nonmandatory gate cannot discharge the finding.
+            self.assertTrue(reviewer.collect_findings(parsed, policy)[0]["blocking"])
+            for proof in ({}, {"verified": False}):
+                self.assertTrue(reviewer.collect_findings(dict(parsed, proof=proof), policy, [gate])[0]["blocking"])
+            self.assertTrue(reviewer.collect_findings(parsed, policy, [dict(gate, required=False)])[0]["blocking"])
+
+    def test_foundational_package_flags_do_not_resolve_findings(self):
+        for status, field in (("resolved_by_corrective_delta", "corrective_evidence"), ("confirmed_preexisting", "pre_delta_evidence")):
+            for evidence in (["nonexistent"], [{"artifact_id": "missing", "locator_type": "text_pattern", "locator_value": "approved"}]):
+                with self.subTest(status=status, evidence=evidence):
+                    row = {"finding_id": "f", "category": "known", "severity": "error", "status": status, "blocking": False,
+                           "reviewer_recomputed_corrective": True, "reviewer_recomputed_pre_delta": True, field: evidence}
+                    findings = reviewer.collect_findings({"report": {"findings": [row]}}, {"allowed_nonblocking_preexisting_categories": ["known"]})
+                    self.assertTrue(findings[0]["blocking"])
+
+    def _foundational_manifest_patch_limits_reach_parser(self, selected):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            package = root / "carrier/package_root"
+            package.mkdir(parents=True)
+            patch = PATCH_TEXT.encode()
+            (package / "empty.patch").write_bytes(patch)
+            prompt = root / "prompt.md"
+            prompt.write_text("prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: prompt_local\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n")
+            for key, value in (("maximum_patch_bytes", len(patch)-1), ("maximum_patch_lines", len(PATCH_TEXT.splitlines())-1)):
+                with self.subTest(limit=key):
+                    if key != selected: continue
+                    manifest = _consistent_manifest()
+                    manifest["authorizing_prompt"].update(path=str(prompt), sha256=reviewer.sha256_bytes(prompt.read_bytes()), expected_prompt_id="TEST", expected_patch_kind="prompt_local", expected_allowed_paths=["allowed/path"], expected_forbidden_actions=["reviewed_code_execution"])
+                    manifest["repositories"][0]["repository_path"] = str(SCRIPT.resolve().parents[4])
+                    manifest["package"].update(carrier_path=str(package.parent), package_inventory_sha256=reviewer.inventory_hash(reviewer.directory_inventory(package.parent.resolve(), "package_root")))
+                    manifest["patch_contract"].update(patch_kind="prompt_local", expected_empty=False, allowed_paths=["src"])
+                    manifest["repositories"][0]["allowed_changed_paths"] = ["src"]
+                    record = manifest["artifacts"][0]
+                    record.update(parser="unified_diff", media_type="text/x-diff", size_bytes=len(patch), sha256=reviewer.sha256_bytes(patch))
+                    manifest["limits"][key] = value
+                    path = root / "manifest.json"
+                    path.write_text(json.dumps(manifest))
+                    with self.assertRaises(reviewer.ReviewError) as caught:
+                        reviewer.review(path, SKILL_ROOT / "references/review_schema.json", None, validate_only=True)
+                    self.assertEqual(caught.exception.diagnostic_id, "PATCH001")
+
+    def test_foundational_manifest_maximum_patch_bytes(self):
+        self._foundational_manifest_patch_limits_reach_parser("maximum_patch_bytes")
+
+    def test_foundational_manifest_maximum_patch_lines(self):
+        self._foundational_manifest_patch_limits_reach_parser("maximum_patch_lines")
 
 
 if __name__ == "__main__":

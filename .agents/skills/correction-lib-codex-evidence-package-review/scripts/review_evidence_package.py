@@ -25,7 +25,7 @@ import zlib
 REVIEWER_VERSION = "1.2.0"
 SCHEMA_VERSION = "1.2.0"
 MANIFEST_VERSION = "1.0.0"
-HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100}
+HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100, "maximum_patch_bytes": 16777216, "maximum_patch_lines": 200000}
 PATCH_KINDS = ("prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes")
 LOCATOR_TYPES = ("markdown_section", "csv_row", "json_pointer", "text_pattern", "file_whole", "patch_hunk", "test_name", "probe_name")
 GATE_EVALUATORS = ("artifact_present", "hash_equals", "json_pointer_equals", "json_pointer_in_set", "csv_row_count", "csv_value_equals", "text_pattern_present", "text_pattern_absent", "test_summary_equals", "probe_field_equals", "patch_path_subset", "commit_subject_equals", "repository_head_equals", "manual_reviewer_decision_required")
@@ -319,7 +319,7 @@ def inventory_hash(rows):
     payload="".join(f"{row['relative_path']}\0{row['size_bytes']}\0{row['sha256']}\n" for row in sorted(rows,key=lambda x:x["relative_path"])).encode()
     return sha256_bytes(payload)
 
-def parse_artifact(record, data):
+def parse_artifact(record, data, limits=None):
     parser=record["parser"]
     if parser not in MEDIA_PARSERS.get(record["media_type"], set()): raise ReviewError("ARTIFACT003", "media type and parser disagree")
     if parser=="empty_file":
@@ -330,7 +330,7 @@ def parse_artifact(record, data):
         return strict_json(text)
     if parser=="csv": return list(csv.DictReader(text.splitlines()))
     if parser in ("markdown","text"): return text
-    if parser=="unified_diff": return parse_patch(text, None)
+    if parser=="unified_diff": return parse_patch(text, None, limits)
     raise ReviewError("SCHEMA003", "unsupported parser")
 
 def _patch_path(value, prefix=None, allow_dev_null=False):
@@ -364,11 +364,12 @@ def _parse_hunk(lines,index,record):
     record["hunks"].append(header)
     return index
 
-def parse_patch(text, contract):
+def parse_patch(text, contract, limits=None):
     if "GIT binary patch" in text or "Binary files " in text or "Subproject commit " in text: raise ReviewError("PATCH002", "binary or submodule patch")
     encoded=text.encode("utf-8")
-    maximum_bytes=(contract or {}).get("maximum_patch_bytes",16777216)
-    maximum_lines=(contract or {}).get("maximum_patch_lines",200000)
+    effective_limits=HARD_LIMITS if limits is None else limits
+    maximum_bytes=effective_limits["maximum_patch_bytes"]
+    maximum_lines=effective_limits["maximum_patch_lines"]
     lines=text.splitlines()
     if len(encoded)>maximum_bytes or len(lines)>maximum_lines: raise ReviewError("PATCH001","patch ceiling exceeded")
     if contract:
@@ -494,7 +495,25 @@ def locate(locator, parsed, patch_records):
     if declared_observed is not None and observed!=declared_observed: raise ReviewError("EVIDENCE002","declared observed locator value mismatch")
     return observed
 
-def collect_findings(parsed, finding_policy):
+def _finding_evidence_verified(evidence, parsed, patch_records, declared_gates, repositories):
+    # Only locators selected by the external reviewer-owned manifest may close a
+    # package finding. Package recomputation booleans are never authority.
+    if not isinstance(evidence,list) or not evidence: return False
+    for locator in evidence:
+        if not isinstance(locator,dict): return False
+        matched=False
+        for gate in declared_gates:
+            if not gate.get("required") or locator not in gate.get("evidence_requirements",[]): continue
+            if gate.get("evaluator")=="text_pattern_absent": continue
+            try:
+                locate(locator,parsed,patch_records)
+                if evaluate_gate(gate,parsed,patch_records,repositories): matched=True; break
+            except (ReviewError,KeyError,TypeError,ValueError):
+                continue
+        if not matched: return False
+    return True
+
+def collect_findings(parsed, finding_policy, declared_gates=(), patch_records=(), repositories=()):
     findings=[]; seen=set()
     for value in parsed.values():
         candidates=value.get("findings",[]) if isinstance(value,dict) else []
@@ -507,8 +526,8 @@ def collect_findings(parsed, finding_policy):
             seen.add(row["finding_id"])
             row=dict(row); status=row["status"]; severity=row["severity"]
             permitted=row["category"] in finding_policy["allowed_nonblocking_preexisting_categories"]
-            preexisting_proven=row.get("reviewer_recomputed_pre_delta") is True and bool(row.get("pre_delta_evidence"))
-            corrective_proven=row.get("reviewer_recomputed_corrective") is True and bool(row.get("corrective_evidence") or row.get("evidence_locators"))
+            preexisting_proven=_finding_evidence_verified(row.get("pre_delta_evidence"),parsed,patch_records,declared_gates,repositories)
+            corrective_proven=_finding_evidence_verified(row.get("corrective_evidence") or row.get("evidence_locators"),parsed,patch_records,declared_gates,repositories)
             derived_blocking = (
                 (status=="confirmed_preexisting" and not (permitted and preexisting_proven)) or
                 (status=="resolved_by_corrective_delta" and not corrective_proven) or
@@ -773,19 +792,20 @@ def review(manifest_path: Path, schema_path: Path, output_root: Path|None, valid
         row=by_path.get(path)
         if row is None: continue
         validate_identity((row["size_bytes"],row["sha256"]),(record["size_bytes"],record["sha256"]),True,path)
-        parsed[record["artifact_id"]]=parse_artifact(record,row["data"])
-    validate_origins(parsed); findings=collect_findings(parsed,manifest["finding_policy"])
+        parsed[record["artifact_id"]]=parse_artifact(record,row["data"],limits)
+    validate_origins(parsed)
     patch_artifact=next((a for a in manifest["artifacts"] if a["artifact_id"]==manifest["patch_contract"]["artifact_id"]),None)
     if patch_artifact is None or patch_artifact["parser"] not in ("unified_diff","empty_file"): raise ReviewError("ARTIFACT003","patch contract does not select a patch artifact")
     patch_records=[]
     if patch_artifact:
         data=by_path[normalize_relative(f"{root}/{patch_artifact['relative_path']}")]["data"]
-        patch_records=parse_patch(strict_text(data),manifest["patch_contract"])
+        patch_records=parse_patch(strict_text(data),manifest["patch_contract"],limits)
     diagnostics.extend(validate_result_artifacts(manifest,parsed))
     observations=[verify_repository(repo,manifest["patch_contract"]) for repo in manifest["repositories"]]
     for observation in observations: diagnostics.extend(observation.diagnostics)
     if manifest["finding_policy"].get("package_claim_only_blocks_acceptance") and any(item.mode=="package_claim_only" for item in observations):
         diagnostics.append(diagnostics_record(ReviewError("SELF_CERTIFICATION002","package-only repository evidence cannot support acceptance")))
+    findings=collect_findings(parsed,manifest["finding_policy"],manifest["declared_gates"],patch_records,observations)
     unresolved_manual=False
     for gate in manifest["declared_gates"]:
         gate_diagnostics,gate_unresolved=evaluate_declared_gate(gate,parsed,patch_records,observations); diagnostics.extend(gate_diagnostics); unresolved_manual=unresolved_manual or gate_unresolved

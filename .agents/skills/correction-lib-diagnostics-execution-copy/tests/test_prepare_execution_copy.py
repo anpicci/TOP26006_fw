@@ -444,5 +444,27 @@ class CopyTests(unittest.TestCase):
         self.assertTrue(required <= fixtures)
 
 
+    def test_foundational_source_parent_traversal(self):
+        outside = self.base / "outside"
+        outside.mkdir()
+        source = outside / "input.txt"
+        source.write_text("outside content\n")
+        manifest = self.manifest(source_path=str(self.src) + "/../outside/input.txt",
+                                 expected_source_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+        self.diag(manifest, "PATH001", validate=False)
+        self.assertFalse((self.dst / "copy_one").exists())
+
+    def test_foundational_source_dot_component(self):
+        manifest = self.manifest(source_path=str(self.src) + "/./wrapper.sh")
+        self.diag(manifest, "PATH001", validate=False)
+
+    def test_foundational_valid_nested_source(self):
+        nested = self.src / "nested"
+        nested.mkdir()
+        source = nested / "input.txt"
+        source.write_text("nested content\n")
+        self.execute(self.manifest(source_path=str(source), expected_source_sha256=hashlib.sha256(source.read_bytes()).hexdigest()))
+        self.assertEqual((self.dst / "copy_one/materialized/wrapper.sh").read_bytes(), source.read_bytes())
+
 if __name__ == "__main__":
     unittest.main()

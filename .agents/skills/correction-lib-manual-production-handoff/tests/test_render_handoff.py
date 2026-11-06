@@ -590,5 +590,58 @@ class RenderHandoffTests(unittest.TestCase):
                     self.assertNotIn(token, text)
 
 
+    def _foundational_command_context(self, case):
+        for case in (case,):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                cwd = base / "command dir"
+                if case != "missing":
+                    cwd.mkdir()
+                output = cwd / "result.txt"
+                target = base / "symlink_target"
+                if case == "relative_collision":
+                    output.write_text("preserve")
+                elif case == "dangling_collision":
+                    output.symlink_to(target)
+                manifest = json.loads((VALID / "fixed_cwd_with_explicit_git_enforcement.json").read_text())
+                manifest["execution_cwd"] = str(base)
+                manifest["provenance"]["enforce"] = {"branch": False, "commit": False}
+                manifest["logging"]["directory"] = "logs"
+                command = manifest["commands"][0]
+                command.update(command_id="context_probe", status="pending", qualification_evidence=[],
+                               working_directory_override=str(cwd),
+                               argv=[sys.executable, "-c", "from pathlib import Path; Path('result.txt').write_text(str(Path.cwd()))"],
+                               expected_outputs=[{"path": "result.txt", "role": "probe", "collision_behavior": "must_be_absent", "qualification_artifacts": []}])
+                manifest["commands"] = [command]
+                source = base / "manifest.json"
+                source.write_text(json.dumps(manifest))
+                rendered = self.run_cli(source, output_name=case)
+                self.assertEqual(rendered.returncode, 0, rendered.stdout + rendered.stderr)
+                result = subprocess.run(["bash", str(self.temp_path / case / "handoff_wrapper.sh")], cwd=base, text=True, capture_output=True)
+                if case == "valid":
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(output.read_text(), str(cwd))
+                    self.assertIn("exit_code: 0", (base / "logs/context_probe.log").read_text())
+                else:
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertFalse((base / "result.txt").exists())
+                    if case == "relative_collision": self.assertEqual(output.read_text(), "preserve")
+                    if case == "dangling_collision":
+                        self.assertTrue(output.is_symlink())
+                        self.assertFalse(target.exists())
+
+    def test_foundational_context_missing(self):
+        self._foundational_command_context("missing")
+
+    def test_foundational_context_relative_collision(self):
+        self._foundational_command_context("relative_collision")
+
+    def test_foundational_context_dangling_collision(self):
+        self._foundational_command_context("dangling_collision")
+
+    def test_foundational_context_valid(self):
+        self._foundational_command_context("valid")
+
+
 if __name__ == "__main__":
     unittest.main()
