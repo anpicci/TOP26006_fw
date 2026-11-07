@@ -30,7 +30,7 @@ def base_data():
             "binding_id": "owner_task", "claim": "bounded inspection",
             "materiality": "DECISION_MATERIAL", "source_kind": "owner_decision",
             "source_identity": "owner:task-1", "acquisition": "acquired",
-            "validity_scope": "TOP26006_fw bounded inspection",
+            "validity_scope": "TOP26006_fw bounded inspection", "repository_id": "TOP26006_fw",
             "authorizes_effect": False,
         }],
         "repositories": {"TOP26006_fw": {}},
@@ -109,7 +109,7 @@ def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
         "binding_id": "state_" + str(len(data["bindings"])),
         "claim": identity_path, "materiality": "DECISION_MATERIAL",
         "source_kind": "repository_readback", "source_identity": "readback:" + identity_path,
-        "acquisition": "acquired", "validity_scope": repo_id,
+        "acquisition": "acquired", "validity_scope": repo_id, "repository_id": repo_id,
         "observed_state": {"identity_path": identity_path, "value": value},
     })
 
@@ -121,7 +121,7 @@ def bind_relation(data, identity_path, value, repo_id="TOP26006_fw",
         "binding_id": "relation_" + str(len(data["bindings"])),
         "claim": identity_path, "materiality": "IDENTITY_CRITICAL",
         "source_kind": source_kind, "source_identity": "readback:" + identity_path,
-        "acquisition": "acquired", "validity_scope": repo_id,
+        "acquisition": "acquired", "validity_scope": repo_id, "repository_id": repo_id,
         "observed_state": {"identity_path": identity_path, "value": deepcopy(value)},
     })
 
@@ -130,7 +130,7 @@ def add_effect(data, effect, target, line, permission, stage_id=""):
     data["bindings"].append({
         "binding_id": "owner_effect", "claim": effect, "materiality": "DECISION_MATERIAL",
         "source_kind": "owner_decision", "source_identity": "owner:effect-1",
-        "acquisition": "acquired", "validity_scope": f"TOP26006_fw {target}",
+        "acquisition": "acquired", "validity_scope": f"TOP26006_fw {target}", "repository_id": "TOP26006_fw",
         "authorizes_effect": True, "effect": effect, "target": target,
     })
     data["requested_effects"] = [{"effect_id": "effect_1", "effect": effect, "target": target,
@@ -191,8 +191,8 @@ def multi_repo_data():
     data["pair_validation_contract"] = {"test_target": "tests/test_candidate_pair.py::test_contract",
                                           "covers": ["provider", "consumer", "common"]}
     data["multi_repository_state"] = "NOT_STARTED"
-    data["bindings"] += [{**data["bindings"][0], "binding_id": "repo_a", "validity_scope": "topcoffea"},
-                         {**data["bindings"][0], "binding_id": "repo_b", "validity_scope": "topeft"}]
+    data["bindings"] += [{**data["bindings"][0], "binding_id": "repo_a", "validity_scope": "topcoffea", "repository_id": "topcoffea"},
+                         {**data["bindings"][0], "binding_id": "repo_b", "validity_scope": "topeft", "repository_id": "topeft"}]
     for repo_id, stage_id, target, source_branch in (
             ("topcoffea", "provider_candidate", "file.py", "tc/q05_candidate"),
             ("topeft", "consumer_candidate", "file.py", "te/q05_candidate")):
@@ -201,14 +201,14 @@ def multi_repo_data():
                     stage_branch_policy="continue_existing_branch", target_branch=source_branch)
         item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: [target]}}
         data["bindings"].append({**data["bindings"][0], "binding_id": f"write_{repo_id}",
-                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "validity_scope": repo_id, "repository_id": repo_id, "authorizes_effect": True,
                                  "effect": "tracked_write", "target": target})
         data.setdefault("requested_effects", []).append({"effect_id": f"write_{repo_id}",
             "effect": "tracked_write", "target": target, "requested_by_step": 4,
             "positive_authority_binding": f"write_{repo_id}", "stage_id": stage_id})
         source_ref = f"refs/heads/{source_branch}"
         data["bindings"].append({**data["bindings"][0], "binding_id": f"commit_{repo_id}_owner",
-                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "validity_scope": repo_id, "repository_id": repo_id, "authorizes_effect": True,
                                  "effect": "local_git_ref_write", "target": source_ref})
         data["requested_effects"].append({"effect_id": f"commit_{repo_id}",
             "effect": "local_git_ref_write", "target": source_ref, "requested_by_step": 4,
@@ -244,7 +244,7 @@ def multi_repo_advancement_data():
         target = "refs/heads/" + repo["permanent_target_branch"]
         data["prompt"]["allowed_to_modify"][repo_id].append(target)
         data["bindings"].append({**data["bindings"][0], "binding_id": "advance_" + repo_id,
-                                 "validity_scope": repo_id, "authorizes_effect": True,
+                                 "validity_scope": repo_id, "repository_id": repo_id, "authorizes_effect": True,
                                  "effect": "local_git_ref_write", "target": target})
         data["requested_effects"].append({"effect_id": "advance_" + repo_id,
             "effect": "local_git_ref_write", "target": target, "requested_by_step": 4,
@@ -582,7 +582,7 @@ def test_q05_multi_repository_candidate_tuple_and_local_authority(monkeypatch):
         if mutation == "missing_authority":
             invalid["bindings"] = [b for b in invalid["bindings"] if b["binding_id"] != "advance_topeft"]
         elif mutation == "wrong_repo":
-            next(b for b in invalid["bindings"] if b["binding_id"] == "advance_topeft")["validity_scope"] = "topcoffea"
+            next(b for b in invalid["bindings"] if b["binding_id"] == "advance_topeft")["repository_id"] = "topcoffea"
         elif mutation == "missing_effect":
             invalid["requested_effects"] = [e for e in invalid["requested_effects"] if e["effect_id"] != "advance_topeft"]
         elif mutation == "wrong_tuple":
@@ -1198,7 +1198,7 @@ def test_e2_q05_candidate_pair_binds_prior_observations_without_pooled_authority
 def test_e2_q05_cross_repo_binding_cannot_authorize_other_repo():
     data = multi_repo_data()
     next(item for item in data["bindings"] if item["binding_id"] == "commit_topeft_owner")[
-        "validity_scope"] = "topcoffea"
+        "repository_id"] = "topcoffea"
     result = run(MULTI_REPO, data)
     assert result.prompt == "" and result.compiler_result == "NOT_READY_MISSING_AUTHORITY_BINDING"
 
@@ -1588,7 +1588,7 @@ def test_q04_m6_m7_order_and_documentary_literals_do_not_create_authority():
     data["bindings"].append({"binding_id": "documentary_oid", "claim": "unrelated note",
                              "materiality": "DOCUMENTARY", "source_kind": "other",
                              "source_identity": "note:" + "b" * 40, "acquisition": "acquired",
-                             "validity_scope": "TOP26006_fw",
+                             "validity_scope": "TOP26006_fw", "repository_id": "TOP26006_fw",
                              "observed_state": {"identity_path": "unrelated.note", "value": "b" * 40}})
     result = run(Q04_FEATURE, data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE"
@@ -1777,7 +1777,7 @@ def test_f02_raw_yaml_repository_permutation_reaches_parser_and_preserves_pair_o
     assert _plan(result) == _plan(baseline)
     assert result.receipt["safety_constraints"]["candidate_pair_order"] == ["topcoffea", "topeft"]
     data["candidate_pair_order"] = ["topeft", "topcoffea"]
-    assert run(MULTI_REPO, data).compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+    assert run(MULTI_REPO, data).compiler_result == 'IMPLEMENTATION_GAP'
 
 
 def test_f02_union_paths_are_set_like_but_pair_order_is_not():
@@ -1818,7 +1818,7 @@ def test_f03b_material_given_uses_local_preflight_and_documentary_given_is_inert
     data["bindings"].append({
         "binding_id": "given_head", "claim": "branch applicability", "materiality": "DECISION_MATERIAL",
         "source_kind": "repository_readback", "source_identity": "branch:docs/example",
-        "acquisition": "pending", "validity_scope": "TOP26006_fw",
+        "acquisition": "pending", "validity_scope": "TOP26006_fw", "repository_id": "TOP26006_fw",
         "dependent_effect_ids": ["commit_ref"],
         "runtime_preflight": "verify refs/heads/docs/example still names the authorized commit target",
         "material_reason": "the local ref write would otherwise target a different branch",
@@ -1851,7 +1851,7 @@ def test_f03b_nonmaterial_head_drift_does_not_block_simple_task():
     data["bindings"].append({
         "binding_id": "given_head", "claim": "observed head", "materiality": "DOCUMENTARY",
         "source_kind": "repository_readback", "source_identity": "branch:docs/example",
-        "acquisition": "acquired", "validity_scope": "TOP26006_fw",
+        "acquisition": "acquired", "validity_scope": "TOP26006_fw", "repository_id": "TOP26006_fw",
         "observed_state": {"identity_path": "ordinary_head", "value": "a" * 40},
         "dependent_effect_ids": [],
     })
@@ -1961,7 +1961,7 @@ def material_given_data(property_text, acquired=False):
         "binding_id": "given_ref", "claim": property_text,
         "materiality": "IDENTITY_CRITICAL", "source_kind": "repository_readback",
         "source_identity": "readback:commit-target", "acquisition": "acquired" if acquired else "pending",
-        "validity_scope": "TOP26006_fw", "dependent_effect_ids": ["commit_ref"],
+        "validity_scope": "TOP26006_fw", "repository_id": "TOP26006_fw", "dependent_effect_ids": ["commit_ref"],
         "material_reason": "the requested ref write consumes this identity",
     })
     data["given_bindings"] = {"3": "given_ref"}
@@ -2000,11 +2000,11 @@ def test_exact_identity_given_uses_only_its_dependent_ref_and_acquired_value():
     feature, data = material_given_data("ref refs/heads/docs/example names commit " + "a" * 40)
     result = run(feature, data)
     given = result.receipt["given_readiness"][0]
-    assert given["verification"]["tracking_only"]
-    assert given["state"] == "non_material_documentary_premise"
+    assert given["verification"]["property"] == "local_ref_oid"
+    assert given["state"] == "runtime_preflight_requirement"
     assert result.receipt["excluded_effects"] == []
     data["bindings"][-1].update(acquisition="acquired", observed_state={"observed_value": "b" * 40})
-    assert run(feature, data).receipt["excluded_effects"] == []
+    assert run(feature, data).receipt["excluded_effects"] == ["commit_ref"]
     unrelated = run(feature.replace("refs/heads/docs/example", "refs/heads/other"), data)
     assert unrelated.receipt["excluded_effects"] == ["commit_ref"]
 
@@ -2152,7 +2152,8 @@ def test_r2_generic_live_evidence_cannot_authenticate_exact_given():
     fact["source_identity"] = "generic:live_applicability"
     fact["observed_state"] = {"value": "f" * 40}
     result = run(feature, data)
-    assert result.receipt["given_readiness"][0]["state"] == "non_material_documentary_premise"
+    assert result.receipt["given_readiness"][0]["state"] == "unsupported_material_premise"
+    assert result.receipt["excluded_effects"] == ["commit_ref"]
     assert not result.receipt["dispatchability"]["dispatchable"]
     # The hash-only observation supplies no missing effect authority.
     data["bindings"] = [b for b in data["bindings"] if b["binding_id"] != "commit_owner"]
@@ -2216,7 +2217,7 @@ def test_r2_q05_given_uses_repository_local_candidate():
                   e["effect"] == "local_git_ref_write")
     _, simple = material_given_data("the selected commit branch is checked out")
     fact = simple["bindings"][-1]
-    fact.update(validity_scope="topcoffea", dependent_effect_ids=[effect["effect_id"]])
+    fact.update(validity_scope="topcoffea", repository_id="topcoffea", dependent_effect_ids=[effect["effect_id"]])
     data["bindings"].append(fact); data["given_bindings"] = {"3": fact["binding_id"]}
     result = run(MULTI_REPO.replace("exact bases", fact["claim"]), data)
     assert result.compiler_result == "COMPILED_CONFORMING_CANDIDATE", result.receipt.get("diagnostics")
@@ -2242,8 +2243,8 @@ def test_r2_only_material_observed_oid_changes_effect_readiness():
     fact = data["bindings"][-1]
     fact.update(acquisition="acquired", source_kind="accepted_evidence", observed_state={"observed_value": "b" * 40})
     result = run(feature, data)
-    assert result.receipt["excluded_effects"] == []
-    assert result.receipt["given_readiness"][0]["verification"]["tracking_only"]
+    assert result.receipt["excluded_effects"] == ["commit_ref"]
+    assert result.receipt["given_readiness"][0]["verification"]["property"] == "local_ref_oid"
 
 
 def parallel_subset_data(composition=True):
@@ -2328,9 +2329,11 @@ def test_r3_changed_consumed_carrier_invalidates_only_dependent_effect(source_ki
     feature, data, fact = acquired_writer_ref_given(source_kind)
     move_writer_head(data, 'writer_a', 'b' * 40)
     result = run(feature, data)
+    # The independent writer remains a valid entry root; the consuming commit
+    # and its downstream stage dependencies must still be fenced.
     assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
-    assert result.receipt['excluded_effects'] == []
-    assert result.receipt['given_readiness'][0]['verification']['tracking_only']
+    assert result.receipt['excluded_effects'] == ['commit_writer_a']
+    assert result.receipt['given_readiness'][0]['validity_relation']['state'] == 'stale_consumed_property'
     # An actual resource substitution still fails independently of tracking values.
     data['worker_contract']['writers'][0]['worktree_path'] = '/foreign'
     assert not run(feature, data).prompt
@@ -2684,7 +2687,7 @@ def dependent_data(outcome="failed_before_effect"):
         "checks_not_to_repeat": state["completed_stages"]}
     bind_relation(data, "continuation.accepted_effect_state", state, "topcoffea", "accepted_evidence")
     data["bindings"][-1]["source_identity"] = "accepted_partial_tuple"
-    data["bindings"].append({**data["bindings"][0], "binding_id": "readback_consumer", "validity_scope": "topeft"})
+    data["bindings"].append({**data["bindings"][0], "binding_id": "readback_consumer", "validity_scope": "topeft", "repository_id": "topeft"})
     if outcome == "OUTCOME_UNKNOWN":
         data["requested_effects"] = [e for e in data["requested_effects"] if e["stage_id"] != "integrate_topeft"]
         data["prompt"]["patch_kind_expected"] = "empty_no_changes"
@@ -3094,7 +3097,7 @@ def ordered_resource_fixture():
         elif stage_id.startswith('delete_ref'): effects=[('delete_local_branch',life['ref'])]
         for n,(kind,target) in enumerate(effects):
             eid=stage_id+'_'+str(n)
-            data['bindings'].append({**data['bindings'][0], 'binding_id':eid, 'validity_scope':repo,
+            data['bindings'].append({**data['bindings'][0], 'binding_id':eid, 'validity_scope':repo, 'repository_id':repo,
                                      'authorizes_effect':True,'effect':kind,'target':target})
             data['requested_effects'].append({'effect_id':eid,'effect':kind,'target':target,
                 'requested_by_step':index,'positive_authority_binding':eid,'stage_id':stage_id})
@@ -3127,7 +3130,7 @@ def test_ordered_resources_preserve_declared_order_and_ambiguous_readback(tmp_pa
 def test_ordered_resource_authority_counterexamples(fault):
     feature,data=ordered_resource_fixture()
     if fault=='missing_create': data['bindings'][next(i for i,b in enumerate(data['bindings']) if b['binding_id']=='create_worktree_0')]['authorizes_effect']=False
-    elif fault=='pooled': next(b for b in data['bindings'] if b['binding_id']=='create_worktree_0')['validity_scope']='topeft'
+    elif fault=='pooled': next(b for b in data['bindings'] if b['binding_id']=='create_worktree_0')['repository_id']='topeft'
     elif fault=='duplicate': data['lifecycle_resources']['beta']['worktree']=data['lifecycle_resources']['alpha']['worktree']
     elif fault=='blind_retry': data['ordered_action_bindings']['s12']['automatic_retry']=True
     elif fault=='missing_readback': feature=feature.replace('I read back the ambiguous alpha effect','I preserve alpha evidence prematurely')
@@ -4004,6 +4007,7 @@ def structured_target_data(first, second):
 
 
 def controller_plan(data):
+    compiler._normalize_tracked_resources(data)
     intent = structured_partition(data=data)
     effects = tuple(e for row in intent.partition.assignments for e in row.effects)
     data['stages'] = compiler._plan_controller_local(data, intent, effects)
@@ -4022,7 +4026,7 @@ def test_tracked_identity_planner_verifier_agreement(case, first, second, accept
         commit = stages[-1]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['git_index_entries']
         assert sorted(compiler._tracked_target_identity(p, 'COMPILER_INVARIANT_FAILURE') for p in commit) == sorted(identities)
         assert [s['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['tracked_paths'][0]
-                for s in stages[:2]] == [first, second]  # retain raw authorized spelling
+                for s in stages[:2]] == ['/'.join(identity) for identity in identities]
     else:
         with pytest.raises(compiler.Compile_error):
             controller_plan(data)
@@ -4413,3 +4417,314 @@ def test_foundational_r3_validation_failure_blocks_dependent_consumer(tmp_path, 
         (tmp_path / "integration.yaml").write_text(yaml.safe_dump({"entered": True}))
     assert bool(delivered_mechanics) == (validation_result == "PASS")
     assert (tmp_path / "integration.yaml").exists() == (validation_result == "PASS")
+
+
+def test_material_ref_mismatch_blocks_only_consuming_commit():
+    feature, data = material_given_data('ref refs/heads/docs/example names commit ' + 'a' * 40)
+    fact = data['bindings'][-1]
+    check = run(feature, data).receipt['given_readiness'][0]['verification']
+    fact.update(acquisition='acquired', observed_state=given_observation(check, fact))
+    bind_relation(data, 'repositories.TOP26006_fw.current_carrier', {
+        'repository': 'TOP26006_fw', 'worktree': '/workspace',
+        'attached_branch': 'docs/example', 'head': 'b' * 40})
+    result = run(feature, data)
+    assert result.receipt['excluded_effects'] == ['commit_ref']
+    assert result.receipt['authorized_effects'] == ['effect_1']
+    assert result.receipt['given_readiness'][0]['validity_relation']['state'] == 'stale_consumed_property'
+    fact.update(materiality='DOCUMENTARY', dependent_effect_ids=[], material_reason='')
+    historical = run(feature, data)
+    assert historical.compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    assert historical.receipt['excluded_effects'] == []
+
+
+@pytest.mark.parametrize('scope', ['not TOP26006_fw', 'TOP26006_fw and topeft', 'unrelated'])
+def test_repository_authority_uses_typed_locality_not_prose(scope):
+    feature, data = documentation_data()
+    for binding in data['bindings']:
+        if binding.get('authorizes_effect'):
+            binding['validity_scope'] = scope
+            binding.pop('repository_id', None)
+    assert run(feature, data).compiler_result == 'NOT_READY_MISSING_AUTHORITY_BINDING'
+    for binding in data['bindings']:
+        if binding.get('authorizes_effect'):
+            binding['repository_id'] = 'TOP26006_fw'
+    assert run(feature, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    for binding in data['bindings']:
+        if not binding.get('authorizes_effect'):
+            binding.pop('repository_id', None)
+    assert run(feature, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+
+
+@pytest.mark.parametrize('negative', [
+    ['docs/a.md'], ['docs/./a.md'], ['docs'],
+    {'git_index_entries': ['docs/a.md']}, {'local_refs': ['refs/heads/docs/example']},
+    {'storage_paths': ['/workspace/docs/./a.md']}, ['.git/index'],
+])
+def test_read_only_resources_cannot_receive_positive_grants(negative):
+    feature, data = documentation_data()
+    data['prompt']['read_only']['TOP26006_fw'] = negative
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILER_INVARIANT_FAILURE'
+    assert 'read_only' in result.receipt['diagnostics'][0]['message']
+    data['prompt']['read_only']['TOP26006_fw'] = ['other/reviewed.md']
+    assert run(feature, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+
+
+def test_documentary_observation_is_not_an_executable_path_surface():
+    data = base_data()
+    data['bindings'][0].pop('repository_id')
+    data['bindings'][0].update(materiality='DOCUMENTARY',
+        observed_state={'paths':'arbitrary documentary context', 'identity_path':None})
+    assert run(data=data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+
+
+def retarget_parallel(first, second):
+    replacements = {'docs/writer_a.md': first, 'docs/writer_b.md': second}
+    def transform(value):
+        if isinstance(value, dict): return {key: transform(item) for key, item in value.items()}
+        if isinstance(value, list): return [transform(item) for item in value]
+        return replacements.get(value, value) if isinstance(value, str) else value
+    return transform(parallel_data())
+
+
+@pytest.mark.parametrize('first,second,accepted', [
+    ('docs/./alpha.md', 'docs//beta.md', True),
+    ('docs/a', 'docs/./a', False), ('docs/a', 'docs/a/child', False),
+    ('docs/a/child', 'docs/a', False), ('../a', 'docs/b', False),
+    ('/absolute', 'docs/b', False), ('', 'docs/b', False),
+])
+def test_parallel_targets_share_canonical_identity(first, second, accepted):
+    result = run(PARALLEL, retarget_parallel(first, second))
+    assert bool(result.prompt) is accepted, result.receipt.get('diagnostics')
+    if accepted:
+        stages = prompt_yaml(result)['workflow_stages']
+        assert stages[0]['authorized_commit_scope']['TOP26006_fw'] == ['docs/alpha.md']
+        assert stages[1]['stage_effect_permissions']['allowed_to_modify']['TOP26006_fw']['git_index_entries'] == ['docs/beta.md']
+        assert stages[3]['authorized_commit_scope']['TOP26006_fw'] == ['docs/alpha.md', 'docs/beta.md']
+        assert result.receipt['resource_source_spellings']
+
+
+@pytest.mark.parametrize('path', ['/workspace/worker_a', '/workspace/worker_a/child', '/workspace'])
+def test_nested_carriers_fail_lexical_isolation(path):
+    data = parallel_data()
+    data['worker_contract']['writers'][1]['worktree_path'] = path
+    for binding in data['bindings']:
+        state = binding.get('observed_state', {})
+        if state.get('identity_path') == 'worker_contract.writers.writer_b.worktree_path': state['value'] = path
+        if state.get('identity_path') == 'worker_contract.writers.writer_b.carrier': state['value']['worktree'] = path
+    assert not run(PARALLEL, data).prompt
+    assert run(PARALLEL, parallel_data()).prompt
+
+
+@pytest.mark.parametrize('policy', ['create_feature_branch_from_reference', 'read_only_current_branch', None])
+def test_controller_local_preserves_supported_branch_choice(policy):
+    data = structured_fork_data()
+    data['prompt']['branch_policy'] = policy
+    data['prompt'].update(reference_branch='master', feature_branch='other/choice')
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data())).prompt
+
+
+@pytest.mark.parametrize('structured', [True, False])
+def test_unrecognized_negative_assertion_is_a_line_referenced_gap(structured):
+    feature = STRUCTURED_FORK_FEATURE if structured else PARALLEL
+    data = structured_fork_data() if structured else parallel_data()
+    step = next(step for step in compiler.parse_gherkin(feature, 'negative').steps if step.keyword == 'Then')
+    feature = feature.replace(step.text, 'no unrecognized material effect occurs')
+    result = compile_contract(feature, yaml.safe_dump(data)) if structured else run(feature, data)
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert result.receipt['diagnostics'][0]['line'] is not None
+
+
+@pytest.mark.parametrize('position', ['description', 'step'])
+def test_standard_star_step_is_never_silently_description(position):
+    source = SIMPLE.replace('    Given', '    * unsupported step\n    Given', 1) if position == 'description' else SIMPLE.replace('    When', '    * unsupported step\n    When', 1)
+    result = compile_contract(source, yaml.safe_dump(base_data()))
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert result.receipt['diagnostics'][0]['line'] is not None
+
+
+def test_unsupported_provider_consumer_pair_is_capability_limit():
+    data = multi_repo_data()
+    data['candidate_pair_order'].reverse()
+    result = run(MULTI_REPO, data)
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert result.receipt['manual_fallback'] == 'independently_evaluable_under_canonical_governance'
+
+
+@pytest.mark.parametrize('scalar', ['0', '1', 'on', 'off', 'null', '"yes"', '"false"', '[]'])
+def test_permission_boundary_rejects_noncanonical_scalar(scalar):
+    feature, text = fixture_graph(SIMPLE, yaml.safe_dump(base_data()))
+    text = text.replace('heavy_command_permissions: {}', 'heavy_command_permissions:\n    network_access: ' + scalar)
+    result = compile_contract(feature, text)
+    assert result.compiler_result == 'COMPILER_INVARIANT_FAILURE'
+    assert 'canonical boolean' in result.receipt['diagnostics'][0]['message']
+
+
+@pytest.mark.parametrize('scalar', ['yes', 'no', 'true', 'false'])
+def test_permission_boundary_accepts_canonical_yaml_scalar(scalar):
+    feature, text = fixture_graph(SIMPLE, yaml.safe_dump(base_data()))
+    text = text.replace('heavy_command_permissions: {}', 'heavy_command_permissions:\n    network_access: ' + scalar)
+    result = compile_contract(feature, text)
+    assert 'canonical boolean' not in str(result.receipt.get('diagnostics'))
+    if scalar in {'no', 'false'}: assert result.prompt
+
+
+def test_compiler_outputs_require_distinct_absent_exclusive_objects(tmp_path, monkeypatch):
+    feature = tmp_path/'source.feature'; feature.write_text(SIMPLE)
+    bindings = tmp_path/'bindings.yml'; bindings.write_text(yaml.safe_dump(base_data()))
+    result = compiler.Compile_result('COMPILED_CONFORMING_CANDIDATE', 'safe prompt', {'marker': 'receipt'})
+    calls = []
+    monkeypatch.setattr(compiler, 'compile_contract', lambda *args, **kwargs: calls.append(args) or result)
+    prompt = tmp_path/'prompt.md'; receipt = tmp_path/'receipt.yml'
+    def argv(p, r): return ['--feature', str(feature), '--bindings', str(bindings), '--prompt-out', str(p), '--receipt-out', str(r)]
+    with pytest.raises(SystemExit): compiler.main(argv(prompt, prompt))
+    assert not calls and not prompt.exists()
+    prompt.symlink_to(tmp_path/'missing')
+    with pytest.raises(SystemExit): compiler.main(argv(prompt, receipt))
+    assert not calls and prompt.is_symlink() and not receipt.exists()
+    prompt.unlink()
+    assert compiler.main(argv(prompt, receipt)) == 0
+    assert prompt.read_text() == 'safe prompt' and yaml.safe_load(receipt.read_text()) == {'marker': 'receipt'}
+    # A race after preflight is still exclusive; existing bytes survive.
+    other_prompt = tmp_path/'other.md'; other_receipt = tmp_path/'other.yml'
+    def racing_compile(*args, **kwargs):
+        other_receipt.write_text('foreign concurrent bytes')
+        return result
+    monkeypatch.setattr(compiler, 'compile_contract', racing_compile)
+    with pytest.raises(SystemExit): compiler.main(argv(other_prompt, other_receipt))
+    assert other_receipt.read_text() == 'foreign concurrent bytes'
+    assert not other_prompt.exists()
+
+
+def test_candidate_policy_as_master_preserves_corrected_compiler_boundaries(tmp_path, monkeypatch):
+    """Simulate promotion in pytest-owned disposable Git state, never real refs."""
+    import subprocess
+    policy = tmp_path/'policy'
+    policy.mkdir()
+    paths = set(compiler.GOVERNANCE) | {
+        '.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py',
+        '.agents/skills/correction-lib-prompt-contract/references/prompt_schema.json',
+        'governance/modules/topcoffea.md', 'governance/modules/topeft.md',
+    }
+    source = Path(__file__).resolve().parents[1]
+    for relative in paths:
+        target = policy/relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((source/relative).read_bytes())
+    def git(*args):
+        return subprocess.check_output(['git','-c','core.hooksPath=/dev/null','-C',str(policy),*args],stderr=subprocess.STDOUT,text=True)
+    git('init','-b','master')
+    git('add', *sorted(paths))
+    git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-m','Candidate policy fixture')
+    before = git('rev-parse','refs/heads/master').strip()
+    monkeypatch.setattr(compiler, 'ROOT', policy)
+    assert 'optional maintained authoring' in git('show','refs/heads/master:AGENTS.md')
+    assert run().compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+    test_material_ref_mismatch_blocks_only_consuming_commit()
+    test_consumed_oid_binding_outside_given_keeps_its_material_gate('accepted_evidence')
+    test_material_oid_without_supported_property_fences_only_declared_consumer()
+    test_repository_authority_uses_typed_locality_not_prose('not TOP26006_fw')
+    test_read_only_resources_cannot_receive_positive_grants({'git_index_entries':['docs/./a.md']})
+    test_parallel_targets_share_canonical_identity('docs/./alpha.md','docs//beta.md',True)
+    test_parallel_targets_share_canonical_identity('docs/a','docs/a/child',False)
+    test_nested_carriers_fail_lexical_isolation('/workspace/worker_a/child')
+    test_controller_local_preserves_supported_branch_choice('create_feature_branch_from_reference')
+    test_unrecognized_negative_assertion_is_a_line_referenced_gap(True)
+    test_standard_star_step_is_never_silently_description('description')
+    test_unsupported_provider_consumer_pair_is_capability_limit()
+    test_permission_boundary_rejects_noncanonical_scalar('0')
+    test_recognized_master_preservation_assertion_rejects_conflicting_ref_effect()
+    test_controller_negative_without_no_keyword_requires_actual_checker()
+    test_compound_negative_cannot_hide_in_recognized_commit_assertion()
+    assert git('rev-parse','refs/heads/master').strip() == before
+    assert not git('status','--porcelain')
+
+
+def test_read_only_resource_mapping_cannot_silently_lose_negative_scope():
+    feature, data = documentation_data()
+    data['prompt']['read_only']['TOP26006_fw'] = {'scope':'all repository paths'}
+    assert run(feature, data).compiler_result == 'IMPLEMENTATION_GAP'
+    data['prompt']['read_only']['TOP26006_fw'] = {'tracked_paths':['other.md']}
+    assert run(feature, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+
+
+def test_existing_typed_carrier_relation_does_not_require_duplicate_locality():
+    data = parallel_data()
+    for binding in data['bindings']:
+        observed = binding.get('observed_state', {})
+        if isinstance(observed.get('value'), dict) and observed['value'].get('repository'):
+            binding.pop('repository_id', None)
+    assert run(PARALLEL, data).compiler_result == 'COMPILED_CONFORMING_CANDIDATE'
+
+
+def test_recognized_master_preservation_assertion_rejects_conflicting_ref_effect():
+    data = structured_fork_data()
+    old_ref = 'refs/heads/' + data['prompt']['target_branch']
+    data['prompt']['target_branch'] = 'master'
+    for scope in (data['prompt']['allowed_to_modify'], data['prompt']['heavy_command_permissions']['allowed_to_modify']):
+        scope['TOP26006_fw'] = ['refs/heads/master' if value == old_ref else value for value in scope['TOP26006_fw']]
+    for effect in data['requested_effects']:
+        if effect['target'] == old_ref:
+            effect['target'] = 'refs/heads/master'
+            next(binding for binding in data['bindings'] if binding['binding_id'] == effect['positive_authority_binding'])['target'] = 'refs/heads/master'
+    result = compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(data))
+    assert result.compiler_result == 'NOT_READY_NEW_DECISION_BOUNDARY'
+    assert not result.prompt
+    assert 'master-preservation' in str(result.receipt['diagnostics'])
+    assert compile_contract(STRUCTURED_FORK_FEATURE, yaml.safe_dump(structured_fork_data())).prompt
+
+
+def test_controller_negative_without_no_keyword_requires_actual_checker():
+    step = next(step for step in compiler.parse_gherkin(STRUCTURED_FORK_FEATURE, 'negative').steps if step.keyword == 'Then')
+    feature = STRUCTURED_FORK_FEATURE.replace(step.text, 'canonical master remains immutable')
+    result = compile_contract(feature, yaml.safe_dump(structured_fork_data()))
+    assert result.compiler_result == 'IMPLEMENTATION_GAP'
+    assert result.receipt['diagnostics'][0]['line'] == step.line
+
+
+def test_compound_negative_cannot_hide_in_recognized_commit_assertion():
+    feature = ('Feature: readback\nScenario: bounded\nGiven established state\nWhen I inspect state\n'
+               'Then no new effect is allowed and no validation is required without explicit idempotence or recovery authority')
+    intent = compiler.parse_gherkin(feature, 'negative')
+    with pytest.raises(compiler.Compile_error) as caught:
+        compiler._check_negative_assertion_contract(intent, {'commit_contract': {'bound': True}})
+    assert caught.value.result == 'IMPLEMENTATION_GAP'
+
+
+@pytest.mark.parametrize('source_kind',['accepted_evidence','repository_readback'])
+def test_consumed_oid_binding_outside_given_keeps_its_material_gate(source_kind):
+    data = parallel_data()
+    move_writer_head(data,'writer_a','b'*40)
+    fact = next(binding for binding in data['bindings'] if binding.get('observed_state',{}).get('identity_path') == 'worker_contract.writers.writer_a.observed_head')
+    fact.update(materiality='IDENTITY_CRITICAL',dependent_effect_ids=['commit_writer_a'],
+                material_reason='the new commit must have the exact reviewed parent',source_kind=source_kind)
+    fact['observed_state']['value']='a'*40
+    result = run(PARALLEL,data)
+    assert result.receipt['excluded_effects'] == ['commit_writer_a']
+    assert 'commit_writer_b' in result.receipt['authorized_effects']
+    assert result.receipt['identity_readiness'][0]['state'] == 'unsupported_material_premise'
+    writer = next(stage for stage in prompt_yaml(result)['workflow_stages'] if stage['stage_id']=='writer_a')
+    assert any(isinstance(row,dict) and row.get('must_pass_before_effects',{}).get('binding_id') == fact['binding_id'] for row in writer['stage_inputs'])
+    fact['observed_state']['value']='b'*40
+    result = run(PARALLEL,data)
+    assert result.receipt['excluded_effects'] == []
+    row = result.receipt['identity_readiness'][0]
+    assert row['state'] == 'runtime_preflight_requirement'
+    assert row['verification']['expected'] == 'b'*40
+    assert row['verification']['before_effects'] == ['commit_writer_a']
+    # The same historical mismatch is inert when it has no consumer.
+    fact.update(dependent_effect_ids=[],material_reason='')
+    fact['observed_state']['value']='a'*40
+    assert run(PARALLEL,data).receipt['excluded_effects'] == []
+
+
+def test_material_oid_without_supported_property_fences_only_declared_consumer():
+    data = parallel_data()
+    fact = next(binding for binding in data['bindings'] if binding.get('observed_state',{}).get('identity_path') == 'worker_contract.writers.writer_a.base_oid')
+    fact.update(dependent_effect_ids=['commit_writer_a'],material_reason='base lineage is material')
+    result = run(PARALLEL,data)
+    assert result.receipt['excluded_effects'] == ['commit_writer_a']
+    assert result.receipt['identity_readiness'][0]['verification'] is None
+    assert 'commit_writer_b' in result.receipt['authorized_effects']

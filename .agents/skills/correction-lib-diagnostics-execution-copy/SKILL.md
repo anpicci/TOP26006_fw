@@ -26,7 +26,8 @@ Start from `assets/copy_manifest_template.json`. Read
 `references/copy_schema.json` before authoring or diagnosing a manifest.
 Require:
 
-- one to eight absolute source roots;
+- one to eight absolute source roots and an absolute destination root, all
+  with one leading slash and without raw `.` or `..` components before traversal;
 - absolute source paths and relative normalized destination paths;
 - expected lowercase SHA-256 and expected Git state per entry;
 - `exact_copy` with no transforms, or `declared_text_transform` with one to
@@ -85,7 +86,7 @@ Final `<destination_root>/<copy_id>` must be absent. The renderer creates one
 exclusive sibling staging directory, writes normalized `0640` or `0750` files,
 reopens all copied bytes and generated artifacts, rechecks sources, and
 publishes the staging directory with a Linux atomic no-replace primitive.
-Renderer version `1.0.1` fails closed when that primitive is unavailable and
+Renderer version `1.0.2` (schema/skill `1.0.1`, manifest `1.0.0`) fails closed when that primitive is unavailable and
 never falls back to a replacing rename. A post-staging failure is preserved as
 `.incomplete_<copy_id>_<nonce>` with blocking validation evidence when
 possible; it is never resumed or classified as complete.

@@ -63,14 +63,14 @@ class CopyTests(unittest.TestCase):
             self.assertEqual(caught.exception.exit_code, code)
         return caught.exception
 
-    def test_renderer_version_is_1_0_1(self):
-        self.assertEqual(tool.RENDERER_VERSION, "1.0.1")
+    def test_renderer_version_is_1_0_2(self):
+        self.assertEqual(tool.RENDERER_VERSION, "1.0.2")
 
-    def test_schema_and_manifest_versions_remain_1_0_0(self):
+    def test_root_grammar_schema_and_unchanged_manifest_version(self):
         schema = json.loads((ROOT / "references/copy_schema.json").read_text())
-        self.assertEqual(tool.SCHEMA_VERSION, "1.0.0")
+        self.assertEqual(tool.SCHEMA_VERSION, "1.0.1")
         self.assertEqual(tool.MANIFEST_VERSION, "1.0.0")
-        self.assertEqual(schema["schema_version"], "1.0.0")
+        self.assertEqual(schema["schema_version"], "1.0.1")
         self.assertEqual(schema["manifest_version"], "1.0.0")
 
     def test_additional_property(self):
@@ -465,6 +465,26 @@ class CopyTests(unittest.TestCase):
         source.write_text("nested content\n")
         self.execute(self.manifest(source_path=str(source), expected_source_sha256=hashlib.sha256(source.read_bytes()).hexdigest()))
         self.assertEqual((self.dst / "copy_one/materialized/wrapper.sh").read_bytes(), source.read_bytes())
+
+    def test_configured_root_alias_fails_before_traversal(self):
+        cases=[('destination_root',str(self.dst)+'/../sources'),('destination_root',str(self.dst)+'/.'),
+               ('source_roots',[str(self.src)+'/../sources']),('source_roots',[str(self.src)+'/.']),
+               ('destination_root','/'+str(self.src)),('source_roots',['/'+str(self.src)])]
+        for field,value in cases:
+            with self.subTest(field=field,value=value):
+                manifest=self.manifest(); manifest[field]=value
+                with mock.patch.object(tool,'_open_abs_dir_nofollow',side_effect=AssertionError('root traversal before grammar validation')):
+                    self.diag(manifest,'PATH004')
+        self.assertFalse((self.dst/'copy_one').exists())
+
+    def test_normal_and_nested_source_roots_remain_accepted(self):
+        nested=self.src/'nested'; nested.mkdir(); file=nested/'input.txt'; file.write_text('safe bytes')
+        manifest=self.manifest(source_path=str(file),expected_source_sha256=hashlib.sha256(file.read_bytes()).hexdigest())
+        manifest['source_roots']=[str(self.src),str(nested)]
+        result=self.execute(manifest,validate=True)
+        self.assertEqual(result['error_count'],0)
+        self.assertFalse(result['materialization_completed'])
+
 
 if __name__ == "__main__":
     unittest.main()

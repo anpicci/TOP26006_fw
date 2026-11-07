@@ -21,9 +21,9 @@ import sys
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
-SKILL_VERSION = "1.0.0"
-RENDERER_VERSION = "1.0.1"
-SCHEMA_VERSION = "1.0.0"
+SKILL_VERSION = "1.0.1"
+RENDERER_VERSION = "1.0.2"
+SCHEMA_VERSION = "1.0.1"
 MANIFEST_VERSION = "1.0.0"
 MAX_ROOTS = 8
 MAX_ENTRIES = 64
@@ -177,6 +177,12 @@ def validate_manifest_shape(manifest: Any) -> Tuple[List[Dict[str, Any]], Dict[O
         diags.append(_type_error("source_roots", "source_roots must contain 1 to 8 absolute paths."))
     if not isinstance(manifest["destination_root"], str) or not os.path.isabs(manifest["destination_root"]):
         diags.append(_type_error("destination_root", "destination_root must be absolute."))
+    for field, values in (("source_roots", roots if isinstance(roots,list) else []),
+                          ("destination_root", [manifest["destination_root"]])):
+        if any(isinstance(value,str) and (value.startswith("//") or
+                   any(part in {".",".."} for part in value.split("/")))
+               for value in values):
+            diags.append(make_diag("PATH004", "Configured roots require one leading slash and no raw dot or dot-dot components.", field=field))
     limits = manifest["limits"]
     if not isinstance(limits, dict) or set(limits) != {"max_entries", "max_file_bytes", "max_total_bytes"}:
         diags.append(_type_error("limits", "limits must contain exactly max_entries, max_file_bytes, and max_total_bytes."))

@@ -64,8 +64,8 @@ class RenderHandoffTests(unittest.TestCase):
     def test_schema_versions(self) -> None:
         schema = json.loads(SCHEMA.read_text())
         template = json.loads(TEMPLATE.read_text())
-        self.assertEqual(schema["schema_version"], "1.0.0")
-        self.assertEqual(schema["renderer_version"], "1.0.1")
+        self.assertEqual(schema["schema_version"], "1.0.1")
+        self.assertEqual(schema["renderer_version"], "1.0.2")
         self.assertEqual(template["manifest_version"], "1.0.0")
 
     def test_all_valid_fixtures(self) -> None:
@@ -531,7 +531,7 @@ class RenderHandoffTests(unittest.TestCase):
         self.assertIn("stdout and stderr are merged", runbook)
         self.assertIn("does not preserve child TTY detection", runbook)
         self.assertIn(
-            "TTY-preserving logging is not supported in renderer version 1.0.1",
+            "TTY-preserving logging is not supported in renderer version 1.0.2",
             runbook,
         )
 
@@ -641,6 +641,96 @@ class RenderHandoffTests(unittest.TestCase):
 
     def test_foundational_context_valid(self):
         self._foundational_command_context("valid")
+
+
+    def test_log_directory_manifest_bytes_preserve_distinct_sibling(self):
+        for field in ('directory','default_directory'):
+            for index, control in enumerate(('\n','\n\n','\r','\t','\x7f')):
+                with self.subTest(field=field,control=repr(control)):
+                    sibling=self.temp_path/(field+str(index)); sibling.mkdir()
+                    (sibling/'marker').write_text('preserve')
+                    destination=Path(str(sibling)+control)
+                    manifest=json.loads((VALID/'explicit_log_directory.json').read_text())
+                    manifest.update(execution_cwd_mode='caller_managed',execution_cwd=str(self.temp_path))
+                    manifest['logging'].update(directory=None,default_directory=None,directory_env_override=None)
+                    manifest['logging'][field]=str(destination)
+                    manifest['commands'][0]['argv']=['/usr/bin/true']
+                    path=self.temp_path/'manifest.json'; path.write_text(json.dumps(manifest))
+                    name='manifest_'+field+str(index)
+                    result=self.run_cli(path,output_name=name)
+                    self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                    run=subprocess.run(['/bin/bash',str(self.temp_path/name/'handoff_wrapper.sh')],cwd=self.temp_path,capture_output=True,text=True)
+                    self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+                    self.assertEqual(list(sibling.iterdir()),[sibling/'marker'])
+                    self.assertEqual(len(list(destination.glob('*.log'))),1)
+
+    def test_log_directory_nul_is_rejected_before_materialization(self):
+        for field in ('directory','default_directory'):
+            manifest=json.loads((VALID/'explicit_log_directory.json').read_text())
+            manifest['logging'][field]=str(self.temp_path/'logs')+'\x00'
+            path=self.temp_path/'nul.json'; path.write_text(json.dumps(manifest))
+            name='nul_'+field
+            result=self.run_cli(path,output_name=name)
+            self.assertEqual(result.returncode,2,result.stdout+result.stderr)
+            self.assertIn('LOG001',{row['id'] for row in self.payload(result)['diagnostics']})
+            self.assertFalse((self.temp_path/name).exists())
+
+    def test_log_directory_override_bytes_preserve_distinct_sibling(self):
+        manifest=json.loads((VALID/'explicit_log_directory.json').read_text())
+        manifest.update(execution_cwd_mode='caller_managed',execution_cwd=str(self.temp_path))
+        manifest['logging'].update(directory=str(self.temp_path/'default'),directory_env_override='HANDOFF_TEST_LOG_DIR')
+        manifest['commands'][0]['argv']=['/usr/bin/true']
+        path=self.temp_path/'override.json'; path.write_text(json.dumps(manifest))
+        result=self.run_cli(path,output_name='override')
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        for index, suffix in enumerate(('\n','\n\n')):
+            sibling=self.temp_path/('override_logs'+str(index)); sibling.mkdir()
+            (sibling/'marker').write_text('preserve')
+            destination=Path(str(sibling)+suffix)
+            environment=dict(os.environ,HANDOFF_TEST_LOG_DIR=str(destination))
+            run=subprocess.run(['/bin/bash',str(self.temp_path/'override/handoff_wrapper.sh')],env=environment,cwd=self.temp_path,capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertEqual(list(sibling.iterdir()),[sibling/'marker'])
+            self.assertEqual(len(list(destination.glob('*.log'))),1)
+
+    def test_relative_log_destination_preserves_working_directory_bytes(self):
+        for mode in ('fixed','script_relative'):
+            with self.subTest(mode=mode):
+                sibling=self.temp_path/mode; sibling.mkdir(); (sibling/'marker').write_text('preserve')
+                target=Path(str(sibling)+'\n')
+                manifest=json.loads((VALID/'explicit_log_directory.json').read_text())
+                manifest['commands'][0]['argv']=['/usr/bin/true']
+                manifest['logging'].update(directory='relative_logs',directory_env_override=None)
+                if mode=='fixed':
+                    manifest['logging']['directory']='.'
+                    target.mkdir(); manifest.update(execution_cwd_mode='fixed',execution_cwd=str(target)); name='fixed_wrapper'
+                else:
+                    manifest.update(execution_cwd_mode='script_relative',execution_cwd='.'); name=mode+'\n'
+                path=self.temp_path/'cwd.json'; path.write_text(json.dumps(manifest))
+                result=self.run_cli(path,output_name=name)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                run=subprocess.run(['/bin/bash',str(self.temp_path/name/'handoff_wrapper.sh')],cwd=self.temp_path,capture_output=True,text=True)
+                self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+                self.assertEqual(list(sibling.iterdir()),[sibling/'marker'])
+                log_directory=target if mode=='fixed' else target/'relative_logs'
+                self.assertEqual(len(list(log_directory.glob('*.log'))),1)
+
+    def test_normal_log_directory_and_override_preserve_identity(self):
+        manifest=json.loads((VALID/'explicit_log_directory.json').read_text())
+        manifest.update(execution_cwd_mode='caller_managed',execution_cwd=str(self.temp_path))
+        manifest['logging'].update(directory=str(self.temp_path/'normal logs é'),directory_env_override='HANDOFF_TEST_LOG_DIR')
+        manifest['commands']=[dict(manifest['commands'][0],argv=['/usr/bin/true'])]
+        path=self.temp_path/'normal.json'; path.write_text(json.dumps(manifest))
+        result=self.run_cli(path,output_name='normal')
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        wrapper=self.temp_path/'normal/handoff_wrapper.sh'
+        for destination in (self.temp_path/'normal logs é',self.temp_path/'override logs é'):
+            environment=dict(os.environ)
+            environment.pop('HANDOFF_TEST_LOG_DIR',None)
+            if 'override' in destination.name: environment['HANDOFF_TEST_LOG_DIR']=str(destination)
+            run=subprocess.run(['/bin/bash',str(wrapper)],env=environment,cwd=self.temp_path,capture_output=True,text=True)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertEqual(len(list(destination.glob('*.log'))),1)
 
 
 if __name__ == "__main__":

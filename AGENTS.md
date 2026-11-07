@@ -27,10 +27,11 @@ contract when those mechanics are needed; scientific, producer/consumer, test,
 affected-consumer and production/runtime validation remain task-specific.
 Minimum-sufficient serial or single-repository execution remains valid.
 
-The D8 governance-workflow compiler is a future separate boundary: it is not
-active, normative or implemented by implication. A future compiler input,
-`Given`, tag or compile receipt cannot create authority, decide science, prove
-execution or confer owner/lane acceptance.
+The D8 governance-workflow compiler is an optional maintained authoring
+capability for the qualified supported patterns. Manual governed authoring
+remains a first-class route. Compiler input, Gherkin, `Given`, tags, receipts
+and lint cannot create authority, decide science, prove execution or review,
+or confer owner/lane acceptance.
 
 Use the minimum sufficient scope. Preserve foreign work. Do not expand scope,
 clean up, add compatibility shims or rewrite history without exact authority.

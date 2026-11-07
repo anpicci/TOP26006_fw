@@ -1,6 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "renderer_version": "1.0.1",
+  "schema_version": "1.0.1",
+  "renderer_version": "1.0.2",
+  "configured_root_grammar": "absolute paths with one leading slash and no raw dot or dot-dot components; descriptor-relative no-follow traversal",
   "manifest_version": "1.0.0",
   "format_scope": "diagnostics_copy_artifact_contract",
   "required_top_level_fields": [

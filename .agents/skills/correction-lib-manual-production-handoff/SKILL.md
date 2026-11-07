@@ -65,6 +65,13 @@ Required decisions include:
 - evidence the user must return;
 - provenance to record separately from provenance to enforce.
 
+Renderer `1.0.2` / schema `1.0.1` preserves valid POSIX directory bytes,
+including trailing newlines, for `directory`, `default_directory`, the resolved
+environment override and working-directory context. Manifest log paths reject
+NUL, which POSIX paths and environment values cannot represent. Shell capture
+also preserves the script directory when self-locating. Ordinary paths,
+spaces and Unicode remain supported. Manifest format remains `1.0.0`.
+
 Classify commands only from accepted evidence or explicit user input:
 
 - `completed_valid`: require qualification evidence; omit from execution.
@@ -155,7 +162,7 @@ Confirm the wrapper:
 - contains no deletion, cleanup, automatic retry, undeclared environment
   dependency, unrequested Git gate, or unrequested `cd`.
 
-For renderer version `1.0.1`, `tee_to_console=true` merges stdout and stderr,
+For renderer version `1.0.2`, `tee_to_console=true` merges stdout and stderr,
 displays the merged stream live, and saves it to the command log. This pipeline
 does not preserve child TTY detection and may disable or degrade in-place
 progress bars. TTY-preserving logging is not supported; it requires a separate

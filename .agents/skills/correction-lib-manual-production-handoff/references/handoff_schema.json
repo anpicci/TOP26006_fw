@@ -1,6 +1,7 @@
 {
-  "schema_version": "1.0.0",
-  "renderer_version": "1.0.1",
+  "schema_version": "1.0.1",
+  "renderer_version": "1.0.2",
+  "logging_directory_identity": "valid POSIX directory paths (no NUL); byte-preserving capture including trailing newlines for manifest directory/default, environment override and working-directory context",
   "format_scope": "manual_handoff_artifact_contract",
   "required_top_level_fields": [
     "manifest_version",

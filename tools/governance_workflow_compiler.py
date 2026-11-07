@@ -1,6 +1,6 @@
 """Compile bounded Gherkin intent with separately acquired governance bindings.
 
-This non-normative D8 tool prepares a CPC candidate. It never dispatches it.
+This optional authoring tool prepares a CPC candidate. It never dispatches it.
 The binding YAML is a task instance, not a policy registry or an authority source.
 """
 
@@ -10,6 +10,7 @@ import argparse
 from dataclasses import asdict, dataclass, field, replace
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
 import posixpath
 import re
@@ -71,6 +72,12 @@ PROMPT_CORE = {"prompt_id", "short_title", "prompt_mode", "preferred_codex_model
                "workspace_root", "repo_locations", "allowed_to_modify", "read_only",
                "validation_ceiling", "decision_question", "patch_kind_expected",
                "final_chat_deliverable"}
+CONTROLLER_ASSERTION = (
+    r"the final candidate documents satisfy ([A-Za-z][A-Za-z0-9_.-]*) and ([A-Za-z][A-Za-z0-9_.-]*), "
+    r"the committed path set is exactly the two authorized documentation files, "
+    r"the real canonical master remains unchanged, "
+    r"compile execution evidence lane acceptance canonical adoption and stable rollout remain distinct, "
+    r"and no new authority or scientific decision has been created by Gherkin or D8")
 ACQUISITION = {"acquired", "not_acquired", "pending", "superseded", "last_observed"}
 EFFECT_KEYS = {
     "tracked_write": "allowed_to_modify", "local_git_ref_write": "allowed_to_modify",
@@ -150,6 +157,7 @@ class Binding:
     dependent_effect_ids: tuple[str, ...] = ()
     runtime_preflight: str = ""
     material_reason: str = ""
+    repository_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -289,8 +297,8 @@ def _architecture_boundary(error: Compile_error, intent: Optional[Semantic_inten
 
     Detection sites select the classification. No caller-provided boundary,
     effect inventory or error-message heuristic can select the classification.
-    D8 sources are the accepted architecture supplied at implementation time;
-    these references do not introduce a second governance vocabulary.
+    Maintained documentation explains the implementation subset; canonical
+    governance remains the sole source for the execution contract.
     """
     classification, sources, section, next_boundary = {
         "UNSUPPORTED_CANONICAL_CONSTRUCT": (
@@ -298,12 +306,12 @@ def _architecture_boundary(error: Compile_error, intent: Optional[Semantic_inten
             "CPC Construction / AGENTS Modes and validation ceilings / Model and reasoning policy",
             "Does the owner request a canonical vocabulary revision for the rejected value?"),
         "IMPLEMENTATION_GAP": (
-            "implementation_gap", ["D8-B §§3,5–8,15,17", "D8-C §3 Q03–Q06,Q20; §6"],
-            "Minimum-sufficient execution, continuation and repository-local coordination",
+            "implementation_gap", ["docs/explanation/governance_workflow_compiler_architecture.md", "docs/how_to/compile_governance_workflow.md"],
+            "Execution shape and architecture boundaries",
             "Repair the compiler representation of this supported behavior without changing its semantics."),
         "ARCHITECTURE_BOUNDARY_UNRESOLVED": (
-            "unresolved", ["D8-B §§3,5,15", "D8-C §3 Q17,Q20"],
-            "Semantic input and canonical execution-shape boundary",
+            "unresolved", ["docs/explanation/governance_workflow_compiler_architecture.md"],
+            "Supported patterns and canonical authority",
             "Bind the semantic construct to an exact architectural execution contract before selecting a shape."),
     }[error.result]
     if error.contract:
@@ -401,9 +409,13 @@ def _repository_modules(data: dict[str, Any], contents: dict[str, str],
     return roles
 
 
-def _scope_names_repo(scope: str, repo_id: str) -> bool:
-    return bool(re.search(r"(?<![A-Za-z0-9_/])" + re.escape(repo_id) +
-                          r"(?![A-Za-z0-9_/])", scope))
+def _binding_names_repo(binding: Binding, repo_id: str) -> bool:
+    """Consume typed locality, never affirmative or negated documentary prose."""
+    observation = binding.observed_state
+    value = observation.get("value") if isinstance(observation, dict) else None
+    related_repo = value.get("repository") if isinstance(value, dict) else None
+    declared_repo = binding.repository_id or related_repo
+    return declared_repo == repo_id and related_repo in (None, repo_id)
 
 
 def _canonical_mode(value: str, contents: dict[str, str]) -> None:
@@ -598,10 +610,11 @@ def parse_gherkin(text: str, source_id: str) -> Semantic_intent:
         # this parser has no lowering implementation. Malformed placement is
         # an input error, not uncertainty about the authoritative architecture.
         header = line.partition(":")[0]
-        if match is None and (header in {"Background", "Scenario Outline", "Examples"} or
+        if match is None and (line == "*" or line.startswith("* ") or
+                              header in {"Background", "Scenario Outline", "Examples"} or
                               line.startswith(("|", '"""'))):
             _error("IMPLEMENTATION_GAP", f"standard Gherkin construct is not implemented: {line}",
-                   number, "D8-C#Q20 semantic input versus compiler capability")
+                   number, "docs/how_to/compile_governance_workflow.md#Execution shape and architecture boundaries")
         if not match and description_open and not re.match(
                 r"(?:Background|Scenario Outline|Examples|Given|When|Then|And|But)\b|[`|]", line):
             continue
@@ -629,7 +642,9 @@ def parse_gherkin(text: str, source_id: str) -> Semantic_intent:
     actions = tuple(step.text for step in steps if step.keyword == "When")
     assertions = tuple(step.text for step in steps if step.keyword == "Then")
     negative = tuple(step.text for step in steps if step.keyword == "Then" and
-                     (step.source_keyword == "But" or re.search(r"\b(no|never|not|without)\b", step.text, re.I)))
+                     (step.source_keyword == "But" or re.search(
+                         r"\b(no|never|not|without|cannot|absent|unchanged|unmodified|immutable|forbidden|prohibited)\b",
+                         step.text, re.I)))
     return Semantic_intent(source_id, feature, tuple(scenarios), tuple(steps), actions, assertions,
                            negative, feature_tags, tuple(scenario_tags), "\n".join(diagram))
 
@@ -899,7 +914,7 @@ def _workflow_visualization(intent: Semantic_intent, data: dict[str, Any], shape
     execution_nodes.add(acceptance)
     execution_edges.update((s.semantic_id, acceptance) for s in intent.steps if s.keyword == "Then")
     execution_mapping.append({"node": acceptance, "role": "external_evidence_and_owner_boundary",
-                              "rule_source": "D8-B §§13–14,17", "effect": False})
+                              "rule_source": "docs/explanation/governance_workflow_compiler_architecture.md", "effect": False})
     drawing = _draw_ascii(execution_nodes, execution_edges)
     if failure_edges:
         drawing += "\n\n" + _draw_ascii({n for e in failure_edges for n in e}, failure_edges)
@@ -926,7 +941,7 @@ def _bindings(data: dict[str, Any]) -> tuple[Binding, ...]:
         _require(all(isinstance(getattr(binding, name), str) for name in
                      ("binding_id", "claim", "materiality", "source_kind", "source_identity",
                       "acquisition", "validity_scope", "effect", "target",
-                      "runtime_preflight", "material_reason")),
+                      "runtime_preflight", "material_reason", "repository_id")),
                  "COMPILER_INVARIANT_FAILURE", "binding fields must be strings")
         _require(isinstance(binding.dependent_effect_ids, (tuple, list)) and
                  all(isinstance(item, str) for item in binding.dependent_effect_ids),
@@ -954,7 +969,7 @@ def _exact_identity(bindings: tuple[Binding, ...], identity_path: str, value: st
                if binding.acquisition == "acquired" and
                binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
                binding.source_kind in {"repository_readback", "accepted_evidence"} and
-               _scope_names_repo(binding.validity_scope, repo_id) and
+               _binding_names_repo(binding, repo_id) and
                isinstance(binding.observed_state, dict) and
                binding.observed_state == {"identity_path": identity_path, "value": value}]
     _require(len(matches) == 1, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
@@ -981,7 +996,7 @@ def _exact_related_identity(bindings: tuple[Binding, ...], identity_path: str,
                if binding.acquisition == "acquired" and
                binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
                binding.source_kind == source_kind and
-               _scope_names_repo(binding.validity_scope, repo_id) and
+               _binding_names_repo(binding, repo_id) and
                isinstance(binding.observed_state, dict) and
                binding.observed_state.get("identity_path") == identity_path and
                _related_values(identity_path, binding.observed_state.get("value")) == values]
@@ -1014,6 +1029,117 @@ def _tracked_targets_disjoint(identities: list[tuple[str, ...]]) -> bool:
     """Reject equality or ancestor overlap, using canonical components only."""
     return all(a[:len(b)] != b and b[:len(a)] != a
                for i, a in enumerate(identities) for b in identities[i + 1:])
+
+
+def _normalize_tracked_resources(data: dict[str, Any]) -> list[dict[str, str]]:
+    """Use the same tracked identity before planning, comparison and emission."""
+    spellings: list[dict[str, str]] = []
+
+    def target(value: str) -> str:
+        result = "/".join(_tracked_target_identity(value, "COMPILER_INVARIANT_FAILURE"))
+        if result != value:
+            spellings.append({"source": value, "canonical": result})
+        return result
+
+    def targets(values: Any) -> list[str]:
+        _require(isinstance(values, list), "COMPILER_INVARIANT_FAILURE", "tracked scope must be a list")
+        result = [target(value) for value in values]
+        _require(len(result) == len(set(result)), "COMPILER_INVARIANT_FAILURE",
+                 "duplicate canonical tracked target")
+        return result
+
+    def scope(value: Any) -> Any:
+        if isinstance(value, list):
+            # Legacy mixed scopes distinguish absolute storage, refs and index metadata.
+            return [item if isinstance(item, str) and
+                    (item.startswith(("/", "refs/")) or item == ".git/index") else target(item)
+                    for item in value]
+        return walk(value)
+
+    def walk(value: Any) -> Any:
+        if isinstance(value, list):
+            return [walk(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        result = {}
+        for key, item in value.items():
+            if key == "stages":
+                result[key] = item  # Historical stage bodies are inert, not executable scope.
+            elif key == "observed_state":
+                path = item.get("identity_path", "") if isinstance(item, dict) else ""
+                result[key] = walk(item) if isinstance(path, str) and (
+                    path == "q04.accepted_writer_result" or path.endswith(".reviewed_result")) else item
+            elif key in {"tracked_paths", "git_index_entries", "write_paths", "union_paths", "paths", "index_paths"}:
+                result[key] = targets(item)
+            elif key == "authorized_commit_scope":
+                result[key] = {repo: targets(paths) for repo, paths in item.items()}
+            elif key in {"allowed_to_modify", "read_only"}:
+                result[key] = {repo: scope(area) for repo, area in item.items()}
+            elif key in {"postimages", "frozen_postimages", "reviewed_postimages"} and isinstance(item, dict):
+                normalized = {}
+                for path, record in item.items():
+                    canonical = target(path)
+                    _require(canonical not in normalized, "COMPILER_INVARIANT_FAILURE",
+                             "duplicate canonical postimage target")
+                    if isinstance(record, dict) and "path" in record:
+                        record = {**record, "path": target(record["path"])}
+                    normalized[canonical] = walk(record)
+                result[key] = normalized
+            else:
+                result[key] = walk(item)
+        if result.get("effect") == "tracked_write" and "target" in result:
+            result["target"] = target(result["target"])
+        return result
+
+    normalized = walk(data)
+    data.clear()
+    data.update(normalized)
+    return spellings
+
+
+def _verify_negative_scope(prompt: dict[str, Any], stages: list[dict[str, Any]]) -> None:
+    """An exact negative resource cannot be overridden by a positive scope."""
+    def resources(area: Any, root: str, category: str = "mixed", *, positive: bool = False) -> list[tuple[str, tuple[str, ...]]]:
+        if isinstance(area, dict):
+            _require(positive or set(area) <= {"tracked_paths", "git_index_entries", "local_refs", "storage_paths"},
+                     "IMPLEMENTATION_GAP", "read_only resource mapping has no bounded identity checker")
+            return [row for key, values in area.items()
+                    if key in {"tracked_paths", "git_index_entries", "local_refs", "storage_paths"}
+                    for row in resources(values, root, key, positive=positive)]
+        if not isinstance(area, list):
+            _require(positive, "IMPLEMENTATION_GAP", "read_only resources require an explicit bounded list or resource mapping")
+            return []
+        result = []
+        for path in area:
+            _require(isinstance(path, str) and bool(path), "COMPILER_INVARIANT_FAILURE", "invalid resource identity")
+            kind = category
+            if kind == "mixed":
+                kind = "local_refs" if path.startswith("refs/") else "storage_paths" if path.startswith("/") else "tracked_paths"
+            if kind in {"tracked_paths", "git_index_entries"}:
+                parts = _tracked_target_identity(path, "COMPILER_INVARIANT_FAILURE")
+                result.append(("path", tuple(posixpath.normpath(posixpath.join(root, *parts)).split("/"))))
+                if positive and kind == "git_index_entries":
+                    result.append(("path", tuple(posixpath.join(root, ".git/index").split("/"))))
+            else:
+                result.append(("path" if kind == "storage_paths" else kind, tuple(posixpath.normpath(path).split("/"))))
+        return result
+
+    negatives = prompt.get("read_only", {})
+    for owner in (prompt, *stages):
+        local_negative = owner.get("read_only", {})
+        grants = owner.get("stage_effect_permissions", owner.get("heavy_command_permissions", {}))
+        for surface in (owner.get("allowed_to_modify", {}), grants.get("allowed_to_modify", {}),
+                        owner.get("workflow_effect_envelope", {}).get("allowed_to_modify", {}),
+                        owner.get("authorized_commit_scope", {})):
+            for repo, area in surface.items():
+                location = prompt["repo_locations"][repo]
+                root = location.get("path") if isinstance(location, dict) else location
+                protected = resources(negatives.get(repo, []), root) + resources(local_negative.get(repo, []), root)
+                for kind, positive in resources(area, root, positive=True):
+                    _require(all(kind != other_kind or
+                                 (positive[:len(negative)] != negative and negative[:len(positive)] != positive)
+                                 for other_kind, negative in protected),
+                             "COMPILER_INVARIANT_FAILURE", f"positive resource overlaps read_only in {repo}: {'/'.join(positive)}")
 
 
 def _verify_carrier_isolation(data: dict[str, Any], shape: str,
@@ -1103,12 +1229,13 @@ def _verify_carrier_isolation(data: dict[str, Any], shape: str,
                 # Repository roots can share a checkout location. Candidate
                 # worktrees are the mutable surfaces that require isolation.
                 continue
-            if path == other_path:
+            if (path == other_path or path.startswith(other_path.rstrip("/") + "/") or
+                    other_path.startswith(path.rstrip("/") + "/")):
                 audit["cross_role_isolation"] = False
                 if shape == "multi_repository_coordination":
                     audit["cross_repository_isolation"] = False
                 _error("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
-                       f"material carrier path aliases {role} and {other_role}: {path}")
+                       f"material carrier path aliases or nests {role} and {other_role}: {path}, {other_path}")
             if repo_id == other_repo and branch and branch == other_branch:
                 audit["cross_role_isolation"] = False
                 _error("NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
@@ -1304,7 +1431,7 @@ def _shape(data: dict[str, Any], intent: Semantic_intent, effects: tuple[Effect_
         authority = by_binding_id.get(effect.positive_authority_binding)
         for repo_id in repositories:
             if effect.target.startswith(repo_id + "/") or (authority and
-                                                            _scope_names_repo(authority.validity_scope, repo_id)):
+                                                            _binding_names_repo(authority, repo_id)):
                 changed_repositories.add(repo_id)
     if "provider" in action_text and "consumer" in action_text:
         _require(len(repositories) > 1, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
@@ -1604,13 +1731,48 @@ def _multi_repository_roles(intent: Semantic_intent) -> tuple[str, ...]:
     return ("integrate_topcoffea", "integrate_topeft") if match.group("advance") else ()
 
 
+def _check_negative_assertion_contract(intent: Semantic_intent, data: dict[str, Any],
+                                        shape: Optional[str] = None) -> None:
+    """Classify unsupported negative intent before attempting shape lowering."""
+    for step in intent.steps:
+        if step.keyword != "Then" or step.text not in intent.negative_assertions:
+            continue
+        assertion = step.text.strip()
+        known = (bool(re.fullmatch(r"no remote repository is modified", assertion, re.I)) or
+                 bool(data.get("commit_contract") and re.fullmatch(
+                     r"no new effect is allowed without explicit idempotence or recovery authority", assertion, re.I)) or
+                 bool(data.get("lifecycle_contract") and re.fullmatch(
+                     r"(?:the )?worktree and ref are absent and canonical master is unchanged", assertion, re.I)) or
+                 bool(data.get("deterministic_edit") and re.fullmatch(
+                     r"no worker, worktree, join, controller or multi-stage workflow is invented", assertion, re.I)))
+        structured = (shape in {None, "controller_local_workflow"} and
+                      len(re.findall(r"\b(no|never|not|without)\b", assertion, re.I)) == 1 and
+                      bool(re.fullmatch(CONTROLLER_ASSERTION, assertion, re.I)))
+        _require(known or structured, "IMPLEMENTATION_GAP",
+                 f"negative assertion has no bounded constraint checker: {assertion}", step.line)
+
+
 def _assertion_paths(intent: Semantic_intent, shape: str,
                      data: dict[str, Any]) -> list[tuple[int, int, str]]:
     """Recognize bounded material clauses and name their concrete gate."""
     paths: list[tuple[int, int, str]] = []
+    _check_negative_assertion_contract(intent, data, shape)
     # The composition/integration dependency owns common validation. Assertion
     # wording can refer to that gate, but cannot enable or disable the mechanic.
     if shape == "controller_local_workflow":
+        writers = [row for row in _partition_rows(intent) if row.domain == "structured_action" and
+                   row.ordered_action.kind == "write"]
+        targets = [effect.target for row in writers for effect in row.effects]
+        for step in intent.steps:
+            if step.keyword != "Then":
+                continue
+            match = re.fullmatch(CONTROLLER_ASSERTION, step.text, re.I)
+            # Diagram labels remain opaque. The typed partition owns the two
+            # writer outcomes; documentary aliases cannot select their roles.
+            _require(match is not None and len(writers) == 2,
+                     "IMPLEMENTATION_GAP", "controller assertion lacks the exact supported writer/checker contract", step.line)
+            _require(len(targets) == len(set(targets)) == 2,
+                     "NOT_READY_NEW_DECISION_BOUNDARY", "two-file assertion conflicts with bound writer targets", step.line)
         return [(step.line, 1, "gate:" + row.owners[0])
                 for step in intent.steps if step.keyword == "Then"
                 for row in _partition_rows(intent) if step.line in row.successors and row.owners]
@@ -1998,7 +2160,7 @@ def _plan_dependent(data: dict[str, Any], intent: Semantic_intent,
              "NOT_READY_NEW_DECISION_BOUNDARY", "partial continuation protection/delta mismatch")
     readback = next((b for b in bindings if b.binding_id == state["readback_authority_binding"]), None)
     _require(readback is not None and readback.acquisition == "acquired" and
-             readback.source_kind == "owner_decision" and _scope_names_repo(readback.validity_scope, "topeft"),
+             readback.source_kind == "owner_decision" and _binding_names_repo(readback, "topeft"),
              "NOT_READY_MISSING_AUTHORITY_BINDING", "consumer readback authority missing")
     repo = data["repositories"]["topeft"]
     target = "refs/heads/" + str(repo.get("permanent_target_branch"))
@@ -2427,7 +2589,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                                                      " stage:retirement:pre_delete_ref_oid"))
             item["stage_effect_permissions"] = {"allowed_to_modify": {repo_id: {
                 "local_refs": [life["exact_owned_surface"]], "git_effects": ["delete_exact_temporary_ref"]}},
-                                                "local_branch_deletion": "yes"}
+                                                "local_branch_deletion": True}
             stages.append(item)
     else:
         integration_roles = _multi_repository_roles(intent)
@@ -2443,7 +2605,7 @@ def _plan_stages(data: dict[str, Any], intent: Semantic_intent, shape: str, effe
                  'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', "candidate-pair validation needs targeted_unit_test ceiling")
         repo_ids = data.get("candidate_pair_order")
         _require(repo_ids == ["topcoffea", "topeft"] and set(repo_ids) == set(data["repositories"]),
-                 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', "bounded provider/consumer plan needs exact ordered pair")
+                 'IMPLEMENTATION_GAP', "bounded provider/consumer plan supports only topcoffea then topeft; use manual authoring")
         for position, repo_id in enumerate(repo_ids):
             stage_id = ("provider_candidate", "consumer_candidate")[position]
             role = roles.get(repo_id)
@@ -2835,7 +2997,7 @@ def _scope_contains(scope: Any, target: str) -> bool:
 
 
 def _positive_keys(grants: dict[str, Any]) -> set[str]:
-    return {key for key, value in grants.items() if value in (True, "yes") or
+    return {key for key, value in grants.items() if value is True or
             (key == "allowed_to_modify" and isinstance(value, dict) and bool(value))}
 
 
@@ -2859,7 +3021,7 @@ def _verify_simple_scope(prompt: dict[str, Any], effects: tuple[Effect_intent, .
     def local_effect(repo_id: str, target: str, kinds: set[str]) -> bool:
         return any(effect.effect in kinds and effect.target == target and
                    effect.positive_authority_binding in by_id and
-                   _scope_names_repo(by_id[effect.positive_authority_binding].validity_scope, repo_id)
+                   _binding_names_repo(by_id[effect.positive_authority_binding], repo_id)
                    for effect in effects)
 
     for surface_name, surface in (("allowed_to_modify", allowed),
@@ -2934,7 +3096,7 @@ def _effect_carrier(effect: Effect_intent, repo: str, data: dict[str, Any],
         # location alone says nothing about the worktree attached to this ref.
         matches = [b.observed_state.get("value") for b in bindings.values()
                    if b.acquisition == "acquired" and b.source_kind == "repository_readback" and
-                   b.materiality != "DOCUMENTARY" and _scope_names_repo(b.validity_scope, repo) and
+                   b.materiality != "DOCUMENTARY" and _binding_names_repo(b, repo) and
                    isinstance(b.observed_state, dict) and
                    b.observed_state.get("identity_path") == "worker_contract.integration_target_carrier"]
         if len(matches) == 1 and isinstance(matches[0], dict):
@@ -2992,7 +3154,7 @@ def _given_validity(check: Optional[dict[str, Any]], fact: Binding,
             observation = binding.observed_state
             if not (binding.acquisition == "acquired" and binding.materiality != "DOCUMENTARY" and
                     binding.source_kind in {"repository_readback", "accepted_evidence"} and
-                    _scope_names_repo(binding.validity_scope, repo) and isinstance(observation, dict) and
+                    _binding_names_repo(binding, repo) and isinstance(observation, dict) and
                     observation.get("identity_path") == path and isinstance(observation.get("value"), dict)):
                 continue
             value = observation["value"]
@@ -3047,7 +3209,7 @@ def _accepted_writer_given(step: Source_line, fact: Binding,
     return bool(accepted and accepted.get("observed_commit_head") == match.group(2) and
                 fact.acquisition == "acquired" and
                 fact.source_identity == continuation.prior_artifact_identity and
-                any(_scope_names_repo(fact.validity_scope, repo) for repo in repo_ids) and
+                any(_binding_names_repo(fact, repo) for repo in repo_ids) and
                 not _given_invalidated(fact, effects, continuation) and
                 match.group(1) not in continuation.invalidation_boundary and
                 fact.observed_state == {"identity_path": "q04.accepted_writer_result", "value": {
@@ -3083,9 +3245,9 @@ def _given_verification(step: Source_line, fact: Binding, effects: tuple[Effect_
     if not _safe_local_branch_ref(target) or (exact and exact.group(1) != target):
         return None
     repositories = {repo for repo in data["repositories"]
-                    if _scope_names_repo(fact.validity_scope, repo) and
+                    if _binding_names_repo(fact, repo) and
                     all(effect.positive_authority_binding in by_id and
-                        _scope_names_repo(by_id[effect.positive_authority_binding].validity_scope, repo)
+                        _binding_names_repo(by_id[effect.positive_authority_binding], repo)
                         for effect in dependent)}
     if len(repositories) != 1:
         return None
@@ -3123,6 +3285,13 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             isolation_audit: dict[str, Any]) -> tuple[list[Trace_edge], list[str], list[str]]:
     prompt = data.get("prompt", {})
     _require(isinstance(prompt, dict), "COMPILER_INVARIANT_FAILURE", "prompt must be mapping")
+    for owner in (prompt, *data.get("stages", [])):
+        for field in ("heavy_command_permissions", "workflow_effect_envelope", "stage_effect_permissions"):
+            grants = owner.get(field, {})
+            _require(isinstance(grants, dict) and all(
+                isinstance(value, dict) if key == "allowed_to_modify" else type(value) is bool
+                for key, value in grants.items()), "COMPILER_INVARIANT_FAILURE",
+                "effective permission map requires canonical booleans and explicit repository scopes")
     _require(PROMPT_CORE <= prompt.keys(), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
              "required current CPC prompt field missing")
     _require(not ({"executed", "accepted", "execution_complete", "result_accepted"} & prompt.keys()),
@@ -3217,18 +3386,34 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
              [re.search(r"(?:move|advance) (?:reference branch|ref) ([\w/.-]+)", s.text, re.I)] if m}
     _require(not (unchanged & moved), "NOT_READY_NEW_DECISION_BOUNDARY", "same reference must move and remain unchanged")
     for assertion in intent.negative_assertions:
+        if re.search(r"\bcanonical master (?:remains|is) unchanged\b", assertion, re.I):
+            _require(not any(effect.target == "refs/heads/master" and
+                             effect.effect in {"local_git_ref_write", "delete_local_branch", "remote_git_write", "delete_remote_branch"}
+                             for effect in effects), "NOT_READY_NEW_DECISION_BOUNDARY",
+                     "negative master-preservation assertion contradicts requested ref effect")
         if re.fullmatch(r"no remote repository is modified", assertion.strip(), re.I):
             _require(not any(effect.effect in {"remote_git_write", "publication", "merge",
                                                "delete_remote_branch"} for effect in effects),
                      "NOT_READY_NEW_DECISION_BOUNDARY",
                      "negative remote assertion contradicts requested remote effect")
-        elif data.get("commit_contract") and re.search(r"no new effect.*recovery authority", assertion, re.I):
+        elif data.get("commit_contract") and re.fullmatch(
+                r"no new effect is allowed without explicit idempotence or recovery authority", assertion, re.I):
             _require(data.get("automatic_retry") is False, "COMPILER_INVARIANT_FAILURE", "no-new-effect constraint requires no automatic retry")
+        elif data.get("lifecycle_contract") and re.fullmatch(
+                r"(?:the )?worktree and ref are absent and canonical master is unchanged", assertion, re.I):
+            _require(shape == "ordered_workflow", "COMPILER_INVARIANT_FAILURE",
+                     "absence assertion requires verified ordered lifecycle readbacks")
         elif data.get("deterministic_edit") and re.search(r"no worker.*workflow is invented", assertion, re.I):
             _require(not data.get("stages") and shape == "simple_non_orchestrated", "COMPILER_INVARIANT_FAILURE", "small-edit constraint forbids generated workflow")
-        elif shape not in {"orchestrated_workflow", "multi_repository_coordination", "ordered_workflow", "controller_local_workflow"}:
+        elif shape == "controller_local_workflow" and re.fullmatch(CONTROLLER_ASSERTION, assertion, re.I):
+            _require(all(effect.effect in {"tracked_write", "local_git_ref_write"} for effect in effects) and
+                     all(stage["stage_mode"] in {"coding", "validation_only", "commit_preparation"}
+                         for stage in data["stages"]), "COMPILER_INVARIANT_FAILURE",
+                     "structured negative boundary exceeds exact local authoring and commit contract")
+        else:
             _error('IMPLEMENTATION_GAP',
-                   f"negative assertion has no bounded constraint checker: {assertion}")
+                   f"negative assertion has no bounded constraint checker: {assertion}",
+                   next(step.line for step in intent.steps if step.text == assertion))
     if not effects:
         supported_words = (r"\b(inspect|read|compare|review|check|validate|report|production|publish|"
                            r"submit|edit|write|modify|change|move|advance|delete|retire|remove|"
@@ -3236,7 +3421,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         _require(all(re.search(supported_words, step.text, re.I) for step in intent.steps
                      if step.keyword == "When"), 'ARCHITECTURE_BOUNDARY_UNRESOLVED',
                  "action has no established canonical behavior or execution contract",
-                 contract="D8-C#Q20 undefined semantic execution boundary")
+                 contract="docs/how_to/compile_governance_workflow.md#Execution shape and architecture boundaries")
     for repo_id, repo in data.get("repositories", {}).items():
         _canonical_repository(repo_id, contents)
         if repo_id in roles:
@@ -3257,12 +3442,12 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                          f"{repo_id} feature namespace does not authorize an exception branch")
                 exception = by_id.get(repo["feature_branch_exception_binding"])
                 _require(exception is not None and exception.source_kind == "owner_decision" and
-                         exception.acquisition == "acquired" and _scope_names_repo(exception.validity_scope, repo_id),
+                         exception.acquisition == "acquired" and _binding_names_repo(exception, repo_id),
                          "NOT_READY_MISSING_AUTHORITY_BINDING", f"{repo_id} exception binding missing")
         if repo.get("authority_binding"):
             bound = by_id.get(repo["authority_binding"])
             _require(bound is not None and bound.acquisition == "acquired" and
-                     _scope_names_repo(bound.validity_scope, repo_id),
+                     _binding_names_repo(bound, repo_id),
                      "NOT_READY_MISSING_AUTHORITY_BINDING", f"repo-local authority missing for {repo_id}")
     _require(isinstance(prompt.get("repo_locations"), dict) and
              set(prompt["repo_locations"]) == set(data.get("repositories", {})) and
@@ -3288,9 +3473,61 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     edges.extend(Trace_edge(f"line:{s.line}", "prompt:prompt_mode", "requests_action")
                  for s in intent.steps if s.keyword == "When")
     edges.extend(stage_edges)
+    identity_readiness: list[dict[str, Any]] = []
+    blocked_identity_effects: set[str] = set()
     def bind_identity(path: str, value: str, repo_id: str, stage_id: str, oid: bool = False) -> None:
         if oid:
-            edges.append(Trace_edge(f"tracking:{path}={value}", f"stage:{stage_id}", "records_observation_only"))
+            material = [b for b in bindings if b.materiality != "DOCUMENTARY" and b.dependent_effect_ids and
+                        isinstance(b.observed_state, dict) and b.observed_state.get("identity_path") == path]
+            if not material:
+                edges.append(Trace_edge(f"tracking:{path}={value}", f"stage:{stage_id}", "records_observation_only"))
+                return
+            for fact in material:
+                dependencies = tuple(fact.dependent_effect_ids)
+                _require(len(dependencies) == len(set(dependencies)) and
+                         set(dependencies) <= {effect.effect_id for effect in effects},
+                         "COMPILER_INVARIANT_FAILURE", "material identity has unknown dependent effect")
+                expected = fact.observed_state.get("value")
+                owner = next((stage for stage in data.get("stages", []) if stage["stage_id"] == stage_id), prompt)
+                target = "refs/heads/" + str(owner.get("target_branch", owner.get("feature_branch")))
+                supported = (path == f"worker_contract.writers.{stage_id}.observed_head" or
+                             path == "worker_contract.composition_base_oid" and stage_id == "exact_union")
+                check = None
+                if (len(material) == 1 and supported and fact.acquisition == "acquired" and fact.material_reason and
+                        fact.source_kind in {"repository_readback", "accepted_evidence"} and
+                        _binding_names_repo(fact, repo_id) and isinstance(expected, str) and
+                        re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", expected) and
+                        all(effect.stage_id == stage_id for effect in effects if effect.effect_id in dependencies)):
+                    # Derive the existing bounded checker from the consumed
+                    # typed property. This is not a new source Gherkin step.
+                    property_description = Source_line(0, "Given", "Given", f"ref {target} names commit {expected}")
+                    check = _given_verification(property_description, fact, effects, data, by_id)
+                validity = _given_validity(check, fact, effects, data, by_id)
+                blocked = check is None or value != expected or validity["state"] == "stale_consumed_property"
+                state = "unsupported_material_premise" if blocked else "runtime_preflight_requirement"
+                entry = {"binding_id": fact.binding_id, "identity_path": path, "state": state,
+                         "dependent_effect_ids": list(dependencies), "required_value": expected,
+                         "configured_value": value, "verification": check, "validity_relation": validity,
+                         "why_material": fact.material_reason}
+                identity_readiness.append(entry)
+                prerequisite = check if not blocked else {
+                    "binding_id": fact.binding_id, "identity_path": path, "state": state,
+                    "required_value": expected, "configured_value": value,
+                    "failure_behavior": "block_only_dependent_effects",
+                    "required_contract": "supported acquired material Git property and effect-local readback"}
+                if blocked:
+                    blocked_identity_effects.update(dependencies)
+                if data.get("stages"):
+                    for stage in data["stages"]:
+                        local = [effect.effect_id for effect in effects if effect.effect_id in dependencies and
+                                 effect.stage_id == stage["stage_id"]]
+                        if local:
+                            stage["stage_inputs"].append({"must_pass_before_effects": {**prerequisite, "before_effects": local}})
+                else:
+                    prompt.setdefault("evidence_requirements", []).append({"must_pass_before_effects": prerequisite})
+                gate = f"gate:identity:{fact.binding_id}"
+                edges.append(Trace_edge(f"binding:{fact.binding_id}", gate, "requires_material_identity_check"))
+                edges.extend(Trace_edge(gate, f"effect:{effect_id}", "must_pass_before") for effect_id in dependencies)
             return
         binding_id = _exact_identity(bindings, path, value, repo_id)
         identity = f"identity:{path}={value}"
@@ -3362,7 +3599,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             carrier = by_id.get(repo["candidate_carrier_authority_binding"])
             _require(carrier is not None and carrier.acquisition == "acquired" and
                      carrier.source_kind == "owner_decision" and
-                     _scope_names_repo(carrier.validity_scope, repo_id) and
+                     _binding_names_repo(carrier, repo_id) and
                      carrier.authorizes_effect and carrier.effect == "local_git_ref_write" and
                      carrier.target == "refs/heads/" + repo["candidate_branch"],
                      "NOT_READY_MISSING_AUTHORITY_BINDING", f"{repo_id} candidate carrier authorization missing")
@@ -3412,7 +3649,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             edges.append(Trace_edge(f"binding:{binding_id}", identity, "observes_exact_relation"))
             edges.append(Trace_edge(identity, "stage:retirement", "consumed_by"))
     given_readiness: list[dict[str, Any]] = []
-    blocked_given_effects: set[str] = set()
+    blocked_given_effects: set[str] = set(blocked_identity_effects)
     for step in intent.steps:
         if step.keyword == "Given":
             edges.append(Trace_edge(f"line:{step.line}", f"precondition_evidence:line:{step.line}",
@@ -3439,10 +3676,6 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                     dependencies = ()
                 else:
                     check = _given_verification(step, fact, effects, data, by_id)
-                    tracking_ref = bool(check and check["property"] == "local_ref_oid")
-                    if tracking_ref:
-                        # Exact reviewed source/result obligations are checked independently by integration.
-                        check = {**check, "tracking_only": True}
                     portable = _accepted_writer_given(step, fact, effects, continuation, set(data["repositories"]))
                     invalidated = _given_invalidated(fact, effects, continuation)
                     validity = _given_validity(check, fact, effects, data, by_id)
@@ -3458,16 +3691,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                     fact.observed_state == _given_observation(check, fact))
                     contradictory = stale or bool(check and fact.acquisition == "acquired" and not invalidated and
                                                   fact.observed_state is not None and not acquired)
-                    if tracking_ref:
-                        state = "non_material_documentary_premise"
-                        dependencies = ()
-                        edges.append(Trace_edge(f"precondition_evidence:line:{step.line}",
-                                                f"binding:{linked}", "records_observation_only"))
-                        prompt.setdefault("evidence_requirements", []).append({
-                            "tracking_only_ref_observation": {"binding_id": linked,
-                                "observed_state": fact.observed_state,
-                                "refresh_before_effect": check["argv"]}})
-                    elif portable or acquired:
+                    if portable or acquired:
                         state = "already_acquired_material_fact"
                         evidence = {"binding_id": linked, "source_identity": fact.source_identity,
                                     "validity_scope": fact.validity_scope, "observed_state": fact.observed_state,
@@ -3557,6 +3781,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                         if plan_bound else "documentary only",
                                         "runtime_preflight_sufficient": False})
     data["_given_readiness"] = given_readiness
+    data["_identity_readiness"] = identity_readiness
     data["_blocked_given_effects"] = sorted(blocked_given_effects)
     for step in intent.steps:
         if re.search(r"\bauthori[sz]ed\b", step.text, re.I) and step.keyword == "Given":
@@ -3604,7 +3829,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         effect_stage = next((s for s in data.get("stages", []) if s["stage_id"] == effect.stage_id), None)
         effect_repo = (effect_stage.get("repository_id") if effect_stage else None) or (
             next(iter(data["repositories"])) if len(data["repositories"]) == 1 else None)
-        _require(effect_repo is not None and _scope_names_repo(binding.validity_scope, effect_repo) and
+        _require(effect_repo is not None and _binding_names_repo(binding, effect_repo) and
                  _scope_contains(prompt["allowed_to_modify"].get(effect_repo, {}), effect.target),
                  "NOT_READY_MISSING_AUTHORITY_BINDING", f"{effect.effect} lacks repository-local authority/scope",
                  effect.requested_by_step)
@@ -3829,7 +4054,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                      "stage_branch_policy" in stage,
                      "COMPILER_INVARIANT_FAILURE", f"{repo_id} candidate stage lacks repo-local branch authority")
             _require(any(e.stage_id == local_stage and e.effect in {"tracked_write", "local_git_ref_write"} and
-                         _scope_names_repo(by_id[e.positive_authority_binding].validity_scope, repo_id)
+                         _binding_names_repo(by_id[e.positive_authority_binding], repo_id)
                          for e in effects),
                      "NOT_READY_MISSING_AUTHORITY_BINDING", f"{repo_id} candidate has no local positive effect")
         _require(all(stage_ids.index(pair_stage) < stage_ids.index(s) for s in data.get("integration_stages", [])),
@@ -3853,7 +4078,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
         workers = data["worker_contract"]
         stage_ids = {stage["stage_id"] for stage in data.get("stages", [])}
         paths = [set(worker["write_paths"]) for worker in workers.get("writers", [])]
-        _require(len(paths) >= 2 and all(not (a & b) for i, a in enumerate(paths) for b in paths[i + 1:]),
+        identities = [_tracked_target_identity(path, "COMPILER_INVARIANT_FAILURE")
+                      for worker in workers.get("writers", []) for path in worker["write_paths"]]
+        _require(len(paths) >= 2 and _tracked_targets_disjoint(identities),
                  "COMPILER_INVARIANT_FAILURE", "worker writers must have disjoint exact paths")
         protected = data.get("continuation", {}).get("checks_not_to_repeat", [])
         _require(all((worker["stage_id"] in stage_ids or worker["stage_id"] in protected) and
@@ -4024,10 +4251,34 @@ def _stage_readiness(graph: Result_graph, effects: tuple[Effect_intent, ...],
 class Unique_binding_loader(yaml.SafeLoader):
     """Reject ambiguous mappings throughout the local binding document."""
 
+    def construct_document(self, node):
+        # Only prompt grant maps are caller authority. Supplied stage prose is
+        # inert; generated stage grants are checked independently by _verify.
+        if isinstance(node, yaml.MappingNode):
+            for name, prompt in node.value:
+                if name.value != "prompt" or not isinstance(prompt, yaml.MappingNode):
+                    continue
+                self.flatten_mapping(prompt)
+                for field, grants in prompt.value:
+                    if field.value not in {"heavy_command_permissions", "workflow_effect_envelope"}:
+                        continue
+                    _require(isinstance(grants, yaml.MappingNode), "COMPILER_INVARIANT_FAILURE",
+                             "permission grants must be a mapping", grants.start_mark.line + 1)
+                    self.flatten_mapping(grants)
+                    for key, value in grants.value:
+                        if key.value == "allowed_to_modify":
+                            _require(isinstance(value, yaml.MappingNode), "COMPILER_INVARIANT_FAILURE",
+                                     "allowed_to_modify grant must be a repository mapping", value.start_mark.line + 1)
+                        else:
+                            _require(isinstance(value, yaml.ScalarNode) and value.tag == "tag:yaml.org,2002:bool" and
+                                     value.value.lower() in {"yes", "no", "true", "false"},
+                                     "COMPILER_INVARIANT_FAILURE", "permission requires a canonical boolean scalar", value.start_mark.line + 1)
+        return super().construct_document(node)
+
     def construct_mapping(self, node, deep=False):
         self.flatten_mapping(node)
         seen = set()
-        for key_node, _ in node.value:
+        for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
             try:
                 if key in seen:
@@ -4065,6 +4316,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
     try:
         data = yaml.load(bindings_yaml, Loader=Unique_binding_loader)
         _require(isinstance(data, dict), "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE", "binding input must be mapping")
+        receipt["resource_source_spellings"] = _normalize_tracked_resources(data)
         data = canonical_mapping(data)
         _require(isinstance(data.get("bindings", []), list) and
                  isinstance(data.get("requested_effects", []), list) and
@@ -4072,6 +4324,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
                  isinstance(data.get("repositories", {}), dict),
                  "COMPILER_INVARIANT_FAILURE", "binding collections have invalid types")
         intent = parse_gherkin(gherkin, source_id)
+        _check_negative_assertion_contract(intent, data)
         receipt["source_contract"].update({"feature": intent.feature,
             "feature_tags": list(intent.feature_tags), "scenarios": list(intent.scenarios),
             "scenario_tags": [list(tags) for tags in intent.scenario_tags]})
@@ -4108,6 +4361,10 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             effects = tuple(e for e in effects if e.stage_id not in protected)
         if shape == "controller_local_workflow":
             context = data["prompt"]
+            _require(context.get("branch_policy") == "continue_existing_branch" and
+                     bool(context.get("target_branch")) and
+                     not ({"reference_branch", "feature_branch"} & context.keys()),
+                     "IMPLEMENTATION_GAP", "controller-local projection requires the exact existing-current-branch contract")
             context["prompt_mode"] = "orchestrated_workflow"
             grants = context.pop("heavy_command_permissions", None)
             if grants is not None:
@@ -4150,6 +4407,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         _project_ancillary_evidence(data, shape)
         edges, authorized, excluded = _verify(data, intent, bindings, effects, continuation, shape,
                                                contents, roles, isolation_audit)
+        _verify_negative_scope(data["prompt"], data.get("stages", []))
         try:
             graph = Result_graph.from_stages(data.get('stages', []))
         except ValueError as exc:
@@ -4294,6 +4552,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             "canonical_governance": {"applicable_sources": identities},
             "input_binding_identity": {"sha256": hashlib.sha256(bindings_yaml.encode()).hexdigest()},
             "given_readiness": data.get("_given_readiness", []),
+            "identity_readiness": data.get("_identity_readiness", []),
             "stage_readiness": stage_readiness,
             "rule_routing": routes,
             "owner_decisions_bound": [b.binding_id for b in bindings if b.source_kind == "owner_decision"],
@@ -4308,6 +4567,8 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             "unresolved_evidence": [b.binding_id for b in bindings
                                     if b.acquisition in {"pending", "not_acquired"} and
                                     not _historical_protected_carrier(b, continuation)] +
+                                   [row["binding_id"] for row in data.get("_identity_readiness", [])
+                                    if row["state"] == "unsupported_material_premise"] +
                                    ([] if owner_ready else ["owner_authorization_gate"]) +
                                    ([] if manual_conformant else ["manual_governance_review"]),
             "traceability": receipt["traceability"],
@@ -4368,7 +4629,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Prepare a non-normative CPC prompt candidate and receipt; never dispatch.")
+    parser = argparse.ArgumentParser(description="Prepare an optional CPC prompt candidate and receipt; never dispatch.")
     parser.add_argument("--feature", type=Path, required=True, help="bounded UTF-8 Gherkin source")
     parser.add_argument("--bindings", type=Path, required=True, help="separate explicit authority/evidence YAML")
     parser.add_argument("--prompt-out", type=Path, required=True)
@@ -4376,15 +4637,20 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument('--policy-repository', type=Path,
                         help='trusted canonical Git repository; policy is read only from refs/heads/master')
     args = parser.parse_args(argv)
-    if args.prompt_out.exists() or args.receipt_out.exists():
-        parser.error("output collision; choose absent exact paths")
+    if (os.path.abspath(args.prompt_out) == os.path.abspath(args.receipt_out) or
+            os.path.lexists(args.prompt_out) or os.path.lexists(args.receipt_out)):
+        parser.error("outputs must be distinct absent paths, including no symlink objects")
     try:
         result = compile_contract(args.feature.read_text(encoding="utf-8"),
                                   args.bindings.read_text(encoding="utf-8"), str(args.feature),
                                   policy_repository=args.policy_repository)
-        args.receipt_out.write_text(yaml.safe_dump(result.receipt, sort_keys=False), encoding="utf-8")
-        if result.prompt:
-            args.prompt_out.write_text(result.prompt, encoding="utf-8")
+        with args.receipt_out.open("x", encoding="utf-8") as receipt_stream:
+            if result.prompt:
+                with args.prompt_out.open("x", encoding="utf-8") as prompt_stream:
+                    receipt_stream.write(yaml.safe_dump(result.receipt, sort_keys=False))
+                    prompt_stream.write(result.prompt)
+            else:
+                receipt_stream.write(yaml.safe_dump(result.receipt, sort_keys=False))
     except (OSError, UnicodeError, yaml.YAMLError) as exc:
         parser.error(str(exc))
     print(result.compiler_result)

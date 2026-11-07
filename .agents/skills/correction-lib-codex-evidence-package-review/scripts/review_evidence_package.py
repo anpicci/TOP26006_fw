@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic, inert evidence-package reviewer (version 1.2.0)."""
+"""Deterministic, inert evidence-package reviewer (version 1.3.0)."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from typing import NamedTuple
 import zipfile
 import zlib
 
-REVIEWER_VERSION = "1.2.0"
-SCHEMA_VERSION = "1.2.0"
+REVIEWER_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.3.0"
 MANIFEST_VERSION = "1.0.0"
 HARD_LIMITS = {"maximum_member_count": 512, "maximum_member_uncompressed_bytes": 16777216, "maximum_total_uncompressed_bytes": 67108864, "maximum_compression_ratio": 100, "maximum_patch_bytes": 16777216, "maximum_patch_lines": 200000}
 PATCH_KINDS = ("prompt_local", "cumulative", "touched_file_cumulative", "empty_no_changes")
@@ -460,6 +460,19 @@ def json_pointer(value, pointer):
         except (KeyError,IndexError,ValueError,TypeError) as exc: raise ReviewError("EVIDENCE001", "JSON pointer absent") from exc
     return node
 
+def typed_equal(left, right):
+    """JSON equality that cannot conflate a boolean with a numeric operand."""
+    if type(left) is not type(right): return False
+    if isinstance(left,dict):
+        return left.keys()==right.keys() and all(typed_equal(left[key],right[key]) for key in left)
+    if isinstance(left,list):
+        return len(left)==len(right) and all(typed_equal(a,b) for a,b in zip(left,right))
+    return left==right
+
+SCALAR_EVALUATORS = frozenset(("hash_equals", "json_pointer_equals", "json_pointer_in_set",
+    "csv_value_equals", "test_summary_equals", "probe_field_equals", "csv_row_count"))
+LOCATOR_EVALUATORS = SCALAR_EVALUATORS - {"csv_row_count"} | {"artifact_present", "text_pattern_present"}
+
 def locate(locator, parsed, patch_records):
     artifact_id=locator["artifact_id"]
     if artifact_id not in parsed: raise ReviewError("EVIDENCE001","locator artifact absent",field=artifact_id)
@@ -490,9 +503,9 @@ def locate(locator, parsed, patch_records):
         observed=matches[0]
     else: raise ReviewError("EVIDENCE001","unsupported locator")
     expected=locator.get("expected_hash_or_value")
-    if expected is not None and observed!=expected: raise ReviewError("EVIDENCE002","locator value mismatch")
+    if expected is not None and not typed_equal(observed,expected): raise ReviewError("EVIDENCE002","locator value mismatch")
     declared_observed=locator.get("observed_hash_or_value")
-    if declared_observed is not None and observed!=declared_observed: raise ReviewError("EVIDENCE002","declared observed locator value mismatch")
+    if declared_observed is not None and not typed_equal(observed,declared_observed): raise ReviewError("EVIDENCE002","declared observed locator value mismatch")
     return observed
 
 def _finding_evidence_verified(evidence, parsed, patch_records, declared_gates, repositories):
@@ -503,8 +516,8 @@ def _finding_evidence_verified(evidence, parsed, patch_records, declared_gates, 
         if not isinstance(locator,dict): return False
         matched=False
         for gate in declared_gates:
-            if not gate.get("required") or locator not in gate.get("evidence_requirements",[]): continue
-            if gate.get("evaluator")=="text_pattern_absent": continue
+            if not gate.get("required") or gate.get("evaluator") not in LOCATOR_EVALUATORS: continue
+            if not any(typed_equal(locator,operand) for operand in gate.get("evidence_requirements",[])): continue
             try:
                 locate(locator,parsed,patch_records)
                 if evaluate_gate(gate,parsed,patch_records,repositories): matched=True; break
@@ -607,6 +620,8 @@ def _authoritative_locator(locator, observed, evaluator, source_of_authority="")
 
 def evaluate_gate(gate,parsed,patch_records,repositories):
     evaluator=gate["evaluator"]; accepted=gate["accepted_values"]
+    if evaluator in SCALAR_EVALUATORS and len(gate["evidence_requirements"])!=1:
+        raise ReviewError("GATE001","scalar gate requires exactly one evaluated evidence operand",field=gate.get("gate_id",""))
     if evaluator=="text_pattern_absent":
         for locator in gate["evidence_requirements"]:
             value=parsed.get(locator["artifact_id"])
@@ -617,15 +632,14 @@ def evaluate_gate(gate,parsed,patch_records,repositories):
         observed=locate(item,parsed,patch_records); _authoritative_locator(item,observed,evaluator,gate.get("source_of_authority","")); observations.append(observed)
     if evaluator=="manual_reviewer_decision_required":
         resolution=gate.get("manual_resolution")
-        if resolution is None or resolution.get("decision") not in accepted: return False
+        if resolution is None or not any(typed_equal(resolution.get("decision"),value) for value in accepted): return False
         locate(resolution["evidence_locator"],parsed,patch_records)
         return True
     if evaluator=="artifact_present": return bool(observations)
-    if evaluator in ("hash_equals","json_pointer_equals","csv_value_equals","test_summary_equals","probe_field_equals"): return bool(observations) and observations[-1] in accepted
-    if evaluator=="json_pointer_in_set": return bool(observations) and observations[-1] in accepted
+    if evaluator in SCALAR_EVALUATORS - {"csv_row_count"}: return any(typed_equal(observations[0],value) for value in accepted)
     if evaluator=="csv_row_count":
         if not gate["evidence_requirements"]: return False
-        artifact=parsed.get(gate["evidence_requirements"][-1]["artifact_id"])
+        artifact=parsed.get(gate["evidence_requirements"][0]["artifact_id"])
         return isinstance(artifact,list) and len(artifact)==gate["expected_count"]
     if evaluator=="text_pattern_present": return bool(observations)
     if evaluator=="text_pattern_absent": return not observations
@@ -672,7 +686,7 @@ def verify_repository(repo, patch_contract):
 
 def diagnostics_record(error):
     severity,blocking=NONBLOCKING_DIAGNOSTICS.get(error.diagnostic_id,("error",True))
-    return {"diagnostic_id":error.diagnostic_id,"family":error.diagnostic_id.rstrip("0123456789"),"severity":severity,"blocking":blocking,"artifact_id":"","gate_or_finding_id":"","field":error.field,"safe_path":error.path,"message":error.message,"contract_locator":"SKILLS010_skill_contract.md"}
+    return {"diagnostic_id":error.diagnostic_id,"family":error.diagnostic_id.rstrip("0123456789"),"severity":severity,"blocking":blocking,"artifact_id":"","gate_or_finding_id":"","field":error.field,"safe_path":error.path,"message":error.message,"contract_locator":".agents/skills/correction-lib-codex-evidence-package-review/SKILL.md#Enforce boundaries"}
 
 def validate_cross_records(manifest):
     repositories={row["repository_id"]:row for row in manifest["repositories"]}

@@ -1,4 +1,6 @@
 import csv
+import ctypes  # Trusted reviewer publication dependency, loaded before execution traps.
+import sys
 import contextlib
 import importlib.util
 import builtins
@@ -23,7 +25,7 @@ SPEC.loader.exec_module(reviewer)
 
 class ContractTests(unittest.TestCase):
     def test_closed_counts(self):
-        self.assertEqual(reviewer.REVIEWER_VERSION, "1.2.0")
+        self.assertEqual(reviewer.REVIEWER_VERSION, "1.3.0")
         self.assertEqual(len(reviewer.DIAGNOSTIC_IDS), 63)
         self.assertEqual(len({item.rstrip("0123456789") for item in reviewer.DIAGNOSTIC_IDS}), 18)
         self.assertEqual(len(reviewer.PATCH_KINDS), 4)
@@ -918,6 +920,87 @@ class FoundationalBoundaryTests(unittest.TestCase):
 
     def test_foundational_manifest_maximum_patch_lines(self):
         self._foundational_manifest_patch_limits_reach_parser("maximum_patch_lines")
+
+
+class ScalarOperandTests(unittest.TestCase):
+    def case(self):
+        def locator(pointer):
+            return {'artifact_id':'proof','locator_type':'json_pointer','locator_value':pointer,
+                    'expected_hash_or_value':None,'observed_hash_or_value':None,'reviewer_recomputed':True}
+        bad,good=locator('/bad'),locator('/good')
+        gate={'gate_id':'scalar','title':'scalar','description':'explicit operand','severity':'error','required':True,
+              'evaluator':'json_pointer_equals','accepted_values':[True],'comparison_operator':'equals','expected_count':None,
+              'source_of_authority':'independent reviewer','blocking_when':'required_and_not_satisfied',
+              'manual_resolution':None,'evidence_requirements':[good]}
+        finding={'finding_id':'false_closure','category':'known','severity':'error','status':'resolved_by_corrective_delta',
+                 'blocking':False,'corrective_evidence':[bad]}
+        return bad,good,gate,{'proof':{'bad':False,'good':True},'report':{'findings':[finding]}}
+
+    def test_scalar_gate_arity_and_exact_closure_operand(self):
+        bad,good,gate,parsed=self.case()
+        policy={'allowed_nonblocking_preexisting_categories':[]}
+        self.assertTrue(reviewer.evaluate_gate(gate,parsed,[],[]))
+        self.assertTrue(reviewer.collect_findings(parsed,policy,[gate])[0]['blocking'])
+        parsed['report']['findings'][0]['corrective_evidence']=[good]
+        self.assertFalse(reviewer.collect_findings(parsed,policy,[gate])[0]['blocking'])
+        for operands in ([],[bad,good],[good,bad]):
+            with self.subTest(operands=operands):
+                gate['evidence_requirements']=operands
+                with self.assertRaises(reviewer.ReviewError): reviewer.evaluate_gate(gate,parsed,[],[])
+                self.assertTrue(reviewer.collect_findings(parsed,policy,[gate])[0]['blocking'])
+
+    def test_scalar_equality_preserves_boolean_and_numeric_types(self):
+        bad,good,gate,parsed=self.case()
+        for observed,accepted in ((True,1),(False,0),(1,True),(0,False),({'x':True},{'x':1}),([False],[0])):
+            with self.subTest(observed=observed,accepted=accepted):
+                parsed['proof']['good']=observed; gate['accepted_values']=[accepted]
+                self.assertFalse(reviewer.evaluate_gate(gate,parsed,[],[]))
+                gate['accepted_values']=[observed]
+                self.assertTrue(reviewer.evaluate_gate(gate,parsed,[],[]))
+                good['expected_hash_or_value']=accepted
+                with self.assertRaises(reviewer.ReviewError): reviewer.locate(good,parsed,[])
+                good['expected_hash_or_value']=None
+
+    def test_supporting_locators_do_not_close_nonlocator_gate(self):
+        bad,good,gate,parsed=self.case()
+        parsed['report']['findings'][0]['corrective_evidence']=[good]
+        gate.update(evaluator='patch_path_subset',accepted_values=['src/a'])
+        self.assertTrue(reviewer.collect_findings(parsed,{'allowed_nonblocking_preexisting_categories':[]},[gate])[0]['blocking'])
+
+    def test_complete_serialized_review_requires_exact_operand(self):
+        bad,good,gate,parsed=self.case()
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); carrier=root/'carrier'; package=carrier/'package_root'; package.mkdir(parents=True)
+            (package/'empty.patch').write_bytes(b'')
+            prompt=root/'prompt.md'; prompt.write_text('prompt_id: TEST\nprompt_mode: validation_only\nvalidation_ceiling: static_inspection_only\npatch_kind_expected: empty_no_changes\ncommit_expected: no\ndo_not_commit: yes\nallowed/path\nreviewed_code_execution: no\n')
+            manifest=_consistent_manifest()
+            manifest['authorizing_prompt'].update(path=str(prompt),sha256=reviewer.sha256_bytes(prompt.read_bytes()),expected_prompt_id='TEST',expected_allowed_paths=['allowed/path'],expected_forbidden_actions=['reviewed_code_execution'])
+            manifest['repositories'][0]['repository_path']=str(SCRIPT.resolve().parents[4])
+            manifest['declared_gates']=[gate]
+            path=root/'manifest.json'
+            for state in ('ambiguous','wrong_locator','exact_locator'):
+                with self.subTest(state=state):
+                    gate['evidence_requirements']=[bad,good] if state=='ambiguous' else [good]
+                    parsed['report']['findings'][0]['corrective_evidence']=[good] if state=='exact_locator' else [bad]
+                    manifest['artifacts']=manifest['artifacts'][:1]
+                    for aid in ('proof','report'):
+                        body=json.dumps(parsed[aid]).encode(); (package/(aid+'.json')).write_bytes(body)
+                        manifest['artifacts'].append(dict(manifest['artifacts'][0],artifact_id=aid,relative_path=aid+'.json',parser='json',media_type='application/json',size_bytes=len(body),sha256=reviewer.sha256_bytes(body)))
+                    manifest['package'].update(carrier_path=str(carrier),package_inventory_sha256=reviewer.inventory_hash(reviewer.directory_inventory(carrier,'package_root')))
+                    path.write_text(json.dumps(manifest))
+                    if state=='ambiguous':
+                        with self.assertRaises(reviewer.ReviewError) as caught: reviewer.review(path,SKILL_ROOT/'references/review_schema.json',None,True)
+                        self.assertEqual(caught.exception.diagnostic_id,'SCHEMA001')
+                    else:
+                        result=reviewer.review(path,SKILL_ROOT/'references/review_schema.json',None,True)
+                        self.assertEqual(result['findings'][0]['blocking'],state=='wrong_locator')
+                        self.assertEqual(result['verdict'].startswith('accepted'),state=='exact_locator')
+
+    def test_cold_process_nonexecution_keeps_all_traps(self):
+        result=subprocess.run([sys.executable,'-I','-S',str(Path(__file__).resolve()),
+            'CorrectiveHardeningTests.test_complete_review_never_reaches_execution_boundaries'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertIn('Ran 1 test',result.stderr)
 
 
 if __name__ == "__main__":

@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 
-RENDERER_VERSION = "1.0.1"
-SCHEMA_VERSION = "1.0.0"
+RENDERER_VERSION = "1.0.2"
+SCHEMA_VERSION = "1.0.1"
+MANIFEST_VERSION = "1.0.0"
 EXIT_OK = 0
 EXIT_VALIDATION = 2
 EXIT_UNSAFE = 3
@@ -455,6 +456,8 @@ def validate_logging(
                 diagnostic("TYPE001", f"{path}.{field}", "must be boolean")
             )
     for field in ("directory", "default_directory"):
+        if isinstance(mapping[field], str) and "\x00" in mapping[field]:
+            diagnostics.append(diagnostic("LOG001", f"{path}.{field}", "log directory must be a POSIX path without NUL"))
         if mapping[field] is not None and (
             not isinstance(mapping[field], str) or not mapping[field].strip()
         ):
@@ -604,7 +607,7 @@ def validate_manifest(
     check_exact_keys(mapping, "$", required, set(), errors)
     if required - set(mapping):
         return sort_diagnostics(errors), unsafe, runnable
-    if mapping["manifest_version"] != SCHEMA_VERSION:
+    if mapping["manifest_version"] != MANIFEST_VERSION:
         errors.append(
             diagnostic("ENUM001", "$.manifest_version", "unsupported manifest version")
         )
@@ -799,7 +802,12 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
     elif cwd_mode == "script_relative":
         lines.extend(
             [
-                'script_dir="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"',
+                'case "${BASH_SOURCE[0]}" in',
+                '  */*) script_parent="${BASH_SOURCE[0]%/*}"; script_parent="${script_parent:-/}" ;;',
+                '  *) script_parent=. ;;',
+                'esac',
+                'script_dir="$(CDPATH= cd -- "${script_parent}" && printf \'%s.\' "$PWD")"',
+                'script_dir="${script_dir%.}"',
                 f"cd -- \"${{script_dir}}\"/{shell_quote(cwd)}",
                 "",
             ]
@@ -838,7 +846,9 @@ def render_wrapper(manifest: dict[str, Any], runnable: list[dict[str, Any]]) -> 
             lines.append(f'log_dir="${{{variable}:-${{log_dir_default}}}}"')
         else:
             lines.append('log_dir="${log_dir_default}"')
-        lines.extend(['mkdir -p -- "${log_dir}"', 'log_dir="$(CDPATH= cd -- "${log_dir}" && pwd)"', ""])
+        lines.extend(['mkdir -p -- "${log_dir}"',
+                      'log_dir="$(CDPATH= cd -- "${log_dir}" && printf \'%s.\' "$PWD")"',
+                      'log_dir="${log_dir%.}"', ""])
     lines.extend(
         [
             "run_handoff_command() {",
