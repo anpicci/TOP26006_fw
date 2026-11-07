@@ -63,9 +63,21 @@ at their actual boundary rather than acquiring an invented stage or grant.
 results. `Policy_source_binding` reads exact master Git objects and records
 consumed dependencies, including modules and validator bytes. It revalidates
 those dependencies before returning a prepared prompt. A development checkout's
-policy edits do not enter this snapshot. Repository selection is trusted
-installation context; observed Git identities document acquisition and do not
-grant authority.
+policy edits do not enter this snapshot. `--policy-repository` selects trusted code input: validator Python
+bytes from
+that master snapshot execute during mechanical lint. It is not an inert data
+directory and does not authenticate ownership, authority or semantic correctness.
+Observed Git identities document acquisition and do not grant authority.
+
+Typed `repository_id` and, where applicable, the observed relation
+`observed_state.value.repository` establish repository locality; `validity_scope`
+is documentary context. The compiler checks positive scope against explicit
+`read_only` rather than silently overriding a denial. Tracked paths, index paths,
+commit scopes and unions share a repository-relative lexical identity. Declared
+disjoint writers and isolated carriers reject equality or nesting. These checks
+do not prove universal filesystem alias isolation or OS enforcement; the
+[authoring guide](../how_to/compile_governance_workflow.md#author-path-for-an-already-authorized-task)
+details the supported contract.
 
 The existing semantic partition owns source action assignment, resource identity
 and source-level dependencies. The compiler lowers it into bounded stage
@@ -129,8 +141,11 @@ required; eligible effects alone never permit a workflow to enter execution chec
 `COMPILED_CONFORMING_CANDIDATE` can describe that partial entry path; excluded
 effects and unresolved evidence remain explicit and execution assertions stay
 NOT_EVALUATED. Git-specific runtime prose is conditional on Git lifecycle effects.
-Portable accepted results survive unrelated carrier/OID
-drift, while consumed artifact bytes, repository-local grants, foreign-work
+Portable accepted results survive unrelated documentary carrier/OID drift.
+A consumed `IDENTITY_CRITICAL` or `DECISION_MATERIAL` identity retains its gate:
+if a consumer requires reviewed parent A, a harmful mismatch on carrier B blocks
+that consumer without freezing all historical identities. Consumed artifact bytes, repository-local grants,
+foreign-work
 isolation, ambiguity readback and destructive compare-and-delete retain their
 existing checks. The compiler prepares prompts; a separately authorized executor
 performs effects, and the responsible humans decide evidence and scientific

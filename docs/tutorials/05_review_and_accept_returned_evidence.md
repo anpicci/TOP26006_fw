@@ -51,6 +51,12 @@ does not establish governance completeness or semantic/scientific correctness.
 Package-authored booleans do not constitute a reviewer/owner decision or close
 a finding. The external caller/reviewer must own the controlling review manifest;
 a required declared gate must actually resolve and evaluate the cited evidence.
+A scalar gate evaluates exactly one evidence locator, and finding closure must
+cite that exact evaluated operand in a required passing locator gate. Supporting
+locators for manual, repository, count or patch-set checks cannot close an
+unrelated finding. JSON equality preserves types: `true` differs from `1` and
+`false` from `0`. Package contents remain inert; a passing package-authored
+boolean cannot certify its own review.
 The utility does not cryptographically authenticate human reviewer identity.
 These distinctions do not change the fixed scenario or turn this exercise into
 a compiler run or evidence-package execution.

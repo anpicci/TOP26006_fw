@@ -63,16 +63,28 @@ Use the Python wrapper and interpreter resolved from the local YAML profile:
 ```
 
 Enter the declared command directory successfully before checking output
-collisions and invoking the command in that same effective context. Collision
-checks do not establish race-free or atomic output publication.
+collisions and invoking the command in that same effective context.
+The two output paths must be distinct and absent as path objects: existing files
+and dangling symlinks are rejected. Each file is created exclusively, without
+overwrite. The pair is not a global atomic transaction; a race or failure while
+creating the second output can leave a partial task-owned artifact. Inspect
+actual outputs before any recovery or retry.
+
+An intermediate compilation artifact may use a local name such as
+`generated_prompt.md`. A prompt artifact delivered for dispatch follows the
+`CODEX_PROMPT*.md` convention. Its name grants no execution authority and does
+not require an executor receiving prompt text to reconstruct a companion file.
 
 Policy and the maintained validator are acquired from one frozen
 `refs/heads/master` Git snapshot, including repository modules. Checkout edits
 cannot change those inputs. By default the selected repository is the compiler's
 Git repository, including its shared refs when invoked in a linked worktree.
 Use `--policy-repository /exact/trusted/repository` to select a separately
-acquired policy repository. That selection remains a trusted binder input;
-the compiler does not authenticate ownership of an arbitrary repository.
+acquired policy repository. That selection is trusted code input, not an inert
+data directory: validator
+Python bytes from its selected master snapshot execute during mechanical lint.
+It does not authenticate repository ownership, owner authority or semantic
+correctness. Select only an independently trusted policy repository.
 The receipt records the observed master OID and consumed blob identities.
 No expected master OID must be authored. Before returning a prepared prompt, the
 compiler compares all consumed policy dependencies with current master and
@@ -141,7 +153,12 @@ these writer actions serially without adding a semantic writer-to-writer edge.
 Each writer freezes and reviews its own outcome; the join cannot hide a failed
 writer behind the other result. Writers receive no index/ref commit effect;
 the commit stage receives only the exact accepted union's index/ref mechanics.
-Do not introduce worker carriers or branch creation to express this shape.
+The input must declare `branch_policy: continue_existing_branch` and a
+`target_branch` matching the exact existing branch/ref contract. Branch creation,
+a read-only policy or a missing branch choice is outside this shape; the compiler
+does not silently convert it to continuation. Outer branch fields are removed
+for orchestration only after validating that input contract. Do not introduce
+worker carriers or branch creation to express this shape.
 
 A source line, tag, graph edge or receipt grants no permission. Unsupported
 syntax or an unrepresented action reports its actual implementation boundary;
@@ -156,8 +173,12 @@ boundaries. This implementation supports `Feature`, documentary `Rule` grouping,
 `When`, `Then`, `And`, `But`, comments, blank lines, and feature/scenario tags.
 `And` and `But` inherit the preceding step's role. Free-form descriptions may
 contain the required ASCII diagram. Standard constructs whose semantics are
-not implemented, including `Background`, `Scenario Outline`, and `Examples`,
-stop with a line-referenced `IMPLEMENTATION_GAP`; parser limits do not establish a
+not implemented, including `Background`, `Scenario Outline`, `Examples` and
+the standard `*` step, stop with a line-referenced `IMPLEMENTATION_GAP`. The `*`
+step cannot disappear as documentary prose. Other unsupported English aliases
+also fail closed, but may receive a generic input/compiler-invariant result;
+not every unsupported alias has the same classification. Parser limits do not
+establish a
 canonical capability boundary. This is a bounded subset,
 not a full Gherkin implementation. Tags remain visible as classification and
 routing hints; they never grant authority or select production by themselves.
@@ -166,7 +187,26 @@ The separate binding YAML supplies acquired authority and evidence facts,
 repository identities, exact scopes, a CPC context, and, where needed,
 requested effects and exact workflow identity facts. Each material binding
 names its source identity, acquisition state, validity scope, and exact effect and target if it
-authorizes an effect. Gherkin premises are not proof. A positive effect needs
+authorizes an effect. Effect-authorizing and consumed scalar bindings use typed
+`repository_id`; an observed relation may carry `observed_state.value.repository`.
+Where both are present they must agree with the selected repository.
+`validity_scope` is documentary context, not a repository selector or a parser
+for affirmative/negated repository prose. Unconsumed documentary facts do not
+need irrelevant repository fields.
+
+Explicit `read_only` and positive tracked/index/ref/storage scope cannot cover
+the same canonical resource, including ancestor/descendant overlap, without an
+explicit canonical override contract. A positive grant never silently overrides
+a denial; unsupported override shapes remain outside the compiler subset. These
+are contract checks, not OS sandbox or filesystem enforcement.
+
+Permission-map scalar values accept only unquoted YAML boolean forms
+`yes`/`no` or `true`/`false`, in their YAML-recognized capitalizations. Numeric,
+null, quoted-string
+and legacy `on`/`off` forms are rejected. `allowed_to_modify` remains a structured
+repository mapping. Mechanical prompt lint does not certify nested grant semantics.
+
+Gherkin premises are not proof. A positive effect needs
 an acquired owner binding plus the exact current CPC permission and
 path/ref/action scope. The compiler selects the minimum supported execution
 shape and mode from the behavior and bound context. For the bounded two-writer
@@ -189,8 +229,10 @@ or a necessary governance mechanic.
 Git HEADs, commit OIDs and ref OIDs are runtime evidence by default. They do
 not establish authority and need not be authored before an effect produces them.
 Carrier relations bind repository, exact worktree path and attached branch;
-scalar or composite historical HEAD/base fields are recorded without gating
-that resource binding. A wrong repository/path/ref/owner still fails closed.
+unconsumed documentary historical HEAD/base fields are tracking-only. An
+`IDENTITY_CRITICAL` or `DECISION_MATERIAL` identity with a concrete dependent
+effect and harmful mismatch retains its gate and blocks only that consumer.
+A wrong repository/path/ref/owner still fails closed.
 
 The existing `stage:<producer>:<output>` convention transports a produced
 reviewed result to its actual consumer. A typed `Result_ref` decodes this
@@ -255,8 +297,13 @@ the accepted result. The compiler repeats the invalidated writer and dependent
 review, union, validation
 and requested integration/retirement stages. Contradictory protection requires an owner decision; broader protected
 continuations that the delta planner cannot express are implementation gaps.
-Tracked paths are relative to their selected repository, including when two
-repositories contain the same relative path.
+Tracked paths, index paths, commit scopes and exact unions share one
+repository-relative lexical identity. Absolute or empty tracked targets and raw
+`..` traversal are rejected. Redundant separators and `.` components normalize
+to the same operational identity; original spelling may remain receipt provenance.
+Declared-disjoint writers cannot have canonical equality or ancestor/descendant
+overlap in either direction. Identical relative paths in different repositories
+remain repository-local.
 Local carrier relations and global isolation are separate checks. For parallel writers followed by composition, the
 compiler compares normalized lexical worktree paths and repository-local mutable
 refs across active writers and the controller, and excludes the permanent
@@ -267,10 +314,15 @@ Source branches remain repo-local and follow their distinct native
 namespaces. Equal branch strings in distinct repositories do not establish an
 alias. The receipt records local
 relation consistency, cross-role isolation and cross-repository isolation.
-The lexical check does not follow symlinks or establish realpath identity; that
+Equal or nested declared-isolated carrier roots are rejected in either direction.
+The lexical/component check does not follow symlinks or prove universal realpath
+or hardlink isolation; that
 remains with acquired binder and runtime evidence. `acquisition: acquired` is
 an upstream trust assertion, not compiler authentication. Unimplemented safe
 cases fail locally and leave the manually governed workflow available.
+Automated provider/consumer lowering supports only `topcoffea -> topeft`.
+A different or reversed pair is outside this subset and may use manual governed
+authoring. Additional owner evidence does not expand compiler capability.
 The bounded provider/consumer planner starts from `NOT_STARTED`. The action
 `provider and consumer write candidates` stops at a validated repo-local
 proposed result pair. Adding `and integrate` requests sequential permanent advancement
@@ -337,8 +389,10 @@ binding; an extra path or lifecycle category is rejected.
 For effect-local readiness, `given_bindings` maps a `Given` source line to a
 binding. The binding may name `dependent_effect_ids`, `material_reason`, and
 `runtime_preflight`. Preflight prose is inert, including a string starting with
-`verify`. A historical ref-value premise is tracking-only for ordinary commits;
-it cannot independently block a valid effect after legitimate ref movement. Every premise is classified as `already_acquired_material_fact`,
+`verify`. An unconsumed or documentary historical ref-value observation is
+tracking-only. A materially consumed ref identity retains its supported checker
+and gate; legitimate ref movement does not erase an exact-parent requirement.
+Every premise is classified as `already_acquired_material_fact`,
 `runtime_preflight_requirement`, `non_material_documentary_premise`, or
 `unsupported_material_premise`. Documentary premises remain traced without gates.
 A linked material premise names its dependent effects; unsupported properties
@@ -405,7 +459,8 @@ responsible for the evidence claim. No receipt authenticates it or permits a
 silent switch. Exact reviewed-result provenance remains required where a
 downstream operation actually consumes that result; destructive ref actions
 use a fresh local observation. The supported negative assertion `no remote
-repository is modified` rejects contradictory remote effects. Unrecognized
+repository is modified` rejects contradictory remote effects. Every material negative assertion needs a recognized checker/evidence contract
+in the selected shape; a trace edge alone is not enforcement. Unrecognized
 negative assertions stop with `IMPLEMENTATION_GAP` rather than becoming
 decorative trace edges.
 
@@ -475,8 +530,10 @@ A rejected live closed-vocabulary value is a canonical boundary. Missing facts
 and authority retain their corresponding NOT_READY results. A material result
 clause without an evaluable evidence contract is missing evidence. A malformed
 input or unknown effect-inventory key violates the input contract, independently
-of architectural support. Standard Gherkin syntax without parser support and
-unrepresented coordination grammar are implementation gaps. These distinctions
+of architectural support. Recognized standard Gherkin constructs without lowering
+and unrepresented
+coordination grammar are implementation gaps. Other unsupported aliases may fail
+closed under a generic input/compiler-invariant classification. These distinctions
 come from the failed semantic/input obligation, not an error-message or
 caller-supplied classification. An action with no established canonical behavior
 or execution contract remains `ARCHITECTURE_BOUNDARY_UNRESOLVED`. This does not
@@ -503,8 +560,11 @@ this relation. Conflicting observations exclude only dependent effects, even
 when the old observation is acquired accepted evidence. Both accepted evidence
 and repository readbacks can establish a premise within their validity scope.
 
-For example, a historical local-ref value A is tracking evidence when the
-same bound writer now has value B. It does not gate an ordinary new commit.
+For example, a documentary historical local-ref value A is tracking evidence
+when the same carrier now has value B. If a consumer instead requires reviewed
+parent A and writing on B would violate that relation, the material mismatch
+blocks that consumer. This does not freeze every historical OID or reacquire
+unrelated carriers.
 A changed branch attachment still invalidates a premise about the selected
 commit resource. HEAD movement does not invalidate that branch premise. Movement in another
 writer carrier is irrelevant. For a simple prompt an optional exact relation
