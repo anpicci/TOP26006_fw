@@ -3278,6 +3278,69 @@ def _given_verification(step: Source_line, fact: Binding, effects: tuple[Effect_
             "rule_source": "governance/contracts/git_lifecycle.md"}
 
 
+def _reconcile_material_consumers(bindings: tuple[Binding, ...], effects: tuple[Effect_intent, ...],
+                                  data: dict[str, Any], edges: list[Trace_edge],
+                                  identity_readiness: list[dict[str, Any]],
+                                  given_readiness: list[dict[str, Any]], blocked: set[str]) -> None:
+    """Close every material dependency against verified consumption.
+
+    Exact selectors retain their single-observation contract. A selected match
+    cannot erase another binding: unselected, unsupported or unacquired facts
+    fence their own consumers. OID and Given checks retain their existing gates.
+    Only verifier-produced exact-observation edges establish literal/relation
+    consumption; source text and coincidentally equal values do not.
+    """
+    checked = {row['binding_id'] for row in identity_readiness + given_readiness}
+    for fact in bindings:
+        if fact.materiality == 'DOCUMENTARY' or not fact.dependent_effect_ids:
+            continue
+        dependencies = set(fact.dependent_effect_ids)
+        _require(len(dependencies) == len(fact.dependent_effect_ids) and
+                 dependencies <= {effect.effect_id for effect in effects},
+                 'COMPILER_INVARIANT_FAILURE', 'material binding has unknown dependent effect')
+        if fact.binding_id in checked:
+            continue
+        identities = {edge.output for edge in edges
+                      if edge.source == f'binding:{fact.binding_id}' and
+                      edge.relation in {'observes_exact_value', 'observes_exact_relation'}}
+        consumers = {edge.output for edge in edges
+                     if edge.source in identities and edge.relation == 'consumed_by'}
+        for usable in (True, False):
+            local = sorted(effect.effect_id for effect in effects
+                           if effect.effect_id in dependencies and
+                           (fact.acquisition == 'acquired' and
+                            fact.source_kind in {'repository_readback', 'accepted_evidence'} and
+                            f'stage:{effect.stage_id}' in consumers) == usable)
+            if not local:
+                continue
+            state = 'already_acquired_material_fact' if usable else 'unsupported_material_premise'
+            observation = fact.observed_state if isinstance(fact.observed_state, dict) else {}
+            row = {'binding_id': fact.binding_id, 'identity_path': observation.get('identity_path'),
+                   'state': state, 'dependent_effect_ids': local, 'verification': None,
+                   'why_material': fact.material_reason}
+            identity_readiness.append(row)
+            prerequisite = {**row, 'source_identity': fact.source_identity,
+                            'validity_scope': fact.validity_scope,
+                            'observed_state': fact.observed_state,
+                            'before_effects': local}
+            key = 'accepted_identity_evidence' if usable else 'must_pass_before_effects'
+            if not usable:
+                blocked.update(local)
+                prerequisite['failure_behavior'] = 'block_only_dependent_effects'
+                prerequisite['required_contract'] = 'acquired exact identity consumed by the named effect'
+            if data.get('stages'):
+                for stage in data['stages']:
+                    stage_local = [effect.effect_id for effect in effects if effect.effect_id in local and
+                                   effect.stage_id == stage['stage_id']]
+                    if stage_local:
+                        stage['stage_inputs'].append({key: {**prerequisite, 'before_effects': stage_local}})
+            else:
+                data['prompt'].setdefault('evidence_requirements', []).append({key: prerequisite})
+            gate = f'gate:identity:{fact.binding_id}'
+            edges.append(Trace_edge(f'binding:{fact.binding_id}', gate, 'requires_material_identity_check'))
+            edges.extend(Trace_edge(gate, f'effect:{effect_id}', 'must_pass_before') for effect_id in local)
+
+
 def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Binding, ...],
             effects: tuple[Effect_intent, ...], continuation: Optional[Continuation],
             shape: str, contents: dict[str, str],
@@ -3780,6 +3843,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                         "why_material": "exact carrier/base relations consumed by planner"
                                         if plan_bound else "documentary only",
                                         "runtime_preflight_sufficient": False})
+    _reconcile_material_consumers(bindings, effects, data, edges, identity_readiness,
+                                  given_readiness, blocked_given_effects)
     data["_given_readiness"] = given_readiness
     data["_identity_readiness"] = identity_readiness
     data["_blocked_given_effects"] = sorted(blocked_given_effects)

@@ -4728,3 +4728,142 @@ def test_material_oid_without_supported_property_fences_only_declared_consumer()
     assert result.receipt['excluded_effects'] == ['commit_writer_a']
     assert result.receipt['identity_readiness'][0]['verification'] is None
     assert 'commit_writer_b' in result.receipt['authorized_effects']
+
+
+@pytest.mark.parametrize('materiality', ['IDENTITY_CRITICAL', 'DECISION_MATERIAL'])
+@pytest.mark.parametrize('acquisition', ['acquired', 'pending', 'not_acquired'])
+def test_lane15_non_oid_competitor_blocks_only_its_consumer(materiality, acquisition):
+    data = parallel_data()
+    ab_dispatch_bindings(data)
+    fact = _binding(data, 'worker_contract.integration_target_branch')
+    fact.update(dependent_effect_ids=['integrate'], material_reason='exact integration target')
+    extra = deepcopy(fact)
+    extra.update(binding_id='competing_identity', materiality=materiality, acquisition=acquisition)
+    extra['observed_state']['value'] = 'other'
+    data['bindings'].append(extra)
+    result = run(PARALLEL, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['excluded_effects'] == ['integrate']
+    assert 'integrate' not in result.receipt['authorized_effects']
+    assert 'commit_writer_b' in result.receipt['authorized_effects']
+    assert 'competing_identity' in result.receipt['unresolved_evidence']
+    row = next(r for r in result.receipt['identity_readiness'] if r['binding_id'] == extra['binding_id'])
+    assert row['state'] == 'unsupported_material_premise'
+    integration = next(s for s in prompt_yaml(result)['workflow_stages'] if s['stage_id'] == 'integration')
+    gate = next(r['must_pass_before_effects'] for r in integration['stage_inputs']
+                if isinstance(r, dict) and r.get('must_pass_before_effects', {}).get('binding_id') == extra['binding_id'])
+    assert gate['before_effects'] == ['integrate']
+    assert gate['failure_behavior'] == 'block_only_dependent_effects'
+    readiness = next(r for r in result.receipt['stage_readiness'] if r['stage_id'] == 'integration')
+    assert readiness['blocked_by_effects'] == ['integrate']
+    assert not readiness['eligible_to_enter_preflight']
+    # Other roots can enter; dispatchability never licenses the blocked stage.
+    assert result.receipt['dispatchability']['dispatchable']
+
+
+@pytest.mark.parametrize('history', ['none', 'DOCUMENTARY', 'DECISION_MATERIAL'])
+def test_lane15_agreeing_non_oid_and_unconsumed_history_remain_eligible(history):
+    data = parallel_data()
+    ab_dispatch_bindings(data)
+    fact = _binding(data, 'worker_contract.integration_target_branch')
+    fact.update(dependent_effect_ids=['integrate'], material_reason='exact integration target')
+    if history != 'none':
+        extra = deepcopy(fact)
+        extra.update(binding_id='history', materiality=history, dependent_effect_ids=[])
+        extra['observed_state']['value'] = 'historical_branch'
+        data['bindings'].append(extra)
+    result = run(PARALLEL, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['excluded_effects'] == []
+    assert 'integrate' in result.receipt['authorized_effects']
+    assert result.receipt['unresolved_evidence'] == []
+    assert result.receipt['dispatchability']['dispatchable']
+    row, = result.receipt['identity_readiness']
+    assert row['binding_id'] == fact['binding_id']
+    assert row['state'] == 'already_acquired_material_fact'
+    integration = next(s for s in prompt_yaml(result)['workflow_stages'] if s['stage_id'] == 'integration')
+    assert any(isinstance(r, dict) and r.get('accepted_identity_evidence', {}).get('before_effects') == ['integrate']
+               for r in integration['stage_inputs'])
+
+
+@pytest.mark.parametrize('damage', ['repository', 'carrier', 'consumer', 'unconsumed'])
+def test_lane15_material_relation_requires_exact_consumption(damage):
+    data = parallel_data()
+    ab_dispatch_bindings(data)
+    fact = _binding(data, 'worker_contract.writers.writer_a.carrier')
+    extra = deepcopy(fact)
+    extra.update(binding_id='relation_dependency', dependent_effect_ids=['commit_writer_a'],
+                 material_reason='consumer carrier identity')
+    if damage == 'repository':
+        extra['observed_state']['value']['repository'] = 'foreign'
+    elif damage == 'carrier':
+        extra['observed_state']['value']['worktree'] = '/foreign'
+    elif damage == 'consumer':
+        # An exact consumed observation cannot qualify an unrelated consumer.
+        fact.update(dependent_effect_ids=['commit_writer_b'], material_reason='wrong consumer')
+        extra = None
+    else:
+        extra['observed_state']['identity_path'] = 'unsupported.carrier'
+    if extra:
+        data['bindings'].append(extra)
+    target = 'commit_writer_b' if damage == 'consumer' else 'commit_writer_a'
+    result = run(PARALLEL, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['excluded_effects'] == [target]
+    assert target not in result.receipt['authorized_effects']
+    assert ('commit_writer_a' if damage == 'consumer' else 'commit_writer_b') in result.receipt['authorized_effects']
+    row, = result.receipt['identity_readiness']
+    assert row['state'] == 'unsupported_material_premise'
+    assert row['binding_id'] in result.receipt['unresolved_evidence']
+    assert result.receipt['dispatchability']['dispatchable']
+    stage = next(s for s in prompt_yaml(result)['workflow_stages'] if s['stage_id'] == target.removeprefix('commit_'))
+    assert any(isinstance(r, dict) and r.get('must_pass_before_effects', {}).get('before_effects') == [target]
+               for r in stage['stage_inputs'])
+
+
+@pytest.mark.parametrize('shape', ['simple', 'orchestrated'])
+def test_lane15_unknown_material_consumer_is_invariant_failure(shape):
+    feature, data = documentation_data() if shape == 'simple' else (PARALLEL, parallel_data())
+    bind_state(data, 'unconsumed.identity', 'value')
+    data['bindings'][-1].update(dependent_effect_ids=['unknown'], material_reason='unknown consumer')
+    result = run(feature, data)
+    assert result.compiler_result == 'COMPILER_INVARIANT_FAILURE', result.receipt
+    assert result.receipt['authorized_effects'] == []
+    assert result.receipt['excluded_effects']
+    assert not result.receipt['dispatchability']['dispatchable']
+    assert not result.prompt
+    assert 'unknown dependent effect' in result.receipt['diagnostics'][0]['message']
+
+
+@pytest.mark.parametrize('acquisition', ['acquired', 'pending', 'not_acquired'])
+def test_lane15_simple_unconsumed_material_binding_blocks_dispatch(acquisition):
+    feature, data = material_given_data('the selected commit branch is checked out')
+    ab_dispatch_bindings(data)
+    extra = deepcopy(data['bindings'][-2])  # the linked Given, before conformance evidence
+    assert extra['binding_id'] == 'given_ref'
+    extra.update(binding_id='unconsumed', acquisition=acquisition)
+    extra['observed_state'] = {'identity_path': 'unconsumed.branch', 'value': 'other'}
+    data['bindings'].append(extra)
+    result = run(feature, data)
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', result.receipt
+    assert result.receipt['excluded_effects'] == ['commit_ref']
+    assert result.receipt['authorized_effects'] == ['effect_1']
+    assert not result.receipt['dispatchability']['dispatchable']
+    assert 'unconsumed' in result.receipt['unresolved_evidence']
+    row, = result.receipt['identity_readiness']
+    assert row['state'] == 'unsupported_material_premise'
+    assert any(isinstance(r, dict) and r.get('must_pass_before_effects', {}).get('binding_id') == 'unconsumed'
+               for r in prompt_yaml(result)['evidence_requirements'])
+
+
+def test_lane15_agreeing_duplicate_keeps_exact_observation_contract():
+    data = parallel_data()
+    fact = _binding(data, 'worker_contract.integration_target_branch')
+    fact.update(dependent_effect_ids=['integrate'], material_reason='exact integration target')
+    data['bindings'].append({**deepcopy(fact), 'binding_id': 'duplicate'})
+    result = run(PARALLEL, data)
+    assert result.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+    assert result.receipt['authorized_effects'] == []
+    assert 'integrate' in result.receipt['excluded_effects']
+    assert not result.receipt['dispatchability']['dispatchable']
+    assert 'one exact acquired value-bearing readback' in result.receipt['diagnostics'][0]['message']
