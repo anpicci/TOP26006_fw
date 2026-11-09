@@ -6,7 +6,7 @@ import yaml
 
 from tools import governance_workflow_compiler as compiler
 from test_governance_workflow_compiler import (
-    run, LIFECYCLE, lifecycle_data, ordered_resource_fixture, prompt_yaml,
+    run, policy_repository, policy_source, LIFECYCLE, lifecycle_data, ordered_resource_fixture, prompt_yaml,
     SIMPLE, base_data, MULTI_REPO, multi_repo_data)
 
 
@@ -347,3 +347,123 @@ def test_accepted_review_artifact_projection_is_canonical():
     postimages=next(v['exact_reviewed_postimages'] for v in edit['stage_inputs']
                    if isinstance(v,dict) and 'exact_reviewed_postimages' in v)
     assert observation['value']['postimages']==postimages
+
+
+
+@pytest.mark.parametrize('competitor', [False, True])
+def test_final_hardening_ordered_review_consumption(competitor):
+    feature, data = qualification_capability_cases()['H3']
+    context = next(v for v in data['ordered_action_bindings'].values() if 'reuse_review_binding' in v)
+    fact = next(b for b in data['bindings'] if b['binding_id'] == context['reuse_review_binding'])
+    effect_ids = [e['effect_id'] for e in data['requested_effects'] if e['stage_id'] == 'edit']
+    fact.update(dependent_effect_ids=effect_ids, material_reason='exact accepted edit result')
+    if competitor:
+        extra = deepcopy(fact)
+        extra['binding_id'] = 'contradictory_review'
+        extra['observed_state']['value']['review_evidence'] = 'different review'
+        data['bindings'].append(extra)
+    result = run(feature, data)
+    assert result.compiler_result in {'COMPILED_CONFORMING_CANDIDATE', 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'}, result.receipt
+    assert result.prompt
+    assert set(result.receipt['excluded_effects']) == (set(effect_ids) if competitor else set())
+    assert 'remove_worktree_0' in result.receipt['authorized_effects']
+    selected = [r for r in result.receipt['identity_readiness'] if r['binding_id'] == fact['binding_id']]
+    assert selected and all(r['state'] == 'already_acquired_material_fact' for r in selected)
+
+
+@pytest.mark.parametrize('closed', [False, True])
+def test_final_hardening_completed_dependent_effect(closed):
+    from test_governance_workflow_compiler import dependent_data
+    data = dependent_data()
+    fact = next(b for b in data['bindings'] if b.get('observed_state', {}).get('identity_path') == 'continuation.accepted_effect_state')
+    fact.update(dependent_effect_ids=['advance_topcoffea' if closed else 'advance_topeft'],
+                material_reason='accepted effect state')
+    result = run(MULTI_REPO.replace('write candidates', 'write candidates and integrate'), data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['authorized_effects'] == ['advance_topeft']
+    assert result.receipt['excluded_effects'] == []
+    assert 'advance_topcoffea' in result.receipt['reused_accepted_effects']
+    assert [s['stage_id'] for s in prompt_yaml(result)['workflow_stages']] == ['readback', 'integrate_topeft']
+
+
+def test_final_hardening_reused_writer_dependency_is_closed():
+    import test_governance_workflow_compiler as t
+    data = t.q04_data()
+    t.bind_state(data, 'closed.writer', 'accepted')
+    data['bindings'][-1].update(dependent_effect_ids=['commit_writer_b'], material_reason='closed writer')
+    result = run(t.Q04_FEATURE, data)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert 'commit_writer_b' in result.receipt['reused_accepted_effects']
+    assert 'commit_writer_b' not in [e['effect_id'] for e in result.receipt['requested_effects']]
+    assert 'writer_b' not in [s['stage_id'] for s in prompt_yaml(result)['workflow_stages']]
+
+
+@pytest.mark.parametrize('dependencies,valid', [(['effect_1'], True), (['unknown'], False), (['effect_1', 'effect_1'], False)])
+def test_final_hardening_documentary_dependencies(dependencies, valid):
+    import test_governance_workflow_compiler as t
+    feature, data = t.documentation_data()
+    t.bind_state(data, 'documentary.context', 'context')
+    data['bindings'][-1].update(materiality='DOCUMENTARY', dependent_effect_ids=dependencies)
+    result = run(feature, data)
+    assert result.compiler_result == ('COMPILED_CONFORMING_CANDIDATE' if valid else 'COMPILER_INVARIANT_FAILURE'), result.receipt
+    if valid:
+        assert 'effect_1' in result.receipt['authorized_effects']
+        assert not result.receipt['identity_readiness']
+    else:
+        assert not result.prompt
+
+
+@pytest.mark.parametrize('acquisition', ['pending', 'not_acquired'])
+def test_final_hardening_unresolved_evidence_is_unique(acquisition):
+    import test_governance_workflow_compiler as t
+    feature, data = t.material_given_data('the selected commit branch is checked out')
+    t.ab_dispatch_bindings(data)
+    extra = deepcopy(next(b for b in data['bindings'] if b['binding_id'] == 'given_ref'))
+    extra.update(binding_id='unconsumed_once', acquisition=acquisition)
+    extra['observed_state'] = {'identity_path':'unsupported.branch', 'value':'other'}
+    data['bindings'].append(extra)
+    result = run(feature, data)
+    assert result.receipt['unresolved_evidence'].count('unconsumed_once') == 1
+    assert result.receipt['excluded_effects'] == ['commit_ref']
+    assert not result.receipt['dispatchability']['dispatchable']
+
+
+@pytest.mark.parametrize('path,valid', [('/workspace/protected/output', False), ('protected/output', False),
+                                       ('other/output', True), ('../protected/output', False)])
+def test_final_hardening_relative_storage_negative_scope(path, valid):
+    data = base_data()
+    data['prompt']['read_only'] = {'TOP26006_fw': ['/workspace/protected']}
+    data['prompt']['allowed_to_modify']['TOP26006_fw']['storage_paths'] = [path]
+    result = run(data=data)
+    assert result.compiler_result == ('COMPILED_CONFORMING_CANDIDATE' if valid else 'COMPILER_INVARIANT_FAILURE'), result.receipt
+
+
+@pytest.mark.parametrize('authorization', ['generic', 'exact', 'wrong_ref', 'wrong_source', 'wrong_effect', 'documentary', 'pending', 'fast_forward'])
+def test_final_hardening_non_fast_forward_authority(authorization):
+    import test_governance_workflow_compiler as t
+    data = base_data()
+    feature = 'Feature: local ref maintenance\nScenario: exact move\nGiven bound ref\nWhen I move the local ref\nThen the report cites evidence'
+    target = 'refs/heads/local_target'
+    data['prompt'].update(prompt_mode='branch_maintenance_only', branch_policy='continue_existing_branch',
+        target_branch='local_target', allowed_to_modify={'TOP26006_fw': [target]},
+        branch_maintenance_action='restore_exact_local_ref', affected_local_branches=['local_target'],
+        expected_preserved_head='a'*40, preservation_ref='refs/heads/preserved',
+        reference_restore_source='b'*40, non_fast_forward_ref_move_authorized=authorization != 'fast_forward')
+    t.add_effect(data, 'local_git_ref_write', target, 4, 'allowed_to_modify')
+    data['prompt']['heavy_command_permissions'] = {'allowed_to_modify':data['prompt']['allowed_to_modify']}
+    if authorization not in {'generic', 'fast_forward'}:
+        fact = data['bindings'][-1]
+        value = {key:data['prompt'][key] for key in ('branch_maintenance_action', 'expected_preserved_head',
+                 'preservation_ref', 'reference_restore_source')}
+        value.update(effect_id='effect_1', repository_id='TOP26006_fw', target_ref=target,
+                     non_fast_forward_ref_move_authorized=True)
+        if authorization == 'wrong_ref': value['target_ref'] = 'refs/heads/foreign'
+        if authorization == 'wrong_source': value['reference_restore_source'] = 'c'*40
+        if authorization == 'wrong_effect': value['effect_id'] = 'other_effect'
+        if authorization == 'documentary': fact['materiality'] = 'DOCUMENTARY'
+        if authorization == 'pending': fact['acquisition'] = 'pending'
+        fact['observed_state'] = {'identity_path':'branch_maintenance.non_fast_forward_ref_move', 'value':value}
+    result = run(feature, data)
+    accepted = authorization in {'exact', 'fast_forward'}
+    assert result.compiler_result == ('COMPILED_CONFORMING_CANDIDATE' if accepted else 'NOT_READY_MISSING_AUTHORITY_BINDING'), result.receipt
+    assert bool(result.prompt) == accepted

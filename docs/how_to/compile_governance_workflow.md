@@ -234,6 +234,48 @@ unconsumed documentary historical HEAD/base fields are tracking-only. An
 effect and harmful mismatch retains its gate and blocks only that consumer.
 A wrong repository/path/ref/owner still fails closed.
 
+Declared `dependent_effect_ids` are validated against the complete requested
+effect inventory, including documentary bindings. Completed or reused effects
+remain closed and are never recreated as executable effects. Material premises
+gate only their still-open declared consumers. Exact review relations selected
+by the ordered planner and accepted partial state selected for dependent
+advancement use the same observation/consumption trace as other exact relations;
+an unselected contradictory observation still fences its own consumers.
+Receipt `unresolved_evidence` lists each binding ID once.
+
+Storage resources in negative-scope checks use the repository location to
+resolve relative paths. Equivalent absolute and relative writable/read-only
+resources overlap; a relative resource cannot escape the repository root.
+
+A branch-maintenance non-fast-forward ref move needs more than a generic
+`local_git_ref_write` owner binding and a positive
+`non_fast_forward_ref_move_authorized` field. The same effect-specific owner
+binding must be acquired and material, name the exact repository and target,
+and carry this structured decision in `observed_state`:
+
+```yaml
+identity_path: branch_maintenance.non_fast_forward_ref_move
+value:
+  effect_id: restore_ref
+  repository_id: TOP26006_fw
+  target_ref: refs/heads/local_target
+  non_fast_forward_ref_move_authorized: true
+  branch_maintenance_action: restore_exact_local_ref
+  expected_preserved_head: <exact old commit OID>
+  preservation_ref: refs/heads/preserved
+  reference_restore_source: <exact authorized local commit or ref>
+```
+
+The decision fields must match the branch-maintenance action contract,
+including its target branch and affected branches. This check supplies no
+merge, reset, rebase, execution or promotion authority.
+
+Compiler tests explicitly bind policy to a disposable Git repository assembled
+from maintained checkout policy files. The fixture supplies that repository to
+`compile_contract`; it requires no local `refs/heads/master` in the development
+carrier and does not fall back to a different checkout. Production policy
+selection still requires master in the explicitly selected policy repository.
+
 The existing `stage:<producer>:<output>` convention transports a produced
 reviewed result to its actual consumer. A typed `Result_ref` decodes this
 transport at the IR boundary. `Stage_spec` and `Result_graph` establish unique

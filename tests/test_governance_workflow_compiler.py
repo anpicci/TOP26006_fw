@@ -12,6 +12,48 @@ from tools import governance_workflow_compiler as compiler
 from tools.governance_workflow_compiler import HISTORICAL_CASES, compile_contract
 
 
+def policy_fixture_paths():
+    return set(compiler.GOVERNANCE) | {
+        '.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py',
+        '.agents/skills/correction-lib-prompt-contract/references/prompt_schema.json',
+        'governance/modules/topcoffea.md', 'governance/modules/topeft.md',
+    }
+
+
+def make_policy_repository(policy, bodies):
+    """Existing disposable policy-repository mechanism, shared by fixtures."""
+    import subprocess
+    policy.mkdir()
+    for relative, body in bodies.items():
+        target = policy/relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(body)
+    def git(*args):
+        return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', '-C', str(policy), *args],
+                                       stderr=subprocess.STDOUT, text=True)
+    git('init', '-b', 'master')
+    git('add', *sorted(bodies))
+    git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'Policy fixture')
+    return git
+
+
+@pytest.fixture(scope='session')
+def policy_repository(tmp_path_factory):
+    # Test policy is explicitly the maintained checkout content. No local master
+    # ref, parent checkout or unrelated repository supplies an implicit fallback.
+    source = Path(__file__).resolve().parents[1]
+    policy = tmp_path_factory.mktemp('compiler_policy')/'policy'
+    make_policy_repository(policy, {path:(source/path).read_bytes() for path in policy_fixture_paths()})
+    return policy
+
+
+@pytest.fixture(autouse=True)
+def policy_source(policy_repository, monkeypatch):
+    monkeypatch.setattr(compiler, 'ROOT', policy_repository)
+    monkeypatch.setattr(compiler, 'VALIDATOR', policy_repository/'.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py')
+    return policy_repository
+
+
 SIMPLE = """Feature: bounded inspection
   # A comment remains inert.
   Scenario: inspect one document
@@ -100,8 +142,9 @@ def fixture_graph(feature, bindings_yaml):
     return '\n'.join(lines), yaml.safe_dump(data, sort_keys=False)
 
 
-def compile_fixture(feature, bindings_yaml, source_id='inline-case'):
-    return compile_contract(*fixture_graph(feature, bindings_yaml), source_id)
+def compile_fixture(feature, bindings_yaml, source_id='inline-case', *, policy_repository=None):
+    return compile_contract(*fixture_graph(feature, bindings_yaml), source_id,
+                            policy_repository=compiler.ROOT if policy_repository is None else policy_repository)
 
 
 def bind_state(data, identity_path, value, repo_id="TOP26006_fw"):
@@ -4602,22 +4645,8 @@ def test_candidate_policy_as_master_preserves_corrected_compiler_boundaries(tmp_
     """Simulate promotion in pytest-owned disposable Git state, never real refs."""
     import subprocess
     policy = tmp_path/'policy'
-    policy.mkdir()
-    paths = set(compiler.GOVERNANCE) | {
-        '.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py',
-        '.agents/skills/correction-lib-prompt-contract/references/prompt_schema.json',
-        'governance/modules/topcoffea.md', 'governance/modules/topeft.md',
-    }
     source = Path(__file__).resolve().parents[1]
-    for relative in paths:
-        target = policy/relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((source/relative).read_bytes())
-    def git(*args):
-        return subprocess.check_output(['git','-c','core.hooksPath=/dev/null','-C',str(policy),*args],stderr=subprocess.STDOUT,text=True)
-    git('init','-b','master')
-    git('add', *sorted(paths))
-    git('-c','user.name=Test','-c','user.email=test@example.invalid','commit','-m','Candidate policy fixture')
+    git = make_policy_repository(policy, {path:(source/path).read_bytes() for path in policy_fixture_paths()})
     before = git('rev-parse','refs/heads/master').strip()
     monkeypatch.setattr(compiler, 'ROOT', policy)
     assert 'optional maintained authoring' in git('show','refs/heads/master:AGENTS.md')
@@ -4867,3 +4896,19 @@ def test_lane15_agreeing_duplicate_keeps_exact_observation_contract():
     assert 'integrate' in result.receipt['excluded_effects']
     assert not result.receipt['dispatchability']['dispatchable']
     assert 'one exact acquired value-bearing readback' in result.receipt['diagnostics'][0]['message']
+
+
+
+def test_final_hardening_explicit_policy_without_local_master(tmp_path, monkeypatch, policy_source):
+    import subprocess
+    no_master = tmp_path/'carrier'
+    no_master.mkdir()
+    subprocess.run(['git', '-C', str(no_master), 'init', '-b', 'carrier_only'], check=True, capture_output=True)
+    monkeypatch.setattr(compiler, 'ROOT', no_master)
+    assert subprocess.run(['git', '-C', str(no_master), 'rev-parse', '--verify', 'refs/heads/master'],
+                          capture_output=True).returncode != 0
+    missing = compiler.compile_contract(*fixture_graph(SIMPLE, yaml.safe_dump(base_data())))
+    assert missing.compiler_result == 'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE'
+    result = compile_fixture(SIMPLE, yaml.safe_dump(base_data()), policy_repository=policy_source)
+    assert result.compiler_result == 'COMPILED_CONFORMING_CANDIDATE', result.receipt
+    assert result.receipt['policy_source_binding']['repository'] == str(policy_source)

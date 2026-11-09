@@ -1121,6 +1121,9 @@ def _verify_negative_scope(prompt: dict[str, Any], stages: list[dict[str, Any]])
                 if positive and kind == "git_index_entries":
                     result.append(("path", tuple(posixpath.join(root, ".git/index").split("/"))))
             else:
+                if kind == "storage_paths" and not path.startswith("/"):
+                    parts = _tracked_target_identity(path, "COMPILER_INVARIANT_FAILURE")
+                    path = posixpath.join(root, *parts)
                 result.append(("path" if kind == "storage_paths" else kind, tuple(posixpath.normpath(path).split("/"))))
         return result
 
@@ -1964,6 +1967,10 @@ def _plan_ordered(data: dict[str, Any], intent: Semantic_intent,
                          'review_evidence': context['review_evidence']}, repo, 'accepted_evidence')
                     _require(binding_id == context['reuse_review_binding'],
                              'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE', 'accepted review relation differs')
+                    _relation_edge(bindings, data['_planner_relation_edges'],
+                        'ordered_action_bindings.' + action.source_id + '.reviewed_result',
+                        {'paths': paths, 'postimages': context['reviewed_postimages'],
+                         'review_evidence': context['review_evidence']}, repo, action.stage_id, 'accepted_evidence')
                     accepted_review = asdict(next(b for b in bindings if b.binding_id == binding_id))
                     observation = accepted_review['observed_state']
                     observation['value'] = _related_values(observation['identity_path'], observation['value'])
@@ -2186,6 +2193,8 @@ def _plan_dependent(data: dict[str, Any], intent: Semantic_intent,
              "integrate_topeft" in c["delta_scope"] and
              state["target_heads"]["topeft"] != state["candidate_heads"]["topeft"],
              "NOT_READY_MISSING_AUTHORITY_BINDING", "remaining consumer action needs exact non-replayed local effect")
+    _relation_edge(bindings, data['_planner_relation_edges'], "continuation.accepted_effect_state",
+                   state, "topcoffea", "integrate_topeft", "accepted_evidence")
     stages.append({"stage_id": "integrate_topeft", "stage_mode": "integration_only", "repository_id": "topeft",
         "stage_goal": "Advance only the remaining consumer to its accepted exact candidate",
         "stage_effect_permissions": {"allowed_to_modify": {"topeft": {"local_refs": [target]}}},
@@ -3294,10 +3303,7 @@ def _reconcile_material_consumers(bindings: tuple[Binding, ...], effects: tuple[
     for fact in bindings:
         if fact.materiality == 'DOCUMENTARY' or not fact.dependent_effect_ids:
             continue
-        dependencies = set(fact.dependent_effect_ids)
-        _require(len(dependencies) == len(fact.dependent_effect_ids) and
-                 dependencies <= {effect.effect_id for effect in effects},
-                 'COMPILER_INVARIANT_FAILURE', 'material binding has unknown dependent effect')
+        dependencies = set(fact.dependent_effect_ids) & {effect.effect_id for effect in effects}
         if fact.binding_id in checked:
             continue
         identities = {edge.output for edge in edges
@@ -3536,6 +3542,7 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
     edges.extend(Trace_edge(f"line:{s.line}", "prompt:prompt_mode", "requests_action")
                  for s in intent.steps if s.keyword == "When")
     edges.extend(stage_edges)
+    edges.extend(data['_planner_relation_edges'])
     identity_readiness: list[dict[str, Any]] = []
     blocked_identity_effects: set[str] = set()
     def bind_identity(path: str, value: str, repo_id: str, stage_id: str, oid: bool = False) -> None:
@@ -3546,10 +3553,10 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                 edges.append(Trace_edge(f"tracking:{path}={value}", f"stage:{stage_id}", "records_observation_only"))
                 return
             for fact in material:
-                dependencies = tuple(fact.dependent_effect_ids)
-                _require(len(dependencies) == len(set(dependencies)) and
-                         set(dependencies) <= {effect.effect_id for effect in effects},
-                         "COMPILER_INVARIANT_FAILURE", "material identity has unknown dependent effect")
+                dependencies = tuple(effect_id for effect_id in fact.dependent_effect_ids
+                                     if effect_id in data['_executable_effect_ids'])
+                if not dependencies:
+                    continue
                 expected = fact.observed_state.get("value")
                 owner = next((stage for stage in data.get("stages", []) if stage["stage_id"] == stage_id), prompt)
                 target = "refs/heads/" + str(owner.get("target_branch", owner.get("feature_branch")))
@@ -3722,12 +3729,9 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                 _require(linked in by_id, "NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE",
                          "Given names an unknown binding", step.line)
                 fact = by_id[linked]
-                dependencies = tuple(fact.dependent_effect_ids)
-                _require(len(dependencies) == len(set(dependencies)) and
-                         all(any(effect.effect_id == effect_id for effect in effects)
-                             for effect_id in dependencies),
-                         "COMPILER_INVARIANT_FAILURE", "Given has unknown dependent effect", step.line)
-                _require(fact.materiality == "DOCUMENTARY" or bool(dependencies),
+                dependencies = tuple(effect_id for effect_id in fact.dependent_effect_ids
+                                     if effect_id in data['_executable_effect_ids'])
+                _require(fact.materiality == "DOCUMENTARY" or bool(fact.dependent_effect_ids),
                          'NOT_READY_MISSING_DECISION_MATERIAL_EVIDENCE',
                          "material Given has no declared dependent effect", step.line)
                 check = None
@@ -3737,6 +3741,8 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
                                             f"binding:{linked}", "documentary_only"))
                     state = "non_material_documentary_premise"
                     dependencies = ()
+                elif not dependencies:
+                    state = "closed_accepted_dependency"
                 else:
                     check = _given_verification(step, fact, effects, data, by_id)
                     portable = _accepted_writer_given(step, fact, effects, continuation, set(data["repositories"]))
@@ -3908,6 +3914,24 @@ def _verify(data: dict[str, Any], intent: Semantic_intent, bindings: tuple[Bindi
             if data.get("stages") else prompt
         effective_mode = action_context["stage_mode"] if data.get("stages") else mode
         branch_policy = action_context.get("stage_branch_policy") if data.get("stages") else branch
+        if effect.effect == "local_git_ref_write" and action_context.get(
+                "non_fast_forward_ref_move_authorized") in (True, "yes"):
+            # A generic ref grant and a positive field do not bind the owner's
+            # exact non-fast-forward decision. Reuse the effect's owner binding.
+            fields = ("branch_maintenance_action", "expected_preserved_head",
+                      "preservation_ref", "reference_restore_source")
+            decision = {key: action_context.get(key) for key in fields}
+            decision.update(effect_id=effect.effect_id, repository_id=effect_repo,
+                            target_ref=effect.target, non_fast_forward_ref_move_authorized=True)
+            _require(effective_mode == "branch_maintenance_only" and
+                     all(isinstance(decision[key], str) and decision[key] and
+                         not decision[key].startswith("none") for key in fields) and
+                     effect.target == "refs/heads/" + str(action_context.get("target_branch")) and
+                     action_context.get("target_branch") in action_context.get("affected_local_branches", []) and
+                     binding.materiality in {"IDENTITY_CRITICAL", "DECISION_MATERIAL"} and
+                     binding.observed_state == {"identity_path": "branch_maintenance.non_fast_forward_ref_move",
+                                                "value": decision},
+                     "NOT_READY_MISSING_AUTHORITY_BINDING", "non-fast-forward ref move lacks exact owner decision")
         if effect.effect == "tracked_write":
             _require(effective_mode in {"coding", "documentation_only", "test_alignment_only"} and
                      branch_policy != "read_only_current_branch",
@@ -4404,6 +4428,14 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
         intent = _normalize_semantics(intent, data, effects)
         if any(row.domain == "structured_action" for row in _partition_rows(intent)):
             effects = tuple(effect for row in _partition_rows(intent) for effect in row.effects)
+        # Validate structural references against the full requested inventory,
+        # including documentary and subsequently closed continuation effects.
+        requested_ids = {effect.effect_id for effect in effects}
+        for fact in bindings:
+            dependencies = set(fact.dependent_effect_ids)
+            _require(len(dependencies) == len(fact.dependent_effect_ids) and dependencies <= requested_ids,
+                     'COMPILER_INVARIANT_FAILURE', 'binding has duplicate or unknown dependent effect')
+        data['_planner_relation_edges'] = []
         receipt["semantic_partition"] = asdict(intent.partition)
         continuation = _continuation(data)
         shape = _shape(data, intent, effects, bindings, continuation)
@@ -4424,6 +4456,7 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             protected = set(state.get("completed_stages", []))
             receipt["reused_accepted_effects"] = [e.effect_id for e in effects if e.stage_id in protected]
             effects = tuple(e for e in effects if e.stage_id not in protected)
+        data['_executable_effect_ids'] = {effect.effect_id for effect in effects}
         if shape == "controller_local_workflow":
             context = data["prompt"]
             _require(context.get("branch_policy") == "continue_existing_branch" and
@@ -4629,13 +4662,13 @@ def compile_contract(gherkin: str, bindings_yaml: str, source_id: str = "inline"
             "authorized_effects": [effect_id for effect_id in authorized if effect_id not in blocked_effects],
             "excluded_effects": sorted(set(excluded) | blocked_effects),
             "unresolved_decisions": [],
-            "unresolved_evidence": [b.binding_id for b in bindings
+            "unresolved_evidence": list(dict.fromkeys([b.binding_id for b in bindings
                                     if b.acquisition in {"pending", "not_acquired"} and
                                     not _historical_protected_carrier(b, continuation)] +
                                    [row["binding_id"] for row in data.get("_identity_readiness", [])
                                     if row["state"] == "unsupported_material_premise"] +
                                    ([] if owner_ready else ["owner_authorization_gate"]) +
-                                   ([] if manual_conformant else ["manual_governance_review"]),
+                                   ([] if manual_conformant else ["manual_governance_review"]))),
             "traceability": receipt["traceability"],
             "derived_fields": {"selected_execution_shape": DERIVATION, "prompt_mode": DERIVATION,
                                "canonical_vocabulary": READBACK, "authority_and_runtime_facts": READBACK,
