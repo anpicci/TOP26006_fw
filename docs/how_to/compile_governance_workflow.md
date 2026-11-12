@@ -698,6 +698,11 @@ and mechanical checks only, without claiming runtime applicability,
 execution, review or acceptance. The Mermaid route above explains authoring;
 the compiler consumes the ASCII source diagram, not Mermaid.
 
+For a separate task followed through execution and bounded acceptance, see
+the [worked reader example](../tutorials/05_review_and_accept_returned_evidence.md#a-worked-example-from-compiled-prompt-to-returned-evidence).
+It connects the compiled prompt to returned native evidence and its review; the
+compiled-only example above explains the earlier state before dispatch.
+
 The source diagram describes semantic dependencies at the granularity of the
 steps. Given premises feed actions; observable assertions depend on their
 scenario's actions. Independent assertions are separate branches, not serial
