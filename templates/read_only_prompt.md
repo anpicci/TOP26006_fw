@@ -1,15 +1,30 @@
-# Illustrative read-only prompt skeleton — not dispatch-ready
+# Read-only prompt — candidate authoring aid, not dispatch-ready
 
-Research question: [one bounded, falsifiable question]
+CPC/AGENTS below are candidate content pending adoption. For actual dispatch
+use current master authority. Replace every slot and select all applicable
+activity-triggered contracts. A field count or lint result is not authorization.
 
-Repository and source paths: [exact identity and paths]
+```text
+prompt_id: [stable identity]
+task_revision: [revision]
+decision_question: [one decision and owner boundary]
+prompt_mode: investigation_only
+delegation_policy: [selection]
+allowed_to_modify: [exact diagnostics scope or empty map]
+read_only: [exact inputs and protected resources]
+validation_ceiling: static_inspection_only
+```
 
-Read-only evidence work: [specific observations and permitted commands]
-
-Expected evidence: [inputs, provenance, command outputs, independent check, limits]
-
-Stop if: [missing authority, changed state, ambiguity, or new scientific decision]
-
-Human reviewer and acceptance boundary: [name role and needed decision]
-
-This is an illustration, not the current mandatory field catalog or an authorization. The prompt author must read live [CPC.md](../CPC.md), [AGENTS.md](../AGENTS.md), and applicable native policy, supply all required metadata and permissions, and validate the actual dispatch. Filling blanks does not make it dispatchable.
+Run binding: [complete author-selected configuration, rationale and retained guide versions in this delivery, outside explicit task-byte boundaries].
+Mandate/authority: [actual provenance, no scientific choice inferred].
+Repository/profile: [typed IDs, exact profile input; explicit material paths].
+Branch/grants: [read_only_current_branch and exact positive capability map;
+no tracked writes, no inferred network grant].
+Inputs/procedure/result: [actual contents/conventions, observable deliverable].
+Planned graph: [apply CPC’s unique shared text/node IDs and Mermaid-only rule; derived one-node or larger view with source locators, relation
+status and join/partial semantics; no effect authority].
+Evidence/stops: [bounded checks, limits and independent valid partial results].
+Delivery: existing report and actual empty tracked patch, observed graph and
+attempt contents; [any material language/format exception].
+Acceptance: [responsible evidence and scientific roles; executor/reviewer do
+not accept their own result].

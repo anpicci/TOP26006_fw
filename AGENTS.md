@@ -27,11 +27,11 @@ contract when those mechanics are needed; scientific, producer/consumer, test,
 affected-consumer and production/runtime validation remain task-specific.
 Minimum-sufficient serial or single-repository execution remains valid.
 
-The D8 governance-workflow compiler is an optional maintained authoring
-capability for the qualified supported patterns. Manual governed authoring
-remains a first-class route. Compiler input, Gherkin, `Given`, tags, receipts
-and lint cannot create authority, decide science, prove execution or review,
-or confer owner/lane acceptance.
+Prompts are consumed directly under CPC.md. The compiler/Gherkin authoring
+route is retired in this candidate. Historical inputs, receipts and accepted
+evidence remain historical records; they create no authority, scientific
+decision, execution proof or owner/lane acceptance. No successor adapter or
+compatibility requirement is implied.
 
 Use the minimum sufficient scope. Preserve foreign work. Do not expand scope,
 clean up, add compatibility shims or rewrite history without exact authority.
@@ -113,8 +113,19 @@ not certify governance completeness, authorization or acceptance.
 
 ## Scope, effects and capability
 
-Every prompt names repository IDs, preflighted paths, allowed_to_modify and
-read_only. No repository is implicitly writable, including TOP26006_fw.
+Name selected typed repository IDs and exact scoped targets, and bind the
+existing YAML installation profile input. The author fixes repository identity,
+semantic branch/target roles, exact effects and material physical bindings;
+the executor resolves, verifies, serializes and reopens workspace_root,
+repo_locations and volatile applicability facts before each dependent effect.
+Supply explicit paths when the profile is unusable or cannot uniquely bind the
+authorized target. Dispatchable includes mandatory runtime preflight; author-side
+observation of volatile facts is not universally required. Ambiguity of target
+ownership or a real owner/scientific choice stops only its dependent effect.
+The installation profile and run configuration grant no effect or science.
+
+Tasks name allowed_to_modify and read_only. No repository is implicitly
+writable, including TOP26006_fw.
 Diagnostics/storage grants do not authorize tracked edits. Unauthorized
 cross-repository work stops with cross_repo_escalation_note; do not add a shim
 to evade the boundary. Do not stage nested repositories in the coordination
@@ -281,13 +292,19 @@ and retain all material gates. The orchestration contract defines lane/effect
 isolation. Reviewers advise; they do not accept work. No persistent specialist
 registry or universal second-model requirement.
 
-Prompts retain explicit preferred_codex_model, reasoning_level,
-delegation_policy and model_selection_rationale. Distinguish requested,
-selected and runtime-reported identity; unknown is not_observable. Do not infer
-an exact model from a family label. One execution attempt has one immutable
-profile; an observed mismatch or any model/reasoning switch stops that attempt
-for fresh author-selected dispatch. Exact profile proof blocks only when
-decision-material; model_policy.md owns concrete labels/routing, not effects.
+Tasks retain delegation_policy and any requirement for independent review.
+Apply CPC’s same-delivery task/run boundary and graph construction rule.
+The author selects and communicates each immutable run configuration outside
+the reusable task: provider/product, native model/reasoning, rationale and
+consumed common/provider guide versions with retained content locators.
+The executor applies that selection and records requested, directly selected
+and runtime-reported values distinctly; unknown is not_observable. Do not infer
+exact identity from a family label. An observed mismatch or switch stops the
+attempt for a fresh author-selected dispatch. Exact profile proof gates only
+when decision-material. Configuration cannot change science, permissions,
+methods, acceptance or delegation; a scientific model-object constraint stays
+in the task. model_policy owns common selection responsibilities; provider
+guides own native choices, not authority or availability claims.
 
 Skills implement stable repeated workflows only when the maintained capability
 lifecycle justifies them. They cannot own project authorization. Existing local
@@ -319,6 +336,15 @@ and changed paths. Distinguish task delta, cumulative history and pre-existing
 work when applicable. A read-only round supplies the actual empty tracked diff.
 For commits include exact commit, subject, changed paths and reviewable commit
 delta; reuse the round patch only when proven equivalent.
+
+Apply CPC’s graph construction rule for ID resolution, Mermaid and observed views.
+The existing report is the task/run workbook. Preserve exact task bytes and
+revision, consumed input/method/configuration contents or retained immutable
+locators, author-selected run configuration and guide versions, actual
+selected/runtime observations with provenance, outputs, decisions and a distinct
+observed graph. Preserve before consuming dependent evidence/effects; a hash or
+path alone is not content retention. Derive ordinary delivery under CPC and
+state material exceptions. No report grants authority or acceptance.
 
 Missing decision evidence blocks the dependent claim. Documentary defects are
 recorded and repaired in the next naturally authorized continuation; they alone

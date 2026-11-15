@@ -1,34 +1,21 @@
-# Prompt `<supply_id>` — `<supply_title>`
+# Prompt authoring scaffold — candidate and non-exhaustive
 
-This scaffold is intentionally non-exhaustive and non-normative. Read the
-applicable live workspace governance and add every task-specific decision it
-currently requires.
+Read current CPC/AGENTS and applicable native policy. Supply the eight named task
+inputs explicitly: prompt_id, task_revision, decision_question, prompt_mode,
+delegation_policy, allowed_to_modify, read_only, validation_ceiling. Preserve
+a complete same-delivery author-selected run configuration outside explicit task
+byte boundaries, with provider/product, native
+model/reasoning, rationale and consumed guide versions; it grants no effects.
+Fill each from actual author decisions; no field count makes a task dispatchable.
 
-## Goal
+State mandate/authority, selected typed repositories/exact targets/profile,
+actual inputs/conventions, result and acceptance boundary. Add exact applicable
+branch, effect, commit, continuation, evidence, orchestration, long-horizon,
+production and model fields from the trigger union. Include the derived graph
+under CPC’s shared-ID/Mermaid-only construction rule and its source/relationship
+semantics. Preserve method/input/config contents and actual observed attempt state
+in existing reports. Standard delivery and installation observations follow
+CPC defaults; explicit material exceptions still require author selection.
 
-```text
-<supply_one_precise_goal>
-```
-
-## Decision question
-
-```text
-<supply_one_decision_question>
-```
-
-## Supplied task values
-
-```text
-prompt_id: <supply_id>
-goal: <supply_goal>
-decision_question: <supply_question>
-allowed_to_modify: <supply_exact_scope>
-read_only: <supply_exact_scope>
-```
-
-The author must replace all placeholders and add current governance-required
-branch, validation, permission, source-control, evidence, and reporting values
-directly from the live authority before dispatch.
-
-Additional mapping blocks may reuse local keys when they describe separate
-objects or stages; each block is linted independently.
+Run mechanical lint on the exact filled prompt; it does not assess governance
+completeness or authorize execution. Unknown future fields are not certification.

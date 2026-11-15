@@ -24,7 +24,9 @@ dependency change; an unresolved applicable conflict or unreadable required
 master rule stops only the dependent validation or dispatch. The maintained
 validator is mechanical lint only and does not assess governance completeness.
 
-Use one authoritative metadata block, one decision_question and exact scopes.
+Use flexible semantic blocks, one decision_question and exact scopes.
+Each value has one authoritative definition; scoped stage keys define only
+their own stage and never inherit grants.
 A goal is optional only when it adds distinct information. No expected audit
 verdicts or zero-failure discovery targets. Cite prior artifacts/locators
 instead of copying history. Use snake_case; preserve real paths, API names,
@@ -38,14 +40,39 @@ Canonical governance, source/configuration, actual data/input artifacts and
 prior standalone Codex reports as evidence/provenance remain allowed inputs;
 they do not supply a second task mandate. No filename hash gate is implied.
 
-Every actionable prompt contains:
-prompt_id, short_title, prompt_mode, preferred_codex_model, reasoning_level,
-delegation_policy, model_selection_rationale, workspace_root, repo_locations,
-allowed_to_modify, read_only, validation_ceiling,
-decision_question, patch_kind_expected and final_chat_deliverable.
+An optional reusable method may supply only stable procedure, with exact
+revision, applicability, inputs/outputs, validation, limits and preserved
+consumed content. It cannot supply task mandate, effects, target selection,
+scientific choices or acceptance. An unresolved reference blocks only its
+dependent use. Inline the contents when no retained resolvable source exists.
+A playbook is procedure; a skill is an optional maintained package; the
+workbook is the case/attempt record in existing reports, not a new registry
+or three copies of the same instructions.
 
-Materialize selected typed repository IDs and resolved local paths; preflight
-them. A missing profile needs explicit paths, not a guessed fallback.
+Every actionable prompt contains prompt_id, task_revision, decision_question,
+prompt_mode, delegation_policy, allowed_to_modify, read_only and
+validation_ceiling. Ordinary model/reasoning selection, rationale and consumed
+guide version belong to the separately retained author-selected run configuration
+referring to the exact task. Deliver complete run configuration and reusable
+task in one self-contained unit with explicit byte boundaries; configuration
+stays outside task bytes. The author fixes concrete choices, sources/versions
+and required authority before delivery. Do not defer a necessary profile or
+approval to chat. This configuration is data, not a second mandate.
+The task also states actual authority, inputs/conventions, observable result,
+relevant failure behavior and acceptance boundary. Scientific choices and
+exact targets cannot be supplied by a default or method. Flexible semantic
+blocks are permitted; definitions must have one unambiguous authority.
+
+Name selected typed repository IDs and exact scoped targets, and bind the
+existing YAML installation profile input. The author fixes repository identity,
+semantic branch/target roles, exact effects and material physical bindings;
+the executor resolves, verifies, serializes and reopens workspace_root,
+repo_locations and volatile applicability facts before each dependent effect.
+Supply explicit paths when the profile is unusable or cannot uniquely bind the
+authorized target. Dispatchable includes mandatory runtime preflight; author-side
+observation of volatile facts is not universally required. Ambiguity of target
+ownership or a real owner/scientific choice stops only its dependent effect.
+The installation profile and run configuration grant no effect or science.
 Reference the applicable AGENTS router and contracts. A non-orchestrated
 actionable prompt requires branch_policy and places every positive
 capability/effect grant once in heavy_command_permissions, including
@@ -87,6 +114,18 @@ it, including destructive old-value guards. The owner need not relay read-only
 facts Codex can acquire within the authorized path. Baseline/comparison fields
 are conditional on decision materiality.
 
+short_title is an optional display value derived from decision_question unless
+a distinct consumer requires an explicit title. For an ordinary task-owned
+tracked delta derive patch_kind_expected as prompt_local; for no tracked
+change use empty_no_changes. Explicitly select any cumulative comparison or
+other material exception, and always report the actual patch and method.
+Use the existing standard report/patch/final-response contract without
+repeating final_chat_deliverable; state any material language, format,
+recipient or product exception explicitly. Task-specific result content
+remains mandatory. Record exact task revision, consumed method/input/config
+contents, immutable attempt configuration, outputs, evidence and decisions
+in existing reports/checkpoints; a hash or path alone does not preserve bytes.
+
 ## Conditional field router
 
 Apply the AGENTS trigger union before emission and execution. Include the
@@ -101,14 +140,40 @@ the entire prompt template.
 | Production, handoff, scheduler, output/recovery/storage | governance/contracts/production.md |
 | Audit, scientific comparison, substantial review, continuation | governance/contracts/review_and_evidence.md |
 | Autonomous adaptation, blocker classification, preauthorized fallback/repair, or continuation after mechanism failure | governance/contracts/autonomy_and_blocker_classification.md; use existing continuation, scope and effect fields |
-| Concrete model/reasoning selection, CLI dispatch or fallback | governance/model_policy.md |
+| Author-selected run configuration, native model/reasoning selection, CLI dispatch or new author-selected fallback | governance/model_policy.md and its versioned common/provider guide references. Run data is external to exact task bytes; task permissions and independence remain authoritative. |
 
 Routine editing, validation and commit within one coding contract do not require
 orchestration. Multiple meaningful mode/effect stages with dependent authorized
 actions do. Independent substantive decisions remain separate. Production
 stages are conditional under both production and orchestration contracts;
-PR/MR merge remains a separate decision. A workflow_graph is optional plain
-text, documentary only, self-contained and never parsed as authority.
+PR/MR merge remains a separate decision.
+
+Every task has a mandatory derived planned workflow_graph, even one-node work.
+Mermaid is its only visualization format in the direct path. Every represented
+semantic block/subblock has an ID unique in the task revision; each node uses
+that same ID and resolves to the text defining meaning, inputs, result and
+conditions. No second letter vocabulary, fixed alphabet or node count is
+required. A node needs a textual referent; not every section needs a node.
+Section order and command order create no dependencies; transversal sections
+need not become artificial actions. Text defines data, precedence, alternatives,
+ALL versus alternative joins, partial outcomes and genuine iterations. Preserve
+their actual meaning and source locators. Distinguish inferred or unresolved
+relations when present; do not invent them to fill a taxonomy. An inference
+states its basis and cannot choose an owner/scientific decision. An unresolved
+material relation stops only its dependent consumer. Missing arrows prove no
+independence. Keep diagrams short, readable and clearly labelled; use vertical
+layout or a justified split for larger views. Mapping/state tables may explain
+the view; no ASCII graph, second visualization or mandatory intermediate
+language is required. The graph is derived and non-authoritative: it grants
+no permission, authority or retry. Correct a view contradicted by clear text;
+material ambiguity in the text stops only its consumer for the required decision.
+Iterations require their real authorized repair/attempt boundaries, not automatic
+retries. Preserve independent supported results. Reports distinguish planned
+and observed views; an observed view may annotate the planned Mermaid with
+actual states/differences and the same IDs where they correspond, without a
+redundant second drawing when the distinction is clear. Planned is never
+executed evidence. Orchestration triggers remain activity-based across modes;
+routine editing/checking/commit in one coding contract remain ordinary.
 
 For a continuation require continuation_of. Include accepted_prior_evidence
 (claim/artifact/locator), accepted_closure_layers, invalidation_boundary,

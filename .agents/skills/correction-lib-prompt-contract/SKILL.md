@@ -34,6 +34,9 @@ Unknown fields are accepted during ordinary linting. A helper failure is local
 to this lint operation unless the controlling workflow explicitly requires its
 artifact.
 
+Candidate direct-prompt fields and graphs require author semantic review; this
+helper does not certify them.
+
 ## Operations
 
 - `authoring`: begin with the deliberately non-exhaustive

@@ -90,10 +90,10 @@ must prove semantic completeness as well as isolated intended diff before
 mutating its consumer. Diff isolation alone does not prove semantic
 completeness. Passing a preauthorized objective gate permits its
 already-authorized next stage without a new approval solely for that
-transition. The gate creates no new authority or owner acceptance. Faithful
-Gherkin translation and progression through authorized audit, coding,
-validation or commit stages require no second owner approval solely for
-reaching that stage. Added science, scope, effects or another substantive
+transition. The gate creates no new authority or owner acceptance. Progression
+through authorized audit, coding, validation or commit stages requires no
+second owner approval solely for reaching that stage. Added science, scope,
+effects or another substantive
 owner choice still stop. An interrupted effect with unresolved outcome
 requires bounded observation of its actual state before retry or recovery; an
 absent success message is not proof that the effect did not occur. Use

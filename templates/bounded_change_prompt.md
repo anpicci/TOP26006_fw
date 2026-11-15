@@ -1,23 +1,34 @@
-# Bounded change prompt — authoring template
+# Bounded change prompt — candidate authoring aid, not dispatch-ready
 
-This is a human-fillable aid, not a dispatchable prompt or a substitute for live [CPC.md](../CPC.md) and [AGENTS.md](../AGENTS.md). Remove placeholders and validate the final prompt before execution.
+Use the eight named task inputs in CPC, including task_revision;
+replace slots and add all applicable conditional fields before dispatch.
 
-- Decision question: [one scientific or methodological decision]
-- Research lead / effect-authority role: [person or role and actual remit]
-- Research coordinator / bounded task-evidence acceptance role: [person or role and scope]
-- Scientific lead / scientific interpretation and acceptance role: [person or role and scope, or not applicable with reason]
-- Prompt author / executor / independent reviewer: [roles]
-- Repository ID, resolved local path, branch role, observed HEAD: [evidence]
-- Allowed changes: [exact paths and effects]
-- Fixed inputs and excluded effects: [data, method, network, production, publication, other repositories]
-- Minimum tool and environment: [verified local procedure]
-- Evidence required: [inputs, commands, output, source identities, diff, uncertainty]
-- Validation ceiling and exact checks: [bounded claim]
-- Stop conditions: [drift, collision, missing permission, new decision]
-- Report, patch, commit, and handoff contract: [live-governance fields]
-- Acceptance boundary: [research coordinator records bounded task/evidence acceptance after required review; scientific lead separately decides scientific acceptance where applicable; neither decision grants new effects]
+- Decision question: [one substantive decision and observable result].
+- Research lead / effect authority: [role, scope and mandate provenance].
+- Research coordinator / bounded evidence acceptance: [role and scope].
+- Scientific lead / interpretation acceptance: [role or not applicable reason].
+- Prompt author / executor / independent reviewer: [separate responsibilities].
+- Run binding: [complete same-delivery author-selected provider/product/profile outside task bytes,
+  rationale and guide versions; task retains authorized delegation/independence].
+- Repository/profile/targets: [typed IDs, exact profile, semantic branch role,
+  exact paths/effects; explicit physical targets where decision-material].
+- Mode/ceiling: [existing values; actual validation may be narrower].
+- Branch/permissions: [applicable exact contract and sole positive grant map;
+  for orchestration use stage policies/maps and non-authorizing envelope].
+- Commit: [authorized_commit_scope, adopted changes or none,
+  preserve_and_exclude, exact_path_only and existing commit-closure boundary].
+- Inputs/conventions/exclusions: [actual contents and fixed scientific choices].
+- Pre-effect readback: [relevant branch/HEAD/index/conflict, master, profile,
+  target and collision facts; no author-invented live state].
+- Planned graph: [apply CPC’s unique shared text/node IDs and Mermaid-only rule; derived relations, locators, join/partial/iteration semantics].
+- Checks/evidence/stops: [actual consumers, failed/unknown boundaries, limits].
+- Delivery: existing report/patch and observed graph/attempt contents;
+  [explicit cumulative comparison or delivery exception when material].
+- Acceptance: [evidence acceptance after review, scientific acceptance separate;
+  neither creates a new effect grant].
 
-State these responsibilities separately even if one person fills several roles.
-The research coordinator is explanatory vocabulary, not a new CPC role or
-authority grant. The executor and reviewer cannot accept their own result by
-reporting completion or recommending acceptance.
+No graph, method, profile, template or executor status supplies authority.
+
+State responsibilities separately even if one person fills several roles.
+The research coordinator is explanatory vocabulary, not a new authority grant.
+The executor and reviewer cannot accept their own result.
