@@ -58,11 +58,10 @@ Use this gateway when you maintain the framework or translate an authorized task
 | Register or update a repository identity | [Repository registration](how_to/register_repositories.md) |
 | Add or update repository-specific governance | [Governance modules](how_to/add_or_update_a_governance_module.md) |
 | Write a governed prompt manually | [Manual prompt authoring](how_to/write_a_prompt_manually.md) |
-| Prepare a prompt for a supported workflow pattern | [Governance workflow compiler](how_to/compile_governance_workflow.md) |
 | Mechanically check a completed prompt | [Prompt validation](how_to/validate_a_prompt_before_execution.md) |
 | Look up the prompt contract | [Prompt contract reference](reference/prompt_contract.md) |
 
-Manual governed prompt authoring remains a first-class route for any task that can be expressed within the manual contract, whether the author is a person or an authorized assistant. The governance workflow compiler is an optional authoring aid for supported workflow patterns. It produces an inspectable prompt and compilation receipt; it does not create authority, dispatch, execute, review or accept the task. Use manual governed authoring when the required pattern is not supported. The compiler guide is not a prerequisite for the research tutorials.
+[Direct prompt authoring](how_to/write_a_prompt_manually.md) explains how to deliver a complete reusable task and an author-selected run configuration together, then distinguish runtime checks, returned evidence, review and acceptance. A person or an authorized assistant can prepare the task; the research mandate determines its scope.
 
 The guides explain procedures; live [AGENTS.md](../AGENTS.md), [CPC.md](../CPC.md), the [repository registry](../governance/repositories.md) and its applicable modules/contracts remain the authority. Use [governance precedence](reference/governance_precedence.md) and the [file map's authority locators](reference/file_map.md#normative-governance-authority) to find those sources; [CONTRIBUTING.md](../CONTRIBUTING.md) governs contribution and review prose. A prompt-validator PASS establishes supported mechanical checks, not governance completeness, authorization or scientific correctness.
 

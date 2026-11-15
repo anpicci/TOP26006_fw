@@ -12,15 +12,14 @@ For a provider-to-consumer handoff, record both commits and the claim relied upo
 
 **Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
 
-For a task prepared with the
-[governance workflow compiler](../how_to/compile_governance_workflow.md), the
-handoff may additionally carry its behavior contract, acquired bindings,
-generated prompt, compilation receipt and their source identities. Explain what
-each establishes and which author review/runtime checks remain pending. Transfer
-of those artifacts is neither authority transfer nor evidence of recipient
-comprehension. The recipient must locate, read and understand them, refresh
-consumed volatile facts, and retain the task's real permission and acceptance
-boundaries. A receipt alone is not execution or acceptance evidence.
+For a [direct task](../how_to/write_a_prompt_manually.md), retain the exact
+task/revision and separate run configuration from the complete delivery,
+input/method and guide contents, planned diagram and observed annotations,
+results, review and decisions. Use the existing report as the attempt record;
+a hash without retained contents is insufficient. The recipient locates and
+reads those artifacts, refreshes consumed volatile facts, then identifies the
+next authorized delta. Sending the account, acquiring its bytes, understanding
+it and resuming work are distinct acts; none is proved by preparing this draft.
 
 ## Optional documentary practice: prepare a successor handoff
 

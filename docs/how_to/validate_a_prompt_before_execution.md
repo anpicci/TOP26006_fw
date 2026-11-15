@@ -16,12 +16,14 @@ byte identity is a runtime input only when that file is explicitly supplied
 as an input to the task. Author prompt-file lint and live-state checks answer
 different questions; neither substitutes for the other.
 
-For both the [compiler route](compile_governance_workflow.md) and the
-[manual route](write_a_prompt_manually.md), the author fixes authority,
-repository/role semantics, exact scope/effects, true choices, validation and
-stop boundaries. Review the final prompt semantically against current
-`refs/heads/master`; proposed governance changes cannot validate themselves. A compiled
-receipt does not replace that review.
+For the [direct route](write_a_prompt_manually.md), the author fixes authority,
+repository/role semantics, exact scope/effects, scientific choices, validation
+and stops, and supplies the complete run configuration outside the reusable task
+bytes in the same delivery. Review the exact final content semantically against
+current `refs/heads/master`; proposed governance cannot validate itself.
+Check the planned Mermaid against its text IDs and actual dependencies.
+Mechanical lint does not certify task/run separation, graph meaning or complete
+governance compliance; these remain semantic review obligations.
 
 After authority and author review are established, the execution environment
 must check current applicability before effects. It verifies the consumed
@@ -33,7 +35,7 @@ applicability nor requires inventing unavailable volatile observations.
 
 ## Before you start
 
-Read the live [validator instructions](../../.agents/skills/correction-lib-prompt-contract/SKILL.md), [CPC.md](../../CPC.md), [AGENTS.md](../../AGENTS.md), registry and native policy. Resolve `wrap`, `python_env`, and `checkout` from the local profile. Use a filled prompt Markdown path, not an unresolved [template](../../templates/bounded_change_prompt.md).
+Read the live [validator instructions](../../.agents/skills/correction-lib-prompt-contract/SKILL.md), [CPC.md](../../CPC.md), [AGENTS.md](../../AGENTS.md), registry and native policy. Resolve `wrap`, `python_env`, and `checkout` from the local profile. Use a filled delivery Markdown path, not an unresolved [template](../../templates/bounded_change_prompt.md). Resolve the validator and schema from current master, or verify that the selected checkout copies are identical to those objects; a candidate copy is not the validation authority.
 
 ## Procedure
 

@@ -154,6 +154,18 @@ stated static checks, you might accept the edit as prepared while withholding
 any claim about the generated plot. Running or using it requires the next
 appropriate decision and evidence.
 
+## Turn the request into a complete governed delivery
+
+The quotations above are teaching fragments, not dispatch-ready project
+prompts. For an actual governed task, use [direct prompt authoring](write_a_prompt_manually.md)
+to bind the mandate, input contents, scope, criteria, conditional permissions
+and planned dependencies. The author supplies a complete selected run
+configuration outside explicit reusable-task byte boundaries in the same
+self-contained delivery. Installation setup resolves paths and tooling; it
+does not supply that selection. Review the exact delivery before sending it.
+No necessary scientific choice, permission or configuration should remain to
+be recovered from a later conversation.
+
 ## Keep a small, usable handoff
 
 Retain the final request, source versions, returned work, relevant validation,

@@ -56,17 +56,17 @@ Save outputs before making a decision. If another path changed, or the original 
 
 The person with actual edit/effect authorization remit in a later task may authorize a bounded edit or adoption after establishing provenance. A responsible researcher may hold that remit, but the title alone does not grant it; see [responsibilities](../explanation/roles_and_authority.md). Such authorization is distinct from acceptance of the returned task evidence or a scientific claim. That would be a new authorized continuation with its own diff and review. Until then, “preserved, unresolved, next readback identified” is a useful recovery result; it is not task completion or acceptance.
 
-## Distinguish an authoring limitation from a stopped effect
+## Distinguish an incomplete delivery from an uncertain effect
 
-If the [compiler](../how_to/compile_governance_workflow.md) reports an
-`IMPLEMENTATION_GAP`, preserve its source, bindings and diagnostic receipt.
-That is a mechanism limitation, not proof that the research task failed or
-permission to retry a compiler or runtime effect. An independently valid
-[manual governed route](../how_to/write_a_prompt_manually.md) may remain
-available under the existing authority and checks. Do not widen scope, infer
-execution from a receipt or rewrite the behavior to force compilation. A new
-substantive choice returns to the responsible decision-maker; an ambiguous
-effect still requires readback before any separately authorized retry.
+A missing task input, method content or author-selected configuration makes
+only the dependent instruction incomplete; it does not prove a command failed.
+Use the [direct authoring guide](../how_to/write_a_prompt_manually.md) to identify
+what must be supplied before dispatch. If an action may already have run,
+preserve its receipts and obtain authorized readback before considering retry.
+In a task with independent local and remote results, an unknown upload limits
+the remote completion claim without erasing supported local evidence. Neither
+a diagram nor a stronger model supplies idempotence, a missing permission or
+the next scientific decision. Keep the next action within its actual mandate.
 
 ## Restart and preserve closure
 

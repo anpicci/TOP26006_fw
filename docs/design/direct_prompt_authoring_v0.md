@@ -2,12 +2,23 @@
 
 ## Status, sources and minimum design
 
-**Proposed contract; inactive.** This document and its two linked inactive selection guides contain the proposed
-rules, an authoring aid, complete inert examples, reusable procedure contents,
-record placement and exact migration proposals. It neither changes current
-policy nor authorizes its examples. Current CPC remains the dispatch contract.
-No compiler retirement, qualification, adoption, integration or publication is
-claimed. An owner decision on the returned evidence remains separate.
+This page retains the direct-prompt design and inert examples used by the
+implemented candidate. The candidate [CPC](../../CPC.md) describes construction;
+this design is explanatory, not dispatch authority. Its original approved
+v0.3.0 bytes remain in Git at
+`73d48a3f899c285df9c772d22394c680627861dc:docs/design/direct_prompt_authoring_v0.md`
+and in the implementation evidence's `sources/approved/` directory. Current
+master still governs actual dispatch. This editorial revision changes neither
+the examples' task bytes nor their original execution and review status.
+
+The proposal, accounting and postimage sections below preserve the original
+direct-prompt design episode. Their “current”, “this round”, “future” and
+“inactive” descriptions refer to that episode, not the present implementation.
+For the implemented candidate, selection responsibilities and native options
+live in the maintained [common guide](../../governance/model_selection_common.md)
+and [OpenAI guide](../../governance/providers/openai_selection.md), under
+[model policy](../../governance/model_policy.md). The design guides linked below
+remain source material. E1–E3 and the alternative configurations remain inert.
 
 Design basis: TOP26006_fw master
 `5ba30bcc367d39e3131335a0eb55fdbc5bc54ce4`, acquired from local Git objects.
@@ -31,8 +42,7 @@ semantic blocks, optional reusable methods, attempt records in existing
 reports, a mandatory derived documentary graph, and explicit reproducibility.
 The minimum design here adds no component system, parser, registry, database,
 runner or installed skill. The maintained classic CPC manual path is the
-comparison baseline. No compiler rejection, impossibility proof, fresh
-architecture evaluation or performance benchmark is asserted.
+comparison baseline. No fresh architecture evaluation or performance benchmark is asserted.
 
 Responsibilities: the author fixes the mandate, inputs, method, conventions,
 permissions and criteria, then selects and communicates each run configuration.
@@ -766,9 +776,11 @@ contracts remain activity-selected with no numerical field cap.
 
 ## N — exact proposed normative replacements and dependent consumers
 
-These are proposed postimages/edits for a later authorized adoption round.
-Only this candidate and the two linked candidate guides change now. Source-relative sections below
-identify bounded edits; no governance or installed skill is modified here.
+These source-relative postimages preserve the original implementation proposals.
+They are inert design text; their episode-relative status does not claim that
+only design files exist in the implemented candidate. Consult the maintained
+CPC, AGENTS, selection guides, templates and references for that candidate's
+actual content; current master still governs dispatch.
 
 ### N1. CPC replacements
 
@@ -960,9 +972,6 @@ list and the paragraphs deriving profile from prompt fields:**
 
 Authority, permission maps, modes, master-source rule, scientific boundaries,
 foreign-work preservation, commit closure and Git/production interfaces survive.
-The compiler currently exists as historical/current implementation fact. The
-successor program retires compiler/Gherkin; it has no future compatibility
-requirement or adapter. No compiler code or normative file is removed here.
 
 ### N3. Templates, references and method surfaces
 
@@ -980,13 +989,9 @@ requirement or adapter. No compiler code or normative file is removed here.
 | Other three existing local skills | No payload/interface change; refer to their existing copy-only, handoff-only and inert-review limits when selected | Do not invoke them automatically or weaken their boundaries |
 | Reusable method contents | Use E2_M as inline playbook content 1.0.0; future extraction has an explicit maintained home and ownership/validation decision | No mandatory skill, registry, tool or duplicated workbook |
 
-Tutorials remain outside this round (lane14 S3); future adoption must cover reached
-author→executor→review consumers beyond the accepted bounded Git pilot. The
-compiler's current PROMPT_CORE consumes the old fifteen-field population and
-does not supply task_revision. That fact is historical/current implementation,
-not a future consumer requirement. The program retires compiler/Gherkin rather
-than adapting or preserving them. This round neither runs nor removes them;
-no coexistence exception or compiler compatibility qualification gates this delta.
+The implemented candidate is documented through the
+[manual authoring guide](../how_to/write_a_prompt_manually.md). Broader
+consumer qualification and general adoption remain separate decisions.
 
 | Candidate rule | Future owner / dependent consumer change |
 | --- | --- |
@@ -995,7 +1000,6 @@ no coexistence exception or compiler compatibility qualification gates this delt
 | Native OpenAI labels/defaults/options and dated vendor distinctions | OpenAI guide as sole provider home; model_policy points to it rather than copying tables |
 | Requested versus observed profile, immutable attempt and authority | AGENTS/model_policy invariants; reports retain distinct evidence |
 | Installation path binding | Identical N1/N2 wording in CPC/AGENTS; no new author-side volatile-state gate |
-| Compiler/Gherkin | Separate retirement implementation; no successor compatibility consumer |
 
 The future normative path names require adoption; these three design files stay
 inactive. Add a provider guide only for an actual need, with native options and
@@ -1227,7 +1231,7 @@ future-contract examples are not current-CPC dispatches: their model values are
 external, several current universal values are derived, and graph/revision rules
 are proposals. Mechanical acceptance does not activate them. Any future actual
 use is a distinct owner-authorized task under its then-current governance; no
-automatic exception, pilot, adoption or compiler compatibility gate is created.
+automatic exception, pilot or adoption gate is created.
 
 A bounded real Git consumer now exists: pilot revision 3 completed the requested
 Git result, received review and owner acceptance. Original report and delivery:
@@ -1254,13 +1258,13 @@ repeat. R2's missing independent pre-commit review and E1/P1 process qualificati
 remain historical limitations; receiving review does not cure the sequence.
 
 The owner later selected Mermaid alone and matching text/node IDs. Those rules
-are prospective: original G1/r3 and pilot artifacts remain unchanged. E1–E3
+are prospective: original pilot artifacts remain unchanged. E1–E3
 revision 3 are inert documentary variants, never executions of that pilot or
 retroactive Mermaid evidence. No new pilot-derived execution is claimed.
 Unproven boundaries remain broader consumer/workflow coverage and measured total
 authoring/selection/review/report costs. Contract counts are not empirical savings.
-General adoption, normative edits, S3 manual/tutorial, S4 retirement, S5 publication
-and communication remain separate mandates. Akademia audit/plan needs separate GO.
+Broader use, general adoption, integration, publication and communication
+require their actual mandates. This design authorizes no broader audit.
 
 ## V — static semantic review checklist and disposition record
 
@@ -1271,9 +1275,9 @@ Review B1 corrects E3 joins/routes; B2 adds literal N3a postimages; B3 clarifies
 E1 profile reads versus tracked-write exclusion; B4 preserves identical method
 contents with the continuation configuration recorded separately. These are
 authoring corrections within s2, not runtime qualification or owner acceptance.
-B5 historically recorded the current compiler consumer; this revision supersedes
-its proposed future compatibility requirement with the owner-decided retirement destination. The review record retains the process-order deviation and its
-impact assessment; it does not claim retrospective strict conformance.
+The original review record retains process qualifications and their impact
+assessment; this document makes no retrospective strict-conformance claim.
+
 The following are discriminating checks, not claims that payloads were run:
 
 | Counterexample | Candidate handling / locator |
@@ -1298,7 +1302,7 @@ Mechanical lint covers bounded text parsing, duplicates, placeholders and a
 small supplied-value consistency surface. Its results are reported separately
 as mechanical_validity, internal_consistency and governance_completeness:
 not_assessed. Author/independent semantic review examines actual consumers and
-meaning; it is design evidence. No updated example payload, scientific/runtime test, compiler qualification or
+meaning; it is design evidence. No updated example payload, scientific/runtime test or
 production is executed in this consolidation. The bounded accepted Git pilot
 retains only N4’s qualified claim; it does not qualify these changed examples.
 

@@ -27,6 +27,25 @@ account. The [research writing explanation](../explanation/research_oriented_wri
 develops this practice; readable prose does not turn a recommendation into
 acceptance.
 
+## Review an inert evidence package
+
+When an explicitly authorized local review uses the maintained
+[evidence-package review skill](../../.agents/skills/correction-lib-codex-evidence-package-review/SKILL.md),
+read its contract and provide an external reviewer-owned controlling manifest
+and the exact carrier. Reviewed contents remain inert. Package-authored booleans
+cannot certify authority, review or finding closure. The utility does not
+cryptographically authenticate a human reviewer's identity.
+
+A required declared gate must actually resolve and evaluate its cited evidence.
+A scalar gate evaluates exactly one locator. Finding closure must cite that
+same evaluated operand in a required passing locator gate; supporting locators
+for manual, repository, count or patch-set checks cannot close an unrelated
+finding. Equality preserves JSON types: `true` differs from `1`, and `false`
+from `0`. A hash establishes byte identity, not correctness, containment or
+authorization. These checks support bounded review; the human acceptance
+decision remains separate. Reading this guide does not invoke the skill or
+execute any package contents.
+
 ## Verify the result
 
 Each finding cites direct evidence and explains its effect on the bounded claim. A recommendation is distinct from acceptance; the [acceptance guide](record_a_result_acceptance.md) owns the next step.

@@ -41,20 +41,19 @@ Use the existing [continuation template](../../templates/continuation_prompt.md)
 
 The proposed sentence is a documentation delta, not a new calculation or evidence transfer to another repository. If it is already present, report that no write is needed. If it conflicts with the existing note or needs new scientific interpretation, stop that delta.
 
-A real continuation may use the
-[governance workflow compiler](../how_to/compile_governance_workflow.md) when
-its supported workflow patterns faithfully represent the delta and protected evidence.
-Otherwise use the [manual governed route](../how_to/write_a_prompt_manually.md).
-An authoring-mechanism change alone neither invalidates accepted evidence nor
-authorizes replay. Reopen only a changed material dependency and its consumers;
-retain the same authority, invalidation boundary and protected checks in either
-representation. This teaching draft remains non-executing.
+For a real continuation, use the [direct route](../how_to/write_a_prompt_manually.md).
+Deliver the complete new task and author-selected configuration together, with
+separate task bytes. Reopen only changed material dependencies and their
+consumers; preserve the accepted claim, invalidation boundary and protected
+checks. A new profile does not authorize replay. The Mermaid view must show
+which result consumes which evidence, including valid partial outcomes.
+This teaching draft remains non-executing and supplies no live grants.
 
 ## Review the draft before dispatch
 
 The observable output is your saved continuation draft, including the scenario identity and an explicit unresolved-state list. Compare it with each template field. It must say who owns the next decision, which exact file may change after authorization, which evidence will demonstrate that delta, and what stops the action.
 
-For a real execution prompt, replace unresolved local identities with fresh observations, obtain exact grants from the research lead, and apply live governance. Do not send this illustrative table as an execution-ready prompt. A later executor would return the exact note diff, preserved input identities, validation, and commit evidence; the reviewer advises, the research coordinator records bounded task/evidence acceptance after required review, and the scientific lead separately decides scientific acceptance. Neither acceptance authorizes new effects.
+For a real execution prompt, bind repository/target roles, material physical paths, accepted-evidence identities, scientific choices and exact grants from the research lead under live governance. Require the executor to acquire volatile branch/HEAD/status and other consumed facts before dependent effects; the author need not relay live state unless their own decision requires it. Resolve genuine target or authority ambiguity before dispatch. Do not send this illustrative table as an execution-ready prompt. A later executor would return the exact note diff, preserved input identities, validation, and commit evidence; the reviewer advises, the research coordinator records bounded task/evidence acceptance after required review, and the scientific lead separately decides scientific acceptance. Neither acceptance authorizes new effects.
 
 ## Restart and choose the next step
 

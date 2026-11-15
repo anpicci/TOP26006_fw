@@ -1,92 +1,180 @@
 # Write a prompt manually
 
-Use this first-class governed route when an authorized author prepares an exact research-task prompt. It remains available when the [governance workflow compiler's supported patterns](compile_governance_workflow.md) cannot represent the task faithfully. Human manual authorship is optional; the [assistant preparation route](ask_an_assistant_to_prepare_a_task.md) can also translate the research lead's mandate. Choose the mechanism after defining the task, without changing its authority or evidence requirements.
+Start with the research question and the evidence needed to judge its answer.
+Write the authorized task directly in natural language, using prose, tables or
+fenced mappings where they make the scope precise. An authorized assistant can
+help prepare it through the [task-preparation guide](ask_an_assistant_to_prepare_a_task.md).
+The author remains responsible for the choices delivered to the executor.
+
+This guide describes the direct path implemented in this candidate revision.
+It does not assert adoption on master or in other workstreams. Actual dispatch
+is governed by current `refs/heads/master` [CPC](../../CPC.md),
+[AGENTS](../../AGENTS.md), the selected [repository module](../../governance/repositories.md)
+and native policy. Candidate content cannot validate its own dispatch.
 
 ## Before you start
 
-Obtain the research lead's task mandate, effect boundary and explicit permissions, and the scientific lead's purpose and interpretation boundary as applicable. Read live [CPC.md](../../CPC.md), [AGENTS.md](../../AGENTS.md), [registry](../../governance/repositories.md), applicable module/native policy, and accepted prior evidence before drafting.
+Identify the research lead's mandate and effect permissions, the scientific
+question and responsible scientific lead, actual inputs and revisions, method,
+assumptions and limits. State what observable result would answer the question,
+including a valid negative or partial answer. Do not choose the scientific
+meaning of a quantity merely to make the task executable.
 
-## Procedure
+Read applicable governance and accepted prior evidence. Bind the typed repository
+identity, semantic target and installation profile; supply exact physical paths
+when needed to remove ambiguity. The installation profile resolves local paths,
+wrapper and interpreter. It does not choose the task, the model or permissions.
 
-1. Derive required CPC fields and literal closed vocabularies from the live sources. Do not copy an old prompt as if its branch, runtime, or permissions were current.
-2. State one decision question; repository ID/resolved path; exact `allowed_to_modify` and `read_only`; prompt mode; branch policy and applicability; validation ceiling; network, environment, storage, commit and remote effects; evidence/report/patch; and stop gates. The [bounded change template](../../templates/bounded_change_prompt.md) is an aid, not another schema.
-3. For continuation include `continuation_of`, accepted closure, `delta_scope`, invalidation boundary, `checks_not_to_repeat`, fresh volatile-state checks, and only new required evidence. Example: repair provenance in a synthetic note while preserving accepted arithmetic.
-4. Reread adversarially: could the executor infer an unintended writable path, permission, scientific claim, or acceptance? Resolve ambiguity or stop for a decision by the responsible researcher.
-5. Run the [maintained validator](validate_a_prompt_before_execution.md) on the **filled final Markdown** and reread its output and the exact final prompt.
+For project delivery, use one versioned `CODEX_PROMPT*.md` and keep its
+filename alongside any integrity hash. This naming convention does not require
+an executor receiving prompt text to reconstruct a local file; see the
+[author/runtime validation boundary](validate_a_prompt_before_execution.md#author-validation-and-runtime-state).
 
-## Deliver one self-contained task
+## Write one reusable task
 
-For one already-authorized task or continuation, deliver instruction Markdown
-that lets the executor understand the whole job without the research lead
-assembling another instruction package. Include the needed objective or
-decision, mandate and scope, starting state, accepted evidence and later
-corrections or supersessions, continuation delta, authorized effects, relevant
-phases, checks and review, real stops, deliverable, and acceptance boundary.
-Derive the applicable details from live [CPC.md](../../CPC.md).
+Use flexible semantic blocks with one authoritative definition of each value.
+The candidate's eight named inputs are `prompt_id`, `task_revision`,
+`decision_question`, `prompt_mode`, `delegation_policy`, `allowed_to_modify`,
+`read_only` and `validation_ceiling`. They are an index into a complete task,
+not a maximum field count or a substitute for its meaning.
 
-Self-contained instructions do not mean embedding all data or copying live
-governance into the prompt. Identify real external sources such as governance,
-source code, configuration, scientific inputs, artifacts, and previous executor
-reports, and explain their relevance. A prior report can carry accepted evidence
-and closure; it is not a hidden companion instruction file and cannot anticipate
-later owner decisions. State the new objective and delta in the new prompt.
+Explain authority, input contents and conventions, method if selected, permitted
+actions, observable result, checks, relevant failure behavior and acceptance
+boundary. Apply the activity triggers: Git work needs its branch/action/commit
+contract; evidence review needs its evidence rules; cross-mode dependencies,
+production and long work need their respective conditional contracts. For an
+ordinary task the sole positive grant map is `heavy_command_permissions`.
+For an orchestrated workflow use stage-local maps and branch policies with a
+non-authorizing envelope, under the [orchestration contract](../../governance/contracts/orchestration.md).
+A mode, graph, model or filesystem capability cannot create an effect grant.
 
-Do not require the research lead to send a second prompt for the same authorized
-job, construct a local instruction file, recover instructions from a prior chat,
-or assemble a companion plan merely to make it understandable. A genuine new
-decision still calls for a new bounded continuation.
+For a continuation, name accepted claims with their evidence and acceptance
+provenance, then specify only the new delta, invalidation boundary and checks
+not to repeat. [Prepare a continuation](prepare_a_continuation.md) explains the
+procedure. The [bounded change template](../../templates/bounded_change_prompt.md)
+is a fillable aid; it is not a finished dispatch or a second authority.
 
-In the TOP-26-006 reference deployment, new Codex prompt filenames begin with
-`CODEX_PROMPT`. This is a project delivery convention, not a universal AI rule
-or a new prompt-field schema. Human-facing references use the filename and a
-link when available; hashes supply provenance and integrity evidence rather
-than replacing the document name. This convention does not require an executor
-receiving prompt text to find a local prompt file; see the [validation boundary](validate_a_prompt_before_execution.md#author-validation-and-runtime-state).
+## Include the author's complete run configuration
 
-## Inspect maintained capability before proposing another
+Deliver one self-contained unit containing the reusable task and the complete
+configuration selected by its author, with explicit distinct byte boundaries.
+Two physical files are not required. Configuration is data outside the task
+bytes, not a second instruction or a profile to recover from a later chat.
+It refers to the exact task revision and supplies provider/product, concrete
+native model and reasoning choices, rationale, and retained guide versions and
+contents. Resolve necessary authority and configuration before delivery.
 
-Before proposing a wrapper, bypass, API, or operational script, inspect the
-maintained tool, entrypoint, configuration, or workflow that already performs
-the same or nearest accepted job. Check supported options and routing, and
-distinguish a wrongly chosen invocation from a missing capability. The first
-incompatible command does not establish that the capability is absent.
+Use the maintained [common selection guide](../../governance/model_selection_common.md)
+and [OpenAI selection guide](../../governance/providers/openai_selection.md) for
+the candidate's selection responsibilities and native options. Keep their tables
+and dated vendor observations there. A changed model or reasoning choice creates
+another author-selected attempt with an immutable configuration; it grants no
+new effects and does not change unchanged task bytes. A model studied as the
+scientific object remains an explicit task constraint.
 
-If there is a real gap, describe it and the smallest necessary extension under
-the proper mandate, keeping a refactor outside the task unless authorized.
-Use live [execution policy](../../AGENTS.md#reuse-delegation-and-model-provenance)
-for the normative reuse and capability lifecycle requirements.
+The following is a packaging aid with declared slots, **not a complete prompt**:
 
-## Verify the result
+```text
+Complete author-selected run configuration for [task identity and revision]
+[outside reusable task bytes; supply all concrete choices and retained sources]
+--- reusable task begins ---
+[complete mandate, semantics, inputs, grants, checks, graph and result boundary]
+--- reusable task ends ---
+```
 
-A drafted prompt still needs review against the applicable contract. Before
-execution, establish the research lead's grant and author review of the task's
-meaning and governance. The execution environment must then check the current
-facts on which the task depends before any effect. Neither a draft nor its
-review grants unconditional permission to change repository state.
+Before dispatch, replace every slot and check that no necessary choice remains
+elsewhere in conversation. External governance, data, configuration and prior
+reports can remain identified inputs with available contents. They cannot carry
+a hidden second task mandate.
 
-The author fixes authority, repository/target roles, scope/effects, validation,
-stop boundaries and real choices. Runtime verifies current applicability,
-including consumed branch/HEAD, dirty/index/conflict, worktree and current-master
-facts; it cannot select a new authority, widen scope or decide a scientific
-choice. A failed applicability check stops the dependent effect.
+## Derive the planned diagram from the text
 
-`dispatched` means issued; `executed` means work/evidence returned; `accepted`
-requires a separate bounded task/evidence decision by the research coordinator
-or, for a scientific claim, a scientific decision by the scientific lead. The
-research lead authorizes the task; neither that authorization nor a reviewer
-recommendation is acceptance. In the TOP-26-006 reference deployment, the
-coordinating Chat performs the project-specific task/evidence acceptance function
-only under live governance and explicit project decisions. A mechanical PASS
-supports only part of conformance.
+Every direct task has a derived planned Mermaid view, including a one-node
+task. Give each represented semantic block or subblock a unique ID and reuse
+that ID in the diagram. Not every section is an action or needs a node.
+The text defines inputs, result and conditions; arrows express actual data or
+precedence dependencies. Section order and command order create none.
 
-## Stop instead of proceeding if...
+Here is an inert fragment illustrating a keyed-yield inspection, not a
+self-contained dispatch and not an executed comparison:
 
-Authorization from the research lead, branch applicability, live governance, native policy, or evidence provenance is unresolved. Do not fill unknown permissions by analogy or treat a validator PASS as scientific correctness.
+- **inspect_inputs:** inspect both supplied populations and their conventions;
+  all are required before a paired comparison is supported.
+- **compare_pairs:** if keys are unique and meanings, units and normalization
+  compatible, describe candidate minus reference for the common keys.
+- **retain_limit:** otherwise preserve raw descriptions and the failed premise,
+  without claiming a validated comparison.
+- **report_result:** receive either the supported comparison or the limited
+  account, recording which alternative occurred and what remains undecided.
 
-## Generic example
+```mermaid
+flowchart TD
+    accTitle: Planned alternatives for a keyed-yield inspection
+    accDescr: After inspecting all required inputs, report either a supported paired comparison or preserved descriptions with their failed premise. No action is executed by this diagram.
+    inspect_inputs["inspect_inputs: ALL populations and conventions"] -->|premises established| compare_pairs["compare_pairs: paired description"]
+    inspect_inputs -->|failed premise| retain_limit["retain_limit: raw descriptions and limit"]
+    compare_pairs -->|supported alternative| report_result["report_result: comparison OR limited account"]
+    retain_limit -->|limited alternative| report_result
+```
 
-A prompt author translates a research lead's bounded synthetic-note mandate into exact path, mode, branch, evidence, and stop fields.
+Verify that every node resolves to the text and each join means what the task
+says: ALL requires every named input; an alternative requires its selected
+branch. Preserve partial results and distinguish inferred or unresolved relations
+with their basis. Missing arrows do not prove independence. An iteration needs
+its actual authorized repair/attempt boundaries; drawing a loop grants no retry.
+If the diagram disagrees with clear text, correct it. Material ambiguity in the
+text stops only its dependent consumer for the responsible person's decision.
 
-## What this does not establish
+After execution, the report distinguishes planned from observed states. A clear
+annotation using the same IDs can suffice without a second drawing. Neither a
+rendered plan nor a planned state is execution evidence.
 
-A drafted or conformant prompt is not automatically authorized, dispatched, executed, or accepted.
+## Reuse a method when it helps
+
+An optional method or playbook supplies stable procedure: retain its contents,
+revision, applicability, inputs/outputs, parameters, validation and limits.
+Inline it if no retained resolvable source exists. It cannot choose a missing
+target, scientific convention, permission or acceptance criterion. A skill is
+an optional maintained package; an atomic task need not use one.
+
+The [inert design examples](../design/direct_prompt_authoring_v0.md#e1--complete-inert-atomic-example-cell-counting)
+show three useful distinctions. E1 counts present process/coefficient pairs or
+bin/process/coefficient tuples separately per era; it does not assume complete
+Cartesian populations or choose the scientific definition. E2 aligns unique
+keys in compatible weighted event yields: absence is not zero, the difference
+is candidate minus reference, the percentage denominator is the signed reference,
+and zero reference leaves the ratio undefined. Coverage must name its population.
+E3 reuses only scenario-accepted parsing and key coverage, keeps local numerical
+completion separate from an unknown upload, and grants neither retry nor remote
+readback. These are static scenarios and counterexamples, not new scientific tests.
+
+Before proposing another tool or script, inspect the maintained entrypoint,
+configuration or procedure for the same job. Distinguish an incorrect invocation
+from a missing capability. A real gap needs its own bounded proposal under
+[execution policy](../../AGENTS.md#reuse-delegation-and-model-provenance), not
+an unrequested runner, wrapper or refactor.
+
+## Validate, execute and preserve the return
+
+Reread the exact delivery adversarially for unintended scope, missing choices,
+incorrect dependencies and unsupported scientific claims. Use
+[mechanical prompt validation](validate_a_prompt_before_execution.md) on filled
+Markdown under current master; lint assesses only its supported checks.
+Author review of meaning, runtime applicability, execution, evidence review,
+acceptance and scientific judgment remain distinct.
+
+The author fixes science, targets, permissions and criteria. Before each dependent
+effect the executor checks actual repository/worktree identity, branch/HEAD,
+index/conflicts, input/output collisions and other material runtime facts.
+It cannot widen scope or fill an author decision. An unavailable observation
+limits its dependent claim; an observed profile mismatch stops that attempt
+for a fresh author-selected dispatch, without silent fallback.
+
+Use the [existing report and actual patch](../reference/report_contract.md) as
+the attempt record. Preserve the delivered task/revision, run configuration,
+consumed input/method and guide contents or retained immutable content locators,
+results, observations, review and limits. A hash alone does not retain its object.
+Reopen serialized evidence before classifying the result. The reviewer challenges
+claims; the person with actual task/evidence remit decides bounded acceptance,
+and the scientific lead separately decides scientific acceptance. Completion,
+lint or a favorable review cannot make those decisions.

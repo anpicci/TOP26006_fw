@@ -25,6 +25,13 @@ The human defines scientific purpose, assumptions, permissions and acceptance. C
 ## Follow the reference on the actual installation
 
 1. **Prepare the task.** Identify the question, research lead, repository/path scope, permitted effects, validation ceiling, expected evidence and stop boundary. The prompt author follows current [AGENTS.md](../../../AGENTS.md), [CPC.md](../../../CPC.md), applicable modules/native policy and [mechanical prompt validation](../validate_a_prompt_before_execution.md). Validator PASS is not authorization or scientific correctness.
+   In the candidate direct path, deliver the complete task and author-selected
+   run configuration together with distinct task bytes. Use the maintained
+   [common](../../../governance/model_selection_common.md) and
+   [OpenAI](../../../governance/providers/openai_selection.md) selection guides;
+   ordinary profile choices are run data. The [authoring procedure](../write_a_prompt_manually.md)
+   explains delivery, planned Mermaid and retention. This describes candidate
+   behavior and does not assert adoption on master or availability of a profile.
 2. **Check local facts.** Use the maintained [local-profile procedure](../configure_your_local_profile.md) to resolve paths, wrapper and interpreter. Freshly observe branch, HEAD and relevant changes. A profile describes an installation; it grants no action.
 3. **Inspect effective controls.** Read applicable instructions and observe the chosen session's sandbox, approvals, file/network reach and tool paths. Consult current official documentation for the selected surface. Record unavailable or unobserved facts honestly; instructions and requested settings do not prove enforcement.
 4. **Execute only the authorized task.** Product access or an approval prompt cannot enlarge its scope. A shell, hosted web tool and connected service require separate access/effect checks; permission for a documentation read does not authorize remote Git or publication.

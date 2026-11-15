@@ -49,14 +49,13 @@ These guides explain how to prepare or propose an operation. The authority colum
 | Register or update repository metadata | [Repository registration](../how_to/register_repositories.md) | [Registry](../../governance/repositories.md), its selected module, applicable [AGENTS.md](../../AGENTS.md) and native policy |
 | Add or update a governance module | [Governance module guide](../how_to/add_or_update_a_governance_module.md) | Root/path [AGENTS.md](../../AGENTS.md), [CPC.md](../../CPC.md), relevant [governance contracts](governance_precedence.md) |
 | Write a governed prompt manually | [Manual prompt authoring](../how_to/write_a_prompt_manually.md) | [CPC.md](../../CPC.md), applicable governance, [repository module](../../governance/repositories.md) and native policy |
-| Prepare a prompt for a supported workflow pattern | [Governance workflow compiler](../how_to/compile_governance_workflow.md) | Current `refs/heads/master` [CPC.md](../../CPC.md), applicable governance, [repository module](../../governance/repositories.md) and native policy |
 | Validate a completed prompt mechanically | [Prompt validation](../how_to/validate_a_prompt_before_execution.md) | Maintained [skill instructions](../../.agents/skills/correction-lib-prompt-contract/SKILL.md), [schema](../../.agents/skills/correction-lib-prompt-contract/references/prompt_schema.json) and [validator](../../.agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py); live governance still controls |
 | Inspect prompt fields and semantics | [Prompt contract reference](prompt_contract.md) | [CPC.md](../../CPC.md) and applicable [governance sources](governance_precedence.md) |
 | Configure an installation | [Profile configuration](../how_to/configure_your_local_profile.md), [local-profile reference](local_profile.md) | [Example profile](../../config/local_profile.example.yml), [schema](../../config/local_profile.schema.yml), [resolver](../../tools/resolve_local_profile.py) define installation shape/resolution; `.top26006/local_profile.yml` holds ignored local facts, not permissions |
 
 Validator PASS is mechanical evidence only; it does not establish governance completeness, authorization, branch applicability or scientific correctness.
 
-Manual governed prompt authoring remains a first-class route for any task that can be expressed within the manual contract, whether the author is a person or an authorized assistant. The governance workflow compiler is an optional authoring aid for supported workflow patterns. It produces an inspectable prompt and compilation receipt; it does not create authority, dispatch, execute, review or accept the task. Use manual governed authoring when the required pattern is not supported. The compiler guide is not a prerequisite for the research tutorials.
+[Direct prompt authoring](../how_to/write_a_prompt_manually.md) explains how to deliver a complete reusable task and an author-selected run configuration together, then distinguish runtime checks, returned evidence, review and acceptance. A person or an authorized assistant can prepare the task; the research mandate determines its scope.
 
 ## Reference and navigation
 

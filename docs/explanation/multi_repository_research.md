@@ -11,5 +11,3 @@ For a dependent change, bind the exact base and candidate revision in each parti
 A temporary worker result is a frozen result and its evidence, not a permanent development branch. Preserve its portable result, base, inputs, assumptions, interfaces, and review before any destructive removal. Remove only the exact temporary paths or refs created for this task and authorized for removal, after the applicable validation checks. Permanent development state and unrelated changes stay protected. After removal, read back the final state to check that the intended temporary files or refs are gone and unrelated state remains intact.
 
 These repository and workflow checks establish provenance and coordination limits. They do not by themselves certify scientific meaning, application behavior, affected consumer compatibility, tests, or runtime behavior; each task needs the relevant validation at its own boundary. The [review guide](../how_to/review_returned_evidence.md) describes how to check a returned result.
-
-Automated workflow compilation is not part of the current documented model.

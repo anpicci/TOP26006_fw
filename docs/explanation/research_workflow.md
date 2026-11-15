@@ -33,14 +33,11 @@ a finding unresolved; neither a successful command nor a review recommendation
 supplies acceptance. Continuation, recovery and handoff preserve valid evidence
 and identify the next authorized delta.
 
-Prompt preparation fits between authorization and execution. The
-[governance workflow compiler](../how_to/compile_governance_workflow.md) is an
-optional authoring tool when its supported workflow patterns faithfully represent
-the task. It turns supported Gherkin and acquired bindings into an inspectable
-prompt and compilation receipt. The
-[manual governed route](../how_to/write_a_prompt_manually.md) remains first-class
-for any task within the manual contract, including unsupported compiler patterns.
-Neither authoring route creates authority or changes scientific responsibility.
-Both need author review of the task's meaning and governance, followed by current
-execution checks before effects. Compilation and its receipt establish neither
-execution, evidence review nor acceptance.
+The [direct authoring guide](../how_to/write_a_prompt_manually.md) connects an
+authorized question to a complete task and the author's chosen run configuration
+in one delivery. The task defines the scientific and effect boundaries; the
+configuration selects how this attempt will run. A derived Mermaid view makes
+real dependencies inspectable without granting effects. Author review checks
+meaning, runtime checks establish current applicability, and returned evidence
+supports a separate review and human decision. The existing report retains
+contents, observations and limits for a later continuation.

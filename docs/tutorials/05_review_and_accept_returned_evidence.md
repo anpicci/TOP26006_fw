@@ -39,219 +39,31 @@ Read the scenario's output row: five measurements; mean `10.060000`; model-based
 
 Record the initial provenance finding separately from the reported repair. A repair can name an earlier source identity; a commit cannot cite its own final identity inside its own contents. The scenario reports that the numerical run was not repeated. Do not run it merely to complete this review lesson.
 
-## If the returned task used the compiler
+## Follow a direct task into its returned evidence
 
-A [generated prompt and compilation receipt](../how_to/compile_governance_workflow.md)
-can show the source contract, bound claims, translation and mechanical checks.
-They prove neither execution nor independent review nor acceptance. Obtain the
-actual returned evidence for the claim being reviewed. A hash records byte
-identity; it does not prove correctness, containment or authorization. Lint PASS
-does not establish governance completeness or semantic/scientific correctness.
+For a real returned task, locate the complete delivered instructions and the
+separately bounded author-selected run configuration. Compare the actual return
+with that exact task revision, input and method contents, criteria and permitted
+actions. Requested model values are not runtime observations; a planned Mermaid
+is not an execution log. Check any observed-state annotation against the cited
+receipts, including partial results and unresolved effects.
 
-Package-authored booleans do not constitute a reviewer/owner decision or close
-a finding. The external caller/reviewer must own the controlling review manifest;
-a required declared gate must actually resolve and evaluate the cited evidence.
-A scalar gate evaluates exactly one evidence locator, and finding closure must
-cite that exact evaluated operand in a required passing locator gate. Supporting
-locators for manual, repository, count or patch-set checks cannot close an
-unrelated finding. JSON equality preserves types: `true` differs from `1` and
-`false` from `0`. Package contents remain inert; a passing package-authored
-boolean cannot certify its own review.
-The utility does not cryptographically authenticate human reviewer identity.
-These distinctions do not change the fixed scenario or turn this exercise into
-a compiler run or evidence-package execution.
+For this exercise, keep using the fixed synthetic scenario above. Ask which
+claim the missing source commit and CSV identity prevent you from accepting,
+and why the reported arithmetic can remain valid. Then identify what original
+note, diff and command evidence would be needed to review the repaired result
+directly. Do not fill those gaps from a successful summary or execute the example.
 
-## A worked example: from compiled prompt to returned evidence
+The [review procedure](../how_to/review_returned_evidence.md#review-an-inert-evidence-package)
+explains independent package-review safeguards: the reviewer owns the controlling
+manifest, values retain their types, and a required locator gate must actually
+evaluate the exact evidence cited for closure. Package-authored success flags
+cannot supply an independent decision. This lesson does not run that utility.
 
-Suppose you need to understand the committed difference between a candidate
-revision and the observed master revision before deciding whether to integrate.
-The useful result is a record of their identities, ancestry and committed delta.
-Finding that master is not an ancestor would answer the question too; obtaining
-a favorable integration topology is not the success criterion.
-
-This historical example followed that bounded question through compilation,
-manual prompt review, execution, evidence review and bounded acceptance. Neither
-checkout was integrated or modified by the inspection. Read it as a separate
-case alongside the synthetic exercise above, not as another task to execute or
-as permission to inspect or change your own project.
-
-### Describe the question and bind its scope
-
-The original feature was:
-
-````gherkin
-Feature: acquire the committed candidate and master integration facts
-  ```text
-  [G1] --> [W1] --> [T1]
-  ```
-  Scenario: inspect the exact committed integration operands
-    Given [G1] the owner approved the bounded read-only reconnaissance
-    When [W1] I inspect the committed candidate and current master integration facts
-    Then [T1] the report cites evidence
-````
-
-The `Given` records a premise about approval; writing it does not create that
-approval. The fenced `text` graph expresses the dependency from premise to
-action to observable result. That fence was required by the supported source
-representation. Omitting it can stop compilation before any native inspection;
-such a compile failure says nothing about the underlying Git task's behavior.
-This is one simple supported reader pattern, not full Gherkin or generic
-orchestration.
-
-The feature does not choose repository identity, permissions, worker, commands
-or acceptance. Those details came from separately acquired bindings: records
-connecting the task to its actual context and authority. These short excerpts
-from the original binding file show the canonical repository and child scope:
-
-```yaml
-repositories:
-  TOP26006_fw:
-    repository_id: TOP26006_fw
-    repository_class: COORDINATION_META_REPOSITORY
-requested_effects: []
-```
-
-```yaml
-prompt:
-  prompt_mode: investigation_only
-  branch_policy: read_only_current_branch
-  allowed_to_modify: {}
-  validation_ceiling: static_inspection_only
-```
-
-These are excerpts, not a complete reusable binding file. The candidate and
-master were revisions in the same canonical repository, `TOP26006_fw`.
-A local role such as “candidate checkout” does not create a second repository
-identity. Use the typed identity from the maintained registry rather than
-inventing one from a worktree's purpose.
-
-The binding's evidence requirements also fixed where the result would return:
-
-> Child authors the native report and material raw evidence only in its final
-> response/tool-result channel.
-
-The child therefore had no task-file write scope. One historical serialization
-weakness needs to stay visible: `git_index_entries` described resolving the
-native index paths through Git rather than embedding the resolved paths. The
-child subsequently resolved and checked them. That bounded limitation belongs
-to this historical record; it is not a binding template to copy.
-
-### Review the prompt that will actually run
-
-The first compilation prepared a prompt while manual review was still pending.
-Its receipt recorded `dispatchable: false`, with the manual review as the only
-unresolved evidence. This meant the prompt could not yet be issued for
-execution; it did not mean that the task was semantically rejected or that the
-owner had revoked approval.
-
-The author inspected the generated prompt bytes against the task and current
-master governance. After recording that review, the corresponding binding
-changed from this prereview excerpt:
-
-```yaml
-binding_id: manual_review
-acquisition: pending
-```
-
-to the final excerpt:
-
-```yaml
-binding_id: manual_review
-acquisition: acquired
-```
-
-The complete final record cited the review artifact and exact prompt hash.
-A second compilation then produced a prompt byte-for-byte identical to the
-reviewed one and a receipt permitting entry to execution checks. The maintained
-mechanical validator checked that exact final prompt: mechanical validity and
-internal consistency were true, while governance completeness remained
-`not_assessed`. Compilation and lint still did not prove execution or acceptance.
-
-This two-compile sequence records how this case acquired its review. It is not
-a universal ritual. The point is to preserve the connection between the governed
-prompt, the bytes reviewed as required, the bytes actually dispatched and the
-evidence later attributed to them. A changed prompt needs review of the change;
-a familiar filename is not byte identity.
-
-### Follow the evidence across responsibilities
-
-One child assistant performed the native read-only Git inspection and returned
-the report and raw command evidence through its response channel. The controller, the assistant directing the surrounding run,
-captured that evidence and owned the separately authorized report and lifecycle
-effects. In this qualification setup it also created and removed a temporary
-compiler worktree, or carrier. A temporary worktree is not a prerequisite for
-every read-only task, and a read-only child does not make the whole surrounding
-workflow effect-free.
-
-Review then compared the returned evidence with the claimed result. In this
-historical case, the project owner held the bounded acceptance and later
-integration decisions under the acquired project mandate. These were the
-responsibility assignments for this case, not a universal taxonomy. The author's
-pre-execution prompt review and the controller's capture were not independent
-acceptance of the returned task.
-
-To assess the result, connect each claim to its native observation: exact
-commit identities, command operands, exit code, stdout and stderr. If execution
-ends ambiguously, read back the owned evidence before considering a retry.
-Repeating the task automatically can lose the distinction between the original
-attempt and a later observation.
-
-### Interpret one discriminating Git check
-
-The direction of the ancestry query matters:
-
-```text
-git merge-base --is-ancestor <observed-master-oid> <candidate-oid>
-```
-
-The first operand is observed master; the second is the candidate. Exit `0`
-means the first is an ancestor of the second. Exit `1` means it is not. Another
-command error leaves an error to investigate; it does not establish divergence.
-A valid negative result answers the inspection question and authorizes no
-rebase, merge or repair.
-
-For the historical operands, the recorded query returned exit `0`. A separate
-`git rev-list --left-right --count <observed-master-oid>...<candidate-oid>`
-observation returned the exclusive commit counts:
-
-```text
-master-only commits: 0
-candidate-only commits: 18
-```
-
-These count commits present only on each side of that historical comparison.
-They are not tests, percentages or commits created by this tutorial. The
-returned committed-delta views (`git diff --name-status`, `--stat` and
-`--summary`) identified what separated the revisions. Topology and a path
-inventory do not by themselves establish semantic preservation.
-
-### Keep the conclusion within the evidence
-
-The bounded reader task succeeded and was later accepted at its bounded
-ceiling after review. The observed local topology for those operands was
-compatible with considering a later fast-forward-only integration, which would
-advance master without a merge commit. No integration happened in this case.
-The observations concern local refs, not remote freshness, and do not qualify
-writer tasks, production, full Gherkin or arbitrary compiler workflows.
-
-Technical execution, evidence review, bounded acceptance and authority to move
-master remain distinct. Finalizing documentation on a candidate does not
-activate the governance-workflow compiler on master. Any later integration
-needs its own authorized action and actual readback. Use the same
-[decision-layer distinction](../explanation/evidence_reproducibility_and_acceptance.md)
-as in the synthetic review above when recording what has actually been accepted.
-
-**Provenance note:** this is the retained real-use reader qualification
-`TOP26006_LANE15_REAL_USE_GHERKIN_FF_RECONNAISSANCE_20261111_R3`, executed against
-candidate `8b68fd9e4aa2b6028cd0367342bf16747a20b7c7` and observed local master
-`3423f14e1fdbbdd24e034a8c265ea7c08175f448`. Its diagnostics retain `task.feature`,
-`bindings_prereview.yml`, `bindings_final.yml`, both compilation receipts,
-`author_review.yml`, the generated prompt and validator result, the child
-response and original session stream, and the controller's lifecycle record.
-The later tutorial handoff, section 10, records
-`CLOSED_ACCEPTED_WITH_EXISTING_QUALIFICATIONS`; executor completion alone did
-not establish that disposition. Those retained records support this account;
-reading this tutorial does not independently reproduce their checks.
+**Checkpoint:** can you trace every recommendation to the scenario, separate
+reported history from direct inspection, and identify the real human decision
+still required? A complete delivery makes review possible; it cannot establish
+review, acceptance or scientific correctness by itself.
 
 ## Recommend, qualify, and leave a decision
 

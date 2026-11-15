@@ -46,18 +46,18 @@ The four copied files form the clean seed; `interpretation.md` is absent. Preser
 
 The [bounded-change template](../../templates/bounded_change_prompt.md) helps state the task: the person with actual scientific remit decides interpretation; the prompt author bounds authorized effects; the executor returns evidence. Review and acceptance are separate functions with their own scope. Fill it against live governance before an assistant dispatch. It grants no effects on its own. For this practice, the sole post-seed write is the scratch note plus its exact local commit and evidence outside that repository; no runtime, network, production, or publication is needed.
 
-## Choose an authoring route for a real bounded task
+## Prepare a real bounded task
 
-First define the bounded behavior, observable result and exclusions. If a real
-task is faithfully represented by the
-[compiler's supported workflow patterns](../how_to/compile_governance_workflow.md#choose-the-authoring-route),
-an authorized author may use supported Gherkin and acquired bindings to prepare
-its prompt. Otherwise the [manual governed route](../how_to/write_a_prompt_manually.md)
-remains first-class. Neither route grants effects: `allowed_to_modify` expresses
-contractual scope, not an OS ACL or proof of sandbox permission. Both require
-author-side semantic review and runtime applicability checks before effects.
-This lesson keeps its existing scratch-note exercise; compiling a prompt is not
-a prerequisite or evidence that its note was written.
+First define behavior, observable result and exclusions. The
+[direct authoring guide](../how_to/write_a_prompt_manually.md) shows how to
+combine the complete reusable task and author-selected run configuration with
+distinct byte boundaries in one delivery. State the scientific choices already
+made, actual inputs, exact writable paths, commit and validation scope, and who
+will decide acceptance. Derive the Mermaid plan from those stated dependencies.
+`allowed_to_modify` bounds contractual scope; it is not an OS ACL or proof of
+sandbox capability. Author review and runtime applicability checks precede
+effects. This lesson retains its own scratch-note exercise; preparing a task
+does not establish that the note was written.
 
 ## Make the bounded change
 
