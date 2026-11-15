@@ -1,13 +1,16 @@
-# Model selection — common candidate guide v0.1.0
+# Model selection — common candidate guide v0.2.0
 
 **Inactive design.** This guide proposes shared selection responsibilities and
 criteria, not provider vocabulary, a ranking or an effect grant. It accompanies
-[direct prompt authoring v0.2.0](direct_prompt_authoring_v0.md). The future
+[direct prompt authoring v0.3.0](direct_prompt_authoring_v0.md). The future
 common policy owner is project governance through model_policy; native guides
 own provider-specific options. Adoption must establish the maintained homes
 without copying complete routing tables between documents.
 
-The author selects and communicates a concrete configuration for each run.
+The author selects and communicates a complete concrete configuration for each run
+in the same self-contained delivery as the reusable task, outside explicit task
+byte boundaries under CPC’s proposed construction rule. No necessary profile or
+approval is deferred to chat; the existing report retains the delivered contents.
 The executor applies it and records what was supplied and observable; the
 reviewer challenges evidence and limits. One immutable attempt references exact
 task bytes/revision, retained input/method contents and fixed criteria. Ordinary

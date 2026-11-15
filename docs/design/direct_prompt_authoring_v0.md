@@ -1,4 +1,4 @@
-# Direct prompt authoring — documentary candidate v0.2.0
+# Direct prompt authoring — documentary candidate v0.3.0
 
 ## Status, sources and minimum design
 
@@ -39,8 +39,8 @@ permissions and criteria, then selects and communicates each run configuration.
 The executor applies that configuration and records observations; the reviewer
 challenges the result and its limits without accepting it. Inputs are the retained
 task bytes, actual input/method contents, applicable governance and the selected
-guide versions. Outputs are the local candidate, guides and evidence in the
-existing report. Reuse preserves the task bytes across intentional profile changes.
+guide versions. Outputs are the consolidated inactive candidate and directly coupled guide, with proposed consumer postimages and evidence in the
+existing report. CPC owns the proposed construction rule; aids/reference/report consumers apply it. Reuse the existing examples, method and workbook; add no new layer. Reuse preserves the task bytes across intentional profile changes.
 The installation YAML resolves tooling/paths; it is not the run configuration.
 
 A two-field nucleus (`prompt_id`, `decision_question`) indexes an idea but cannot
@@ -85,7 +85,9 @@ The model is not an ordinary task field. If a named model is genuinely the
 scientific object or an experimental criterion, retain that explicit constraint
 in the task; an incompatible run cannot satisfy it by changing configuration.
 
-One separately retained run configuration references this task and records
+One complete delivery contains a clearly bounded reusable task and its author-selected run configuration outside those task bytes. No configuration or necessary authority may be deferred to chat or a second instructional document. Before delivery the author fixes the concrete profile, reasoning, rationale, source versions and required authority; the executor verifies volatile facts rather than filling author/scientific decisions. A missing configuration or necessary approval makes a delivery incomplete, not dispatchable.
+
+The separately retained run configuration references this task and records
 provider/product, author-selected native model/reasoning, rationale and consumed
 guide versions. It is configuration data, not another instructive prompt.
 Use the existing report as its retention surface, with a reachable Git object
@@ -149,33 +151,15 @@ publication, production and recovery retain their current conditional fields.
 
 ### P3. Mandatory derived non-authoritative graph
 
-Every prompt has a planned graph, including an atomic one-node view. Derive it
-from source meaning after drafting the mandate. Nodes denote inputs, actions,
-results or decisions. Distinguish data, prerequisite and alternative routes.
-Each decisive relation has a source locator in the prompt/method/evidence;
-use stable section/node labels, not a drawing's geometry, as locators.
-
-Label relations `explicit`, `inferred` or `unresolved`. An inference states
-its basis and must not silently choose an owner/scientific decision. Unresolved
-relations remain visible and stop only what requires resolving them. List
-order does not establish dependency; absent arrows do not establish independence.
-An all-input join requires every named input; an alternative join states the
-permitted alternatives. A failure/partial route names what remains valid.
-
-Cycles may describe real iteration. Record attempt/stage instances and the
-actual authorized repair boundary; never force the history into a DAG or
-turn a cycle into automatic retry. Correct a graph contradicted by clear
-source text. When the source itself is ambiguous, expose the missing decision
-rather than making a prettier drawing. A graph defect does not annul an
-independent supported result. A material source ambiguity still gates its
-consumer. A one-node graph may annotate its input/result relations in prose.
-
-The observed graph is a separate view recorded in the existing report, with
-actual completed, failed, unknown and unstarted nodes and evidence locators.
-It may be a status annotation of the planned view plus changed relations;
-it must not mark a planned action as executed. Neither view grants effects.
+The single proposed CPC construction rule is the literal postimage in N1
+(graph paragraph). Apply it here: semantic blocks/subblocks represented by nodes
+use the same unique IDs in text and Mermaid. P3 and the consumers below refer to
+that rule; they do not define a competing vocabulary or graph authority.
+The E1–E3 views are revised documentary examples, not retroactive pilot evidence.
 
 ### P4. Task, run and evidence in the existing workbook
+
+The single delivery retains complete run data outside explicit task-byte boundaries (P1). A boundary marker is an illustration, not a required schema or new file format. Preserve the delivered unit as well as its exact task/configuration components; reports are retention, not a source for missing dispatch choices.
 
 Use existing `<evidence_root>/<prompt_id>/` collision rules, report, actual patch
 and conditional ledgers. Distinguish attempts inside the report and preserve
@@ -237,7 +221,7 @@ read_only: [exact inputs and protected resources]
 validation_ceiling: [existing ceiling]
 ```
 
-Retain a separate author-selected run configuration under P4; it grants no effects.
+Include a complete author-selected run configuration in this same delivery, outside explicit reusable-task boundaries, under P1/P4; it grants no effects. The aid may retain slots, but a finished delivery cannot defer a necessary profile or approval.
 Then state, once each: mandate; selected repository/profile or explicit paths;
 input contents and conventions; actual result; applicable branch/grant and
 conditional contract fields; partial/stop behavior; acceptance boundary. Add a
@@ -251,14 +235,35 @@ prompt. This proposed aid is not an exception to current CPC.
 Everything between the E1 markers is one candidate-only example prompt. It is
 not a current-CPC dispatch and creates no authority for filesystem writes.
 
-The ordinary run profile is external to the task bytes below (P4/R).
+This is one complete inert delivery: configuration below plus the exact task
+between the example markers. The configuration is outside the reusable task;
+all scenario choices are fixed and no execution approval is pending or implied.
+
+```yaml
+run_configuration:
+  run_id: example_cell_count_run_a
+  task_reference: {prompt_id: example_cell_count, task_revision: '3', content_locator: E1_marker_bytes}
+  selection_author: scenario_prompt_author
+  provider: OpenAI
+  product: Codex_CLI
+  preferred_codex_model: gpt-6-luna
+  reasoning_level: medium
+  model_selection_rationale: Fixed inert supplied-text case; proportionate author selection, no empirical model claim.
+  selection_sources:
+    common_guide: model_selection_common_v0.md@v0.2.0; adjacent retained candidate content
+    provider_guide: providers/openai_selection_v0.md@v0.1.0; adjacent retained candidate content
+  directly_selected_observation: not_observable
+  runtime_reported_observation: not_observable
+  execution_status: not_executed
+```
+
 
 <!-- example_e1_start -->
 # Compare two supplied meanings of cell
 
 ```yaml
 prompt_id: example_cell_count
-task_revision: '2'
+task_revision: '3'
 decision_question: What counting consequences follow from each supplied cell definition, leaving the scientific choice to the owner?
 prompt_mode: investigation_only
 delegation_policy: forbidden
@@ -278,7 +283,7 @@ heavy_command_permissions:
   network_access: false
 ```
 
-**E1.S authority/input.** Inert supplied scenario, no owner execution grant.
+**E1_S authority/input.** Inert supplied scenario, no owner execution grant.
 Repository context is TOP26006_fw; installation input is
 `/users/apiccine/work/correction-lib/.top26006/local_profile.yml`. No scientific input files
 or application code are read. A hypothetical authorized attempt may read the
@@ -286,7 +291,7 @@ bound profile and current governance for preflight. Supplied definitions are A: 
 process/coefficient pair in one era”; B: “cell = bin/process/coefficient tuple
 in one era”. The owner alone selects the scientific meaning.
 
-**E1.R result/procedure.** Explain both meanings from supplied text. In a fixed
+**E1_R result/procedure.** Explain both meanings from supplied text. In a fixed
 era, let S be the set of present process/coefficient pairs. A counts |S|.
 Let T be the set of present bin/process/coefficient tuples. B counts |T|.
 For a pair p, let B_p be its present bins; B counts the sum of |B_p| over
@@ -298,7 +303,7 @@ multiple eras, sum the separately defined populations by era; do not erase era
 identity or infer cross-era matching. This is conditional counting, not a
 measurement. No method/skill is needed for this atomic task.
 
-**E1.D delivery/stops.** Hypothetical result uses the existing report core and
+**E1_D delivery/stops.** Hypothetical result uses the existing report core and
 actual empty tracked patch under the exact diagnostics scope, resolving a
 collision by the existing observed rerun rule; final answer explains counts
 and the unresolved scientific choice. Stop the affected conclusion if supplied
@@ -306,17 +311,18 @@ terms are ambiguous. Do not change tracked files, indexes, science, refs or exte
 A report or executor completion cannot select/accept the scientific definition.
 During this documentary round the example is not executed, including diagnostics.
 
-**E1.G planned graph.** One task node; its input and result relations are
-explicit from E1.S and E1.R. There is no inferred external dependency, alternative
-join or iteration. The unresolved owner definition is an output boundary, not
-a prerequisite to explaining both alternatives.
+**E1_G planned graph.** E1_R defines the one represented semantic block:
+its supplied inputs resolve through E1_S, its result/procedure and conditions
+through E1_R and E1_D. Those transversal sections need no artificial nodes.
+The unresolved scientific choice is an output boundary, not a prerequisite to
+explaining both alternatives. No other edge or iteration is inferred.
 
 ```mermaid
-flowchart LR
- c["Compare supplied definitions → conditional counts; owner choice open"]
+flowchart TD
+ E1_R["E1_R · Explain conditional counts; owner selects meaning"]
 ```
 
-**E1.O observed view.** Scenario only: the node is planned, no execution or
+**E1_O observed view.** Scenario only: the node is planned, no execution or
 acceptance evidence. A future authorized attempt records its own observed view.
 <!-- example_e1_end -->
 
@@ -328,14 +334,35 @@ includes the full procedure so that it has no hidden instructional dependency.
 A future maintained content reference is allowed only under P4; embedding or
 preserving the method is counted as work, not credited as eliminated content.
 
-The ordinary run profile is external to the task bytes below (P4/R).
+This is one complete inert delivery: configuration below plus the exact task
+between the example markers. The configuration is outside the reusable task;
+all scenario choices are fixed and no execution approval is pending or implied.
+
+```yaml
+run_configuration:
+  run_id: example_weighted_yields_run_a
+  task_reference: {prompt_id: example_weighted_yields, task_revision: '3', content_locator: E2_marker_bytes}
+  selection_author: scenario_prompt_author
+  provider: OpenAI
+  product: Codex_CLI
+  preferred_codex_model: gpt-6-luna
+  reasoning_level: high
+  model_selection_rationale: Fixed inert supplied-text case; proportionate author selection, no empirical model claim.
+  selection_sources:
+    common_guide: model_selection_common_v0.md@v0.2.0; adjacent retained candidate content
+    provider_guide: providers/openai_selection_v0.md@v0.1.0; adjacent retained candidate content
+  directly_selected_observation: not_observable
+  runtime_reported_observation: not_observable
+  execution_status: not_executed
+```
+
 
 <!-- example_e2_start -->
 # Compare supplied synthetic weighted yields using a reusable procedure
 
 ```yaml
 prompt_id: example_weighted_yields
-task_revision: '2'
+task_revision: '3'
 decision_question: What key coverage and signed-reference differences follow from the supplied compatible synthetic yields?
 prompt_mode: investigation_only
 delegation_policy: allowed
@@ -355,7 +382,7 @@ heavy_command_permissions:
   network_access: false
 ```
 
-**E2.S authority/input.** Supplied inert scenario; no real execution grant.
+**E2_S authority/input.** Supplied inert scenario; no real execution grant.
 Repository TOP26006_fw; installation input
 `/users/apiccine/work/correction-lib/.top26006/local_profile.yml`.
 These are synthetic compatible weighted event yields, same semantic stage and
@@ -365,7 +392,7 @@ normalization, with a unique key per row. Reference in supplied order:
 No runtime calculation, scientific test or production execution is requested:
 inspect and explain the supplied expressions/table as static documentary data.
 
-**E2.M reusable method `aligned_weighted_yields`, version `1.0.0`.**
+**E2_M reusable method `aligned_weighted_yields`, version `1.0.0`.**
 Applicability: two explicitly compatible finite weighted-yield populations with
 identical key meaning, units and normalization. Inputs: actual ordered keyed
 rows, compatibility basis, direction `candidate_minus_reference`, relative
@@ -402,7 +429,7 @@ its own suitable validation ceiling/effects; this example is static explanation.
 A skill could optionally package this method after maintained ownership,
 interface/tests/failure/provenance/docs qualification. This document installs none.
 
-**E2.R documentary result to check.** Unique-key alignment gives common={b1,b3},
+**E2_R documentary result to check.** Unique-key alignment gives common={b1,b3},
 reference_only={b2}, candidate_only={}. The common population size is 2;
 reference=3, candidate=2, union=3. Thus reference coverage is 2/3 (about 66.67%),
 candidate coverage 2/2 (100%), union coverage 2/3 (about 66.67%). “100% coverage”
@@ -422,32 +449,38 @@ b2=1 would give delta 1 with relative 1/0 undefined). A row with negative
 reference retains its sign. An empty candidate has 0/3 reference coverage and
 undefined 0/0 candidate coverage, not “fully covered”. None is a scientific test.
 
-**E2.D delivery/stops.** Hypothetically use existing report/empty-patch paths
+**E2_D delivery/stops.** Hypothetically use existing report/empty-patch paths
 under the explicit diagnostics directory and record method contents, input rows,
 conventions, undefined/missing cases and limits. No real writes occur in this
 round. A mismatch in key meaning, uniqueness or normalization blocks only the
 numerical claim that consumes it. The owner retains scientific acceptance;
 completion/lint/review establish none.
 
-**E2.G planned graph and relations.** E2.M steps 1–2 explicitly feed coverage;
-steps 1–3 explicitly require both compatible inputs for paired differences.
-This is an all-input join at `a`; row order adds no dependency. Failure to
-establish compatibility leaves raw row descriptions available, not a validated
-comparison. No alternative method or unresolved edge is supplied.
+**E2_A validate and align.** Apply E2_M steps 1–2 to both populations in
+E2_S; ALL reference rows, candidate rows and method/conventions are required.
+Only compatible unique-key inputs support E2_R's paired differences and named
+coverage. Row order adds no dependency.
+
+**E2_P preserve partial descriptions.** If E2_A cannot establish its premises,
+retain raw descriptions and the specific failed premise, without a validated
+comparison. This is the alternative to full E2_R, not a success substitute.
+
+**E2_G planned graph.** Every edge is explicit from E2_A/P/R/D. E2_A is an
+ALL join of the two populations in E2_S and the conventions in E2_M. E2_D
+receives E2_R OR E2_P according to the stated premise, never both as a full-result
+requirement. No inferred/unresolved relation or iteration is supplied.
 
 ```mermaid
 flowchart TD
- r["Reference rows"] -->|explicit E2.S| a["Validate both inputs and align unique keys: ALL"]
- c["Candidate rows"] -->|explicit E2.S| a
- m["Method 1.0.0 and conventions"] -->|explicit E2.M| a
- a -->|explicit E2.M.2| k["Coverage with named populations"]
- a -->|explicit E2.M.3; compatibility required| d["Paired signed differences"]
- a -->|explicit E2.D failed premise| p["Preserve raw descriptions; comparison unresolved"]
- k -->|explicit E2.D| o["Report: coverage and local numerical disposition, ALL for full result"]
- d -->|explicit E2.D| o
+ E2_S["E2_S · Both supplied populations"] -->|data; ALL inputs| E2_A["E2_A · Validate and align"]
+ E2_M["E2_M · Method and conventions"] -->|prerequisite; ALL inputs| E2_A
+ E2_A -->|premises established| E2_R["E2_R · Coverage and signed differences"]
+ E2_A -->|failed premise; alternative| E2_P["E2_P · Raw descriptions and limit"]
+ E2_R -->|full alternative| E2_D["E2_D · Report full OR partial disposition"]
+ E2_P -->|partial alternative| E2_D
 ```
 
-**E2.O observed view.** All actions remain unexecuted supplied scenario content.
+**E2_O observed view.** All actions remain unexecuted supplied scenario content.
 The table is documentary expected reasoning, not runtime evidence or acceptance.
 <!-- example_e2_end -->
 
@@ -458,14 +491,35 @@ It is not automatically an orchestrated workflow: the only permitted activity
 is static local explanation, with no upload action, Git mutation or ordered
 cross-mode effects. P2 still applies to real orchestration/long-horizon triggers.
 
-The ordinary run profile is external to the task bytes below (P4/R).
+This is one complete inert delivery: configuration below plus the exact task
+between the example markers. The configuration is outside the reusable task;
+all scenario choices are fixed and no execution approval is pending or implied.
+
+```yaml
+run_configuration:
+  run_id: example_yields_continuation_run_a
+  task_reference: {prompt_id: example_yields_continuation, task_revision: '3', content_locator: E3_marker_bytes}
+  selection_author: scenario_prompt_author
+  provider: OpenAI
+  product: Codex_CLI
+  preferred_codex_model: gpt-6.1-sol
+  reasoning_level: medium
+  model_selection_rationale: Fixed inert supplied-text case; proportionate author selection, no empirical model claim.
+  selection_sources:
+    common_guide: model_selection_common_v0.md@v0.2.0; adjacent retained candidate content
+    provider_guide: providers/openai_selection_v0.md@v0.1.0; adjacent retained candidate content
+  directly_selected_observation: not_observable
+  runtime_reported_observation: not_observable
+  execution_status: not_executed
+```
+
 
 <!-- example_e3_start -->
 # Finish a local comparison while preserving an unknown upload boundary
 
 ```yaml
 prompt_id: example_yields_continuation
-task_revision: '2'
+task_revision: '3'
 decision_question: What local numerical completion is supported while accepted parsing coverage and an unknown upload outcome retain their separate boundaries?
 prompt_mode: investigation_only
 delegation_policy: allowed
@@ -487,7 +541,7 @@ continuation_of: supplied_synthetic_coverage_case
 accepted_prior_evidence:
   - claim: parsing_and_key_coverage_only
     artifact: supplied_scenario_evidence
-    locator: E3.C
+    locator: E3_C
 accepted_closure_layers:
   - supplied_scenario_parsing_and_key_coverage_within_input_boundary
 invalidation_boundary: Changed row content, key interpretation, parsing or compatibility premises reopen only the dependent coverage/numerical claim; upload status has its separate boundary.
@@ -500,7 +554,7 @@ checks_not_to_repeat:
   - unchanged_supplied_scenario_parsing_and_key_partition
 ```
 
-**E3.S authority/input.** Inert scenario, no historical owner acceptance and
+**E3_S authority/input.** Inert scenario, no historical owner acceptance and
 no grant to perform a real action. TOP26006_fw installation input:
 `/users/apiccine/work/correction-lib/.top26006/local_profile.yml`.
 Actual supplied synthetic rows are reference `[(b1,5),(b2,0),(b3,-2)]` and
@@ -508,14 +562,14 @@ candidate `[(b3,-1),(b1,6)]`, same compatible weighted-yield normalization and
 semantic stage. These are present here without a dependency on another prompt.
 Static explanation only; do not run a payload, calculation/test or external query.
 
-**E3.C supplied scenario evidence.** The scenario accepts only parsing and
+**E3_C supplied scenario evidence.** The scenario accepts only parsing and
 coverage for these exact rows and unique-key meaning: common={b1,b3},
 reference_only={b2}, candidate_only={}. Numerical completion remains open.
 A separate upload attempt has `outcome_unknown`, with no upload readback,
 network access, retry, recovery or remote mutation granted. “Accepts” here is
 an explicit scenario premise, not a claim about an actual owner decision.
 
-**E3.M reusable method `aligned_weighted_yields`, version `1.0.0`.**
+**E3_M reusable method `aligned_weighted_yields`, version `1.0.0`.**
 Applicability: two explicitly compatible finite weighted-yield populations with
 identical key meaning, units and normalization. Inputs: actual ordered keyed
 rows, compatibility basis, direction `candidate_minus_reference`, relative
@@ -552,16 +606,16 @@ its own suitable validation ceiling/effects; this example is static explanation.
 A skill could optionally package this method after maintained ownership,
 interface/tests/failure/provenance/docs qualification. This document installs none.
 
-**E3.K continuation configuration.** The method body above is identical to
-E2.M; the E3 task selects its optional union coverage output. Reuse only the scenario-accepted parsing/key-coverage portions of steps 1–2
-for unchanged rows/key meaning under E3.C. Compatibility remains the supplied
+**E3_K continuation configuration.** The method body above is identical to
+E2_M; the E3 task selects its optional union coverage output. Reuse only the scenario-accepted parsing/key-coverage portions of steps 1–2
+for unchanged rows/key meaning under E3_C. Compatibility remains the supplied
 scenario premise, not an expanded accepted validation claim. Complete only
 step 3 as static documentary reasoning and inspect the named output ratios.
 A changed input, key interpretation or compatibility premise reopens only its
 dependent claim. This configuration is distinct from a method release; no
 second prompt is needed to recover the method or rows.
 
-**E3.R local result/checks.** Complete only the supplied documentary reasoning:
+**E3_R local result/checks.** Complete only the supplied documentary reasoning:
 b1 delta=6-5=1, relative=100*(1/5)=20%; b3 delta=-1-(-2)=1,
 relative=100*(1/-2)=-50%. b2 remains missing, no paired delta or relative result.
 Reuse coverage common/reference=2/3, common/candidate=2/2, common/union=2/3,
@@ -571,110 +625,105 @@ numerical compatibility; an absent b2 is not zero; adding candidate b2=0 makes
 its paired relative 0/0 undefined. Those controls do not reopen unchanged
 scenario coverage or establish a scientific test.
 
-**E3.U upload boundary.** State `outcome_unknown`. Exact authoritative
+**E3_U upload boundary.** State `outcome_unknown`. Exact authoritative
 reconciliation is prerequisite to any upload-completion claim, and must be
 separately authorized. No readback is performed here and no reconciliation
 result, idempotence or permission is invented. Even evidence that an upload
 failed would not itself grant retry. Preserve a valid local result independently.
 
-**E3.D delivery.** A hypothetical attempt records the reused coverage scope,
+**E3_D delivery.** A hypothetical attempt records the reused coverage scope,
 new local numerical disposition, unknown upload and unperformed actions in the
 existing report/workbook and actual empty tracked patch under the explicit
 diagnostics scope. Lint, review and executor completion are not owner acceptance.
 In this round the example creates no files or effects.
 
-**E3.G planned graph.** Solid edges are explicit prerequisites from
-E3.C/M/K/R/U/D. The dotted relation is unresolved, not an authorized action.
-`j` requires ALL coverage + rows + conventions. `p` requires ALL local result
-and known-as-unknown upload status; it produces the permitted partial report.
-The future `f` requires ALL local result and an evidenced remote disposition.
-`t` has alternative inputs: the present partial route OR a separately
-authorized future report extension. It never waits for both. The future branch
-is documentary, outside this example's effects. List order creates no upload
-prerequisite for the local result.
+**E3_F future reconciliation.** Outside this task's grants; resolving E3_U
+requires separate authority and actual readback. Its result feeds E3_Q only
+when real evidence exists. An unknown outcome grants no retry.
+
+**E3_Q future remote disposition.** Retain the evidenced remote claim from
+E3_F, including its limits; never replace unknown with assumed failure/success.
+
+**E3_T future full extension.** Requires ALL E3_R local result and E3_Q remote
+disposition. E3_D may receive this separately authorized future extension OR
+the present partial route requiring ALL E3_R and known-as-unknown E3_U.
+This does not add effects to the current task or make local completion wait for
+remote reconciliation.
+
+**E3_G planned graph.** Explicit data/precedence and join semantics are in
+E3_C/S/M/K/R/U/D/F/Q/T. E3_K requires ALL accepted coverage, rows and conventions;
+E3_D has the alternative join described in E3_T. The dotted future relation is
+unresolved authority/readback, visibly outside current effects. No real iteration
+is present; later iterations would need authorized attempt-instance records.
 
 ```mermaid
 flowchart TD
- c["Supplied coverage accepted within parsing/input boundary"] -->|explicit E3.C/K| j["Local completion: ALL coverage + rows + conventions"]
- i["Actual rows and signed-reference method"] -->|explicit E3.S/M| j
- j -->|explicit E3.R| l["Local numerical disposition"]
- l -->|explicit E3.D partial route| p["ALL local result + upload status"]
- u["Upload outcome_unknown"] -->|explicit E3.U| p
- p -->|explicit E3.D permitted partial alternative| t["Terminal report view: partial OR future extension"]
- u -. unresolved E3.U separate authority and readback required .-> r["Future reconciliation: not granted"]
- r -->|explicit E3.U if actual evidence later exists| q["Future upload claim disposition"]
- l -->|explicit E3.D retained local evidence| f["Future ALL local result + remote disposition"]
- q -->|explicit E3.U/D| f
- f -->|alternative future extension; separately authorized| t
+ E3_C["E3_C · Scenario-accepted coverage"] -->|ALL| E3_K["E3_K · Local completion selection"]
+ E3_S["E3_S · Actual supplied rows"] -->|ALL| E3_K
+ E3_M["E3_M · Signed-reference method"] -->|ALL| E3_K
+ E3_K --> E3_R["E3_R · Local numerical disposition"]
+ E3_R -->|partial route ALL local and status| E3_D["E3_D · Partial OR future extension report"]
+ E3_U["E3_U · Upload outcome_unknown"] -->|partial route ALL local and status| E3_D
+ E3_U -. unresolved separate authority and readback .-> E3_F["E3_F · Future reconciliation; not granted"]
+ E3_F -->|actual evidence required| E3_Q["E3_Q · Future remote disposition"]
+ E3_R -->|future ALL| E3_T["E3_T · Future full extension"]
+ E3_Q -->|future ALL| E3_T
+ E3_T -->|separately authorized alternative| E3_D
 ```
 
-**E3.O observed scenario view.** Only the supplied parsing/coverage node `c`
-has scenario-accepted status; `j`/`l` remain numerically open in that evidence;
-`u` is unknown; `p`,`t` are planned reporting views; `r`,`q`,`f` are unperformed. The expressions in E3.R are proposed
-completion content, not an invented executed history. No real upload or local
-runtime result is asserted. A real iteration would be recorded as a cycle of
-separately authorized attempt instances, never as a forced acyclic success path.
+**E3_O observed scenario view.** E3_C alone has scenario-accepted coverage;
+E3_K/E3_R remain numerically open in that evidence. E3_U is unknown, E3_D is
+planned, E3_F/Q/T unperformed. E3_S/M are supplied inputs/procedure, not actions
+executed by a model. This annotation uses the planned IDs without a redundant
+second graph. Proposed expressions are documentary completion, not runtime
+history or acceptance.
 <!-- example_e3_end -->
 
-## R — two simulated inert run records
+## R — same exact task, two complete inert configurations
 
-These are authored configuration illustrations, not launches, inference outputs,
-fallbacks or evidence of actual model availability. Both bind the exact E2 task
-between its markers and its supplied input rows/method/conventions/criteria.
-The evidence receipt extracts those bytes once and records their SHA-256 for
-both records, along with retained guide/input/method bytes. The selected factor
-is the model/reasoning pair. No cost or outcome is simulated.
+E2's delivered run_a configuration is the first record. The complete alternative
+below replaces only that configuration, outside the E2 task markers. Both
+candidate deliveries consist of that selected configuration plus the same exact
+E2 marker bytes, supplied rows, method 1.0.0, parameters and criteria. The receipt
+extracts the task once and compares its byte identity for both compositions;
+there is no second task mandate or missing choice to recover from chat.
 
 ```yaml
-simulated_runs:
-  - run_id: example_weighted_yields_run_a
-    task: {prompt_id: example_weighted_yields, task_revision: '2', content_locator: E2_marker_bytes}
-    inputs: E2.S_exact_rows
-    method: E2.M_1.0.0_with_E2.R_denominators
-    selection_author: scenario_prompt_author
-    provider: OpenAI
-    product: Codex_CLI
-    preferred_codex_model: gpt-6-luna
-    reasoning_level: high
-    model_selection_rationale: Bounded keyed comparison with fixed adversarial conventions; simulated author selection using local focused-work guidance.
-    guides: [model_selection_common_v0.md_v0.1.0, providers/openai_selection_v0.md_v0.1.0]
-    selected_observation: not_observable
-    runtime_observation: not_observable
-    execution_status: not_executed
-    output_status: no_model_output
-  - run_id: example_weighted_yields_run_b
-    task: {prompt_id: example_weighted_yields, task_revision: '2', content_locator: E2_marker_bytes}
-    inputs: E2.S_exact_rows
-    method: E2.M_1.0.0_with_E2.R_denominators
-    selection_author: scenario_prompt_author
-    provider: OpenAI
-    product: Codex_CLI
-    preferred_codex_model: gpt-6.1-sol
-    reasoning_level: medium
-    model_selection_rationale: Deliberate simulated alternative pair for controlled comparison of the same verifiable task; no superiority assumed.
-    guides: [model_selection_common_v0.md_v0.1.0, providers/openai_selection_v0.md_v0.1.0]
-    selected_observation: not_observable
-    runtime_observation: not_observable
-    execution_status: not_executed
-    output_status: no_model_output
+run_configuration:
+  run_id: example_weighted_yields_run_b
+  task_reference: {prompt_id: example_weighted_yields, task_revision: '3', content_locator: E2_marker_bytes}
+  selection_author: scenario_prompt_author
+  provider: OpenAI
+  product: Codex_CLI
+  preferred_codex_model: gpt-6.1-sol
+  reasoning_level: medium
+  model_selection_rationale: Deliberate inert alternative model/effort pair for the identical fixed task; no superiority, cost or availability assumed.
+  selection_sources:
+    common_guide: model_selection_common_v0.md@v0.2.0; adjacent retained candidate content
+    provider_guide: providers/openai_selection_v0.md@v0.1.0; adjacent retained candidate content
+  directly_selected_observation: not_observable
+  runtime_reported_observation: not_observable
+  execution_status: not_executed
 ```
 
-Guide references above resolve to the adjacent versioned candidate files,
-retained in this revision's postimage and receipt. E1's hypothetical author can
-select a profile externally without a method/skill. E3 likewise retains its
-continuation authority/closure independently of any author-selected profile.
+These are configuration illustrations, not launches, inference outputs, automatic
+fallbacks or availability evidence. Requested values are not observed runtime
+identities. No output, outcome or cost is simulated. E1 and E3 likewise have
+complete concrete configurations in their own delivery units. Changed examples
+are task revision 3 with fresh byte hashes/lint; old revision 2 receipts do not
+apply. The method/calculation guards are unchanged and reused, not new experiments.
 
 ## B — accounting over consistent populations
 
 The current master CPC population is fifteen universal labels (T). v0.1.0 had
-eleven, including task_revision. v0.2.0 has eight task labels. This is a new
+eleven, including task_revision. v0.2.0 introduced eight task labels, retained in v0.3.0. This is a new
 comparison with explicit populations, not another description of the old 15→11.
 
 | Population/change | Count and actual interpretation |
 | --- | --- |
 | Master universal labels | 15: 7 retained task labels, 3 transferred run values, 5 derived/conditional values |
 | Candidate task labels | 8: those 7 plus task_revision |
-| Master→v0.2.0 task-label difference | 7 fewer per task; 21 across the three examples, contract_count only |
+| Master→v0.3.0 task-label difference | 7 fewer per task; 21 across the three examples, contract_count only |
 | v0.1.0→v0.2.0 task-label difference | 3 profile values transferred per task; no selection work eliminated |
 | Values author avoids routinely transcribing | short_title, workspace_root, repo_locations, patch_kind_expected, final_chat_deliverable; explicit material exceptions still authored |
 | Values recurring per run | Author's model, reasoning and rationale, plus provider/product, task binding, guide version/content locators; actual selected/runtime observations remain evidence |
@@ -730,7 +779,11 @@ with this exact text:
 > prompt_mode, delegation_policy, allowed_to_modify, read_only and
 > validation_ceiling. Ordinary model/reasoning selection, rationale and consumed
 > guide version belong to the separately retained author-selected run configuration
-> referring to the exact task. That configuration is data, not a second mandate.
+> referring to the exact task. Deliver complete run configuration and reusable
+> task in one self-contained unit with explicit byte boundaries; configuration
+> stays outside task bytes. The author fixes concrete choices, sources/versions
+> and required authority before delivery. Do not defer a necessary profile or
+> approval to chat. This configuration is data, not a second mandate.
 > The task also states actual authority, inputs/conventions, observable result,
 > relevant failure behavior and acceptance boundary. Scientific choices and
 > exact targets cannot be supplied by a default or method. Flexible semantic
@@ -775,16 +828,32 @@ preflight rules:
 
 Replace the optional `workflow_graph` sentence in the conditional router with:
 
-> Every task has a derived planned workflow_graph, even a one-node task. It is
-> documentary and non-authoritative. Preserve source locators and label
-> explicit, inferred and unresolved relations, all-input and alternative joins,
-> iterations and partial-delivery routes. Do not infer independence from absent
-> arrows or dependencies from list order. Correct a drawing contradicted by
-> clear source text; expose ambiguous source decisions. Reports keep a distinct
-> observed view. Graph defects do not annul independent supported results or
-> grant effects. Orchestration triggers remain activity-based across modes,
-> including long-horizon work and delegation; routine editing/checking/commit
-> within one coding contract remain ordinary.
+> Every task has a mandatory derived planned workflow_graph, even one-node work.
+> Mermaid is its only visualization format in the direct path. Every represented
+> semantic block/subblock has an ID unique in the task revision; each node uses
+> that same ID and resolves to the text defining meaning, inputs, result and
+> conditions. No second letter vocabulary, fixed alphabet or node count is
+> required. A node needs a textual referent; not every section needs a node.
+> Section order and command order create no dependencies; transversal sections
+> need not become artificial actions. Text defines data, precedence, alternatives,
+> ALL versus alternative joins, partial outcomes and genuine iterations. Preserve
+> their actual meaning and source locators. Distinguish inferred or unresolved
+> relations when present; do not invent them to fill a taxonomy. An inference
+> states its basis and cannot choose an owner/scientific decision. An unresolved
+> material relation stops only its dependent consumer. Missing arrows prove no
+> independence. Keep diagrams short, readable and clearly labelled; use vertical
+> layout or a justified split for larger views. Mapping/state tables may explain
+> the view; no ASCII graph, second visualization or mandatory intermediate
+> language is required. The graph is derived and non-authoritative: it grants
+> no permission, authority or retry. Correct a view contradicted by clear text;
+> material ambiguity in the text stops only its consumer for the required decision.
+> Iterations require their real authorized repair/attempt boundaries, not automatic
+> retries. Preserve independent supported results. Reports distinguish planned
+> and observed views; an observed view may annotate the planned Mermaid with
+> actual states/differences and the same IDs where they correspond, without a
+> redundant second drawing when the distinction is clear. Planned is never
+> executed evidence. Orchestration triggers remain activity-based across modes;
+> routine editing/checking/commit in one coding contract remain ordinary.
 
 Append to the one-self-contained-prompt paragraph:
 
@@ -822,6 +891,7 @@ needed for runtime binding.
 **AGENTS — replace the paragraph beginning “Prompts retain explicit”:**
 
 > Tasks retain delegation_policy and any requirement for independent review.
+> Apply CPC’s same-delivery task/run boundary and graph construction rule.
 > The author selects and communicates each immutable run configuration outside
 > the reusable task: provider/product, native model/reasoning, rationale and
 > consumed common/provider guide versions with retained content locators.
@@ -836,6 +906,7 @@ needed for runtime binding.
 
 **AGENTS — append to Compact reporting and artifacts:**
 
+> Apply CPC’s graph construction rule for ID resolution, Mermaid and observed views.
 > The existing report is the task/run workbook. Preserve exact task bytes and
 > revision, consumed input/method/configuration contents or retained immutable
 > locators, author-selected run configuration and guide versions, actual
@@ -853,7 +924,7 @@ list and the paragraphs deriving profile from prompt fields:**
 > docs/design/model_selection_common_v0.md and
 > docs/design/providers/openai_selection_v0.md; adoption must establish their
 > maintained normative homes without duplicate routing tables.
-> The author selects an immutable run configuration outside the reusable task,
+> Under CPC’s complete single-delivery boundary, the author selects an immutable run configuration outside the reusable task,
 > retaining provider/product, native model/reasoning, rationale and exact guide
 > versions/content. For the OpenAI/Codex procedure, preferred_codex_model,
 > reasoning_level and model_selection_rationale are run configuration values.
@@ -897,20 +968,20 @@ requirement or adapter. No compiler code or normative file is removed here.
 
 | Surface | Exact proposed dependent edit | Ownership/qualification limit |
 | --- | --- | --- |
-| templates/read_only_prompt.md | Replace illustrative body with A's eight-task-field aid and separate P4 run binding followed by authority/inputs/result/branch/grant/graph/acceptance slots; label it non-dispatch-ready | CPC owns requirements, not this aid |
+| templates/read_only_prompt.md | Replace illustrative body with A's eight-task-field aid and same-delivery P4 run binding outside task bytes followed by authority/inputs/result/branch/grant/graph/acceptance slots; label it non-dispatch-ready | CPC owns requirements, not this aid |
 | templates/bounded_change_prompt.md | Keep its separate authority/acceptance roles and scientific boundary; replace the mandatory observed-HEAD author slot with semantic repository/target/profile binding plus pre-effect readback; add task_revision and derived graph slots | Conditional commit/effect fields unchanged |
 | templates/continuation_prompt.md | Keep closure/delta/invalidation/checks-not-to-repeat; add task_revision and planned/observed graph distinction; use runtime branch readback rather than implied historical freshness | No second continuation vocabulary |
 | templates/review_report.md | Add consumed method/config contents, graph/source disagreement and observed-view checks to independent checks/limits; retain acceptance fields | Review remains advisory |
 | docs/reference/prompt_contract.md | Replace universal-field summary with the exact eight-task-field list in N1; add P2's conditional installation/delivery defaults and mandatory graph statement; retain maps/router links | No competing schema |
 | docs/reference/report_contract.md | Add the exact workbook paragraph in N3a, referring to AGENTS as authority | Reuse report paths, no new state database |
-| .agents/skills/correction-lib-prompt-contract/assets/prompt_template.md | Replace its four-field scaffold with A's eight-task-field aid and separate P4 run binding and explicit conditional-contract/graph reminder | Authoring helper remains non-exhaustive |
+| .agents/skills/correction-lib-prompt-contract/assets/prompt_template.md | Replace its four-field scaffold with A's eight-task-field aid and same-delivery P4 run binding outside task bytes and explicit conditional-contract/graph reminder | Authoring helper remains non-exhaustive |
 | .agents/skills/correction-lib-prompt-contract/SKILL.md | Add: “Candidate direct-prompt fields and graphs require author semantic review; this helper does not certify them.” | Ordinary unknown-field acceptance remains valid; no new certification |
 | prompt_schema.json and validate_prompt.py under that skill | No semantic enforcement change proposed; preserve bounded parsing and not_assessed result | A new semantic validator would be a separately scoped reusable capability, not an implied extension |
 | Other three existing local skills | No payload/interface change; refer to their existing copy-only, handoff-only and inert-review limits when selected | Do not invoke them automatically or weaken their boundaries |
-| Reusable method contents | Use E2.M as inline playbook content 1.0.0; future extraction has an explicit maintained home and ownership/validation decision | No mandatory skill, registry, tool or duplicated workbook |
+| Reusable method contents | Use E2_M as inline playbook content 1.0.0; future extraction has an explicit maintained home and ownership/validation decision | No mandatory skill, registry, tool or duplicated workbook |
 
-Tutorials remain unchanged in this step; an adoption round must qualify actual
-author→executor→review consumers and update reached teaching material. The
+Tutorials remain outside this round (lane14 S3); future adoption must cover reached
+author→executor→review consumers beyond the accepted bounded Git pilot. The
 compiler's current PROMPT_CORE consumes the old fifteen-field population and
 does not supply task_revision. That fact is historical/current implementation,
 not a future consumer requirement. The program retires compiler/Gherkin rather
@@ -957,13 +1028,13 @@ read_only: [exact inputs and protected resources]
 validation_ceiling: static_inspection_only
 ```
 
-Run binding: [separate author-selected configuration, rationale and retained guide versions].
+Run binding: [complete author-selected configuration, rationale and retained guide versions in this delivery, outside explicit task-byte boundaries].
 Mandate/authority: [actual provenance, no scientific choice inferred].
 Repository/profile: [typed IDs, exact profile input; explicit material paths].
 Branch/grants: [read_only_current_branch and exact positive capability map;
 no tracked writes, no inferred network grant].
 Inputs/procedure/result: [actual contents/conventions, observable deliverable].
-Planned graph: [derived one-node or larger view with source locators, relation
+Planned graph: [apply CPC’s unique shared text/node IDs and Mermaid-only rule; derived one-node or larger view with source locators, relation
 status and join/partial semantics; no effect authority].
 Evidence/stops: [bounded checks, limits and independent valid partial results].
 Delivery: existing report and actual empty tracked patch, observed graph and
@@ -985,7 +1056,7 @@ replace slots and add all applicable conditional fields before dispatch.
 - Research coordinator / bounded evidence acceptance: [role and scope].
 - Scientific lead / interpretation acceptance: [role or not applicable reason].
 - Prompt author / executor / independent reviewer: [separate responsibilities].
-- Run binding: [separately retained author-selected provider/product/profile,
+- Run binding: [complete same-delivery author-selected provider/product/profile outside task bytes,
   rationale and guide versions; task retains authorized delegation/independence].
 - Repository/profile/targets: [typed IDs, exact profile, semantic branch role,
   exact paths/effects; explicit physical targets where decision-material].
@@ -997,7 +1068,7 @@ replace slots and add all applicable conditional fields before dispatch.
 - Inputs/conventions/exclusions: [actual contents and fixed scientific choices].
 - Pre-effect readback: [relevant branch/HEAD/index/conflict, master, profile,
   target and collision facts; no author-invented live state].
-- Planned graph: [derived relations, locators, join/partial/iteration semantics].
+- Planned graph: [apply CPC’s unique shared text/node IDs and Mermaid-only rule; derived relations, locators, join/partial/iteration semantics].
 - Checks/evidence/stops: [actual consumers, failed/unknown boundaries, limits].
 - Delivery: existing report/patch and observed graph/attempt contents;
   [explicit cumulative comparison or delivery exception when material].
@@ -1016,7 +1087,7 @@ Use master authority and this inactive proposed eight-task-input contract, inclu
 prompt_id, task_revision and decision_question; supply every applicable
 conditional field. Preserve existing continuation names.
 
-- Run binding: [separate immutable author-selected configuration and retained guide versions].
+- Run binding: [complete immutable author-selected configuration and retained guide versions in this delivery, outside task bytes].
 - continuation_of: [bounded prior task identity].
 - accepted_prior_evidence: [claim, artifact, locator, validity and actual
   acceptance provenance; scenario evidence labelled as such].
@@ -1029,7 +1100,7 @@ conditional field. Preserve existing continuation names.
   selected method revision/content/configuration; no companion instructions].
 - Branch/permissions/preflight: [fresh consumed Git/resource facts, exact
   applicable contract and sole positive effect map; no replay from silence].
-- Planned graph: [source-derived claim/action relations with join/partial and
+- Planned graph: [apply CPC’s unique shared text/node IDs and Mermaid-only rule; source-derived claim/action relations with join/partial and
   unresolved status; do not block local evidence on an independent remote gap].
 - Stops/delivery: [preserve valid partial work, unknown-effect readback boundary,
   existing report/patch/checkpoint and distinct observed graph].
@@ -1050,7 +1121,8 @@ No checkpoint, accepted evidence, graph or lint result grants a new effect.
 - Requested versus directly selected/runtime-reported observations and metadata sources:
 - Executor claims, distinct from direct observations:
 - Independent checks, evidence locators and results:
-- Graph/source disagreements, joins, partial routes and observed-view checks:
+- CPC graph-rule checks: same text/node IDs, Mermaid, source disagreements, joins, partial routes and planned/observed distinction:
+- Complete same-delivery run configuration outside task bytes; no pending necessary choice/approval:
 - Blocking and nonblocking findings, each with dependent consequence:
 - Counterexamples, unsupported claims and recommended corrections:
 - Not evaluated, residual risks and completeness/confidence limits:
@@ -1073,7 +1145,8 @@ union. Universal named author inputs are prompt_id, task_revision,
 decision_question, prompt_mode, delegation_policy, allowed_to_modify, read_only
 and validation_ceiling. Model/reasoning selection, rationale and guide versions
 are separately retained author-selected run configuration, referring to exact
-task bytes; they cannot change task permissions, independence or science.
+task bytes within the same complete delivery; no necessary profile/approval
+may be deferred to chat. They cannot change task permissions, independence or science.
 Actual authority, inputs/conventions, result, relevant
 failure behavior and acceptance boundary remain required semantic content.
 
@@ -1093,9 +1166,9 @@ workflow_effect_envelope grants nothing. Activity-based orchestration,
 long-horizon, production, Git, evidence and model triggers retain their fields.
 Ordinary editing/checking/commit within one coding contract remain ordinary.
 
-Every prompt includes a source-derived documentary graph, even one-node work,
-with explicit/inferred/unresolved relations, joins, partial routes and real
-iterations. It grants no authority; reports record a distinct observed view.
+Apply CPC’s single graph construction rule, including shared unique text/node
+IDs, Mermaid-only visualization, joins/partial/iteration semantics and distinct
+observed status. This reference adds no second graph authority.
 Continuations retain current closure/delta/invalidation/checks-not-to-repeat
 fields. Optional methods supply preserved stable procedure, never a second
 mandate or hidden permissions. Mechanical lint is not governance completeness,
@@ -1108,7 +1181,8 @@ execution, qualification or owner/scientific acceptance.
 > task bytes/revision and consumed input/method/configuration contents or retained
 > immutable content locators, separate author-selected run configuration and guide
 > versions, requested/selected/runtime observations with provenance, output and
-> decision evidence, and a distinct observed documentary graph. Record resolved
+> decision evidence, and a distinct observed documentary graph applying CPC’s
+> shared-ID/Mermaid-only rule. Record resolved
 > workspace_root/repo_locations before dependent effects. A hash or filename
 > alone does not preserve contents. Existing report, patch, collision and
 > conditional stage/checkpoint mechanisms remain; no registry or parallel
@@ -1123,7 +1197,8 @@ replace whole file:**
 Read current CPC/AGENTS and applicable native policy. Supply the eight named task
 inputs explicitly: prompt_id, task_revision, decision_question, prompt_mode,
 delegation_policy, allowed_to_modify, read_only, validation_ceiling. Preserve
-a separate author-selected run configuration with provider/product, native
+a complete same-delivery author-selected run configuration outside explicit task
+byte boundaries, with provider/product, native
 model/reasoning, rationale and consumed guide versions; it grants no effects.
 Fill each from actual author decisions; no field count makes a task dispatchable.
 
@@ -1131,8 +1206,8 @@ State mandate/authority, selected typed repositories/exact targets/profile,
 actual inputs/conventions, result and acceptance boundary. Add exact applicable
 branch, effect, commit, continuation, evidence, orchestration, long-horizon,
 production and model fields from the trigger union. Include the derived graph
-with source locators, explicit/inferred/unresolved relations, joins and partial
-routes. Preserve method/input/config contents and actual observed attempt state
+under CPC’s shared-ID/Mermaid-only construction rule and its source/relationship
+semantics. Preserve method/input/config contents and actual observed attempt state
 in existing reports. Standard delivery and installation observations follow
 CPC defaults; explicit material exceptions still require author selection.
 
@@ -1142,7 +1217,7 @@ completeness or authorize execution. Unknown future fields are not certification
 
 The exact SKILL.md insertion is the quoted sentence in N3's skill row, placed
 at the end of its Authority boundary section. No script/schema replacement is
-proposed. Method contents remain inline E2.M/E3.M; future extraction is separate.
+proposed. Method contents remain inline E2_M/E3_M; future extraction is separate.
 
 ### N4. Inert authoring, future use and qualification boundary
 
@@ -1154,13 +1229,38 @@ are proposals. Mechanical acceptance does not activate them. Any future actual
 use is a distinct owner-authorized task under its then-current governance; no
 automatic exception, pilot, adoption or compiler compatibility gate is created.
 
-The first unproven step remains efficacy in a real consumer. A separately
-authorized evaluation can compare full classic/candidate authoring effort,
-recovery of intent/permissions/inputs, ambiguity, review and partial-result
-handling with fixed comparison factors. Static counts are not time/token/cost
-measurements or evidence of greater portability. General adoption, integration,
-merge/push, runtime experiments, compiler retirement and an integrated Akademia
-audit/plan remain outside this round; Akademia requires separate owner GO.
+A bounded real Git consumer now exists: pilot revision 3 completed the requested
+Git result, received review and owner acceptance. Original report and delivery:
+`reports/diagnostics/TOP26006_LANE15_DIRECT_PROMPT_CLOSED_CASE_PILOT_20261114_R1/`.
+Delivery/task/config SHA-256 respectively:
+`cf5be708ec51bb537b8f2045527cb7d76f47701785e636324e302fffeda7168a`,
+`675dfe146138e62edc9f427b3e5bf87fd13576b8347e9d65aba30f15ec8cf7d6`,
+`31fa8588b9d49f1c4dc9895f1d3029c14caa26892cdc54cdb1e370569250f68d`.
+Acceptance provenance is the owner disposition supplied in this round's H,
+following receiving review of eight decisive R3 records, 100 streams from 50
+captured records and delivered files. The earlier report predates acceptance;
+its pending wording is preserved, not rewritten.
+
+This supports only the bounded Git case. Received/authored delivery byte equality
+was checked by receiving review; no full CLI conversation or all inline utility
+sources were retained. No further clarification after revision 3 remains the
+executor's attestation, consistent with the result, not a fully captured transcript.
+Requested pilot profile was Sol/medium; exact runtime was not_observable, so no
+empirical attribution to the model follows. Git snapshots cover the captured
+window, not every instant of the host. Historical counterexamples_tested meant
+consistency checks, not negative executions/fault injection. Earlier incomplete
+approval/config handoff was superseded by revision 3, not a failed Git test to
+repeat. R2's missing independent pre-commit review and E1/P1 process qualifications
+remain historical limitations; receiving review does not cure the sequence.
+
+The owner later selected Mermaid alone and matching text/node IDs. Those rules
+are prospective: original G1/r3 and pilot artifacts remain unchanged. E1–E3
+revision 3 are inert documentary variants, never executions of that pilot or
+retroactive Mermaid evidence. No new pilot-derived execution is claimed.
+Unproven boundaries remain broader consumer/workflow coverage and measured total
+authoring/selection/review/report costs. Contract counts are not empirical savings.
+General adoption, normative edits, S3 manual/tutorial, S4 retirement, S5 publication
+and communication remain separate mandates. Akademia audit/plan needs separate GO.
 
 ## V — static semantic review checklist and disposition record
 
@@ -1182,24 +1282,25 @@ The following are discriminating checks, not claims that payloads were run:
 | Guide/version unresolved | P4 limits reproducibility of the selection; does not fabricate current guide content |
 | Model unavailable | P4 requires new author selection/dispatch, no silent fallback |
 | Profile tries to grant effects | P1 denies added upload, retry, production or delegation; task grants remain sole authority |
-| Atomic task needs no skill | E1.R uses direct supplied-text explanation, one-node graph; P4 makes methods optional |
+| Atomic task needs no skill | E1_R uses direct supplied-text explanation, one-node graph; P4 makes methods optional |
 | Unresolved method reference | P1/P4 require actual preserved contents before dependent use; E2/E3 inline their procedures |
-| Different coverage denominators | E2.R names reference=3, candidate=2, union=3; P4 treats a changed denominator as a different method/input configuration, not a model effect |
-| Graphic attempts to permit retry | P3 and E3.U deny graph authority; no readback/retry grant exists |
-| Unknown upload blocks local result | E3.C/R/U/G preserve local coverage/numerics separately; only remote claim needs reconciliation |
+| Different coverage denominators | E2_R names reference=3, candidate=2, union=3; P4 treats a changed denominator as a different method/input configuration, not a model effect |
+| Graphic attempts to permit retry | P3 and E3_U deny graph authority; no readback/retry grant exists |
+| Unknown upload blocks local result | E3_C/R/U/G preserve local coverage/numerics separately; only remote claim needs reconciliation |
 | Conditional precision erases orchestration | P2 applies the trigger union across modes and long-horizon work, retaining exact stage grants and commit fields |
 | Routine edit/check/commit over-staged | P2 and N1 preserve ordinary one-contract coding |
-| Row order treated as correspondence | E2.M aligns unique keys, not positions |
-| Missing row treated as zero | E2.R/E3.R keep b2 absent despite reference zero |
-| Negative or zero reference mishandled | E2.R shows -50%; paired b2 zero controls remain undefined |
+| Row order treated as correspondence | E2_M aligns unique keys, not positions |
+| Missing row treated as zero | E2_R/E3_R keep b2 absent despite reference zero |
+| Negative or zero reference mishandled | E2_R shows -50%; paired b2 zero controls remain undefined |
 | Lint claimed as adoption | Status/N4 and E1–E3 deny current dispatch authority and acceptance |
 
 Mechanical lint covers bounded text parsing, duplicates, placeholders and a
 small supplied-value consistency surface. Its results are reported separately
 as mechanical_validity, internal_consistency and governance_completeness:
 not_assessed. Author/independent semantic review examines actual consumers and
-meaning; it is design evidence. No example payload, scientific/runtime test,
-compiler qualification or production has been executed to validate this design.
+meaning; it is design evidence. No updated example payload, scientific/runtime test, compiler qualification or
+production is executed in this consolidation. The bounded accepted Git pilot
+retains only N4’s qualified claim; it does not qualify these changed examples.
 
 Continuation review qualifications retained: the earlier E1 reused_unchanged_lint
 flag did not demonstrate reuse from its first attached sample because the bytes
@@ -1208,3 +1309,12 @@ is reconstructed and old evidence is not rewritten. Earlier P1 began s1 before
 s0 serialization/reopening: this remains a procedural deviation, without proof
 of a mandate defect. A rerun cannot cure that history. This continuation records
 its own completed/reopened pre-effect readbacks and never claims retroactive cure.
+
+Consolidation v0.3.0 review additions: check every node resolves to exactly one
+semantic text ID; a transversal section need not become a node. Reject a Mermaid
+view that renders but changes ALL to OR, erases valid local partial results or
+adds effects. Verify literal extracted task/input/method identity across the two
+inert run configurations; a missing required configuration/approval prevents
+dispatchability. A post-pilot variant needs new revision/hash and inert status.
+The controller report records current independent review and disposition; it
+does not retroactively alter R2. No new timing/token/cost claim is made.
