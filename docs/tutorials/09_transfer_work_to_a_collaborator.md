@@ -12,14 +12,18 @@ For a provider-to-consumer handoff, record both commits and the claim relied upo
 
 **Recipient checkpoint:** without oral context, identify the accepted claim and evidence, last observation to refresh, unresolved delta, invalidation triggers, checks not to repeat, authorization still needed and next human decision. Confirm acquisition and understanding separately from sending the handoff.
 
-For a [direct task](../how_to/write_a_prompt_manually.md), retain the exact
-task/revision and separate run configuration from the complete delivery,
-input/method and guide contents, planned diagram and observed annotations,
-results, review and decisions. Use the existing report as the attempt record;
-a hash without retained contents is insufficient. The recipient locates and
-reads those artifacts, refreshes consumed volatile facts, then identifies the
-next authorized delta. Sending the account, acquiring its bytes, understanding
-it and resuming work are distinct acts; none is proved by preparing this draft.
+For a [direct task](../how_to/write_a_prompt_manually.md), retain the original
+complete delivery itself, as well as its separately identifiable components:
+the exact task and revision, the separately delimited run configuration,
+consumed input and method contents, selection guides with their versions, and
+planned diagram. Preserve those contents or cite retained immutable copies.
+Keep observed annotations, results, reviews and decisions with the existing
+attempt report, distinguishing requested, selected and runtime-reported settings
+with their sources. A hash without the corresponding contents is insufficient.
+The recipient reads these artifacts and refreshes the current facts needed for
+the next action, such as repository HEAD and task-path changes. They then
+identify the next authorized work. Preparing or sending this account does not
+prove that the recipient obtained it, understood it or resumed the task.
 
 ## Optional documentary practice: prepare a successor handoff
 

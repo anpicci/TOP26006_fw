@@ -56,27 +56,32 @@ is a fillable aid; it is not a finished dispatch or a second authority.
 
 ## Include the author's complete run configuration
 
-Deliver one self-contained unit containing the reusable task and the complete
-configuration selected by its author, with explicit distinct byte boundaries.
-Two physical files are not required. Configuration is data outside the task
-bytes, not a second instruction or a profile to recover from a later chat.
-It refers to the exact task revision and supplies provider/product, concrete
-native model and reasoning choices, rationale, and retained guide versions and
-contents. Resolve necessary authority and configuration before delivery.
+Deliver the complete reusable task and the complete run configuration together.
+Mark where the task starts and ends, and keep the configuration outside that
+marked text; both may be in one file. Here, “task bytes” means the exact contents
+within those boundaries. The configuration is data, not a second instruction
+or a profile to recover from a later chat. It refers to that exact task revision
+and records the author's provider, product, concrete native model and reasoning
+choices, rationale, and retained versions and contents of the selection guides.
+Preserve the complete delivery and its separately identifiable task and
+configuration components, including consumed input and method contents and
+selection guides with their versions, or cite retained immutable copies of
+those contents. Resolve necessary authority and configuration before delivery.
 
 Use the maintained [common selection guide](../../governance/model_selection_common.md)
 and [OpenAI selection guide](../../governance/providers/openai_selection.md) for
 the candidate's selection responsibilities and native options. Keep their tables
-and dated vendor observations there. A changed model or reasoning choice creates
-another author-selected attempt with an immutable configuration; it grants no
-new effects and does not change unchanged task bytes. A model studied as the
-scientific object remains an explicit task constraint.
+and dated vendor observations there. A different model or reasoning choice
+creates a new attempt with a new author-selected configuration that remains
+fixed for that attempt. It grants no new effects; if the task itself is unchanged,
+retain exactly the same task text. A model studied as the scientific object
+remains an explicit task constraint.
 
 The following is a packaging aid with declared slots, **not a complete prompt**:
 
 ```text
 Complete author-selected run configuration for [task identity and revision]
-[outside reusable task bytes; supply all concrete choices and retained sources]
+[outside the marked reusable-task section; supply all concrete choices and retained sources]
 --- reusable task begins ---
 [complete mandate, semantics, inputs, grants, checks, graph and result boundary]
 --- reusable task ends ---

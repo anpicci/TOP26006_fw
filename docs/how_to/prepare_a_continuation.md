@@ -17,11 +17,13 @@ Have the accepted claim, review and task/evidence or scientific acceptance decis
    A compact field pattern is `closure: <claim + locator>; delta: <new effect>; invalidation_boundary: <drift that stops reuse>; checks_not_to_repeat: <accepted checks>`; fill it with actual accepted-evidence identities and author-fixed choices before dispatch. Bind volatile observations to the executor's pre-effect checks rather than guessing them or requiring the author to relay them.
 
 Deliver the complete continuation and its author-selected run configuration
-in one unit with separate reusable-task bytes; use the [direct authoring guide](write_a_prompt_manually.md).
-A new attempt preserves prior evidence and records its new configuration without
-overwriting earlier results. Derive the planned Mermaid from the actual delta:
+together, with the reusable task clearly delimited and the configuration outside
+it; use the [direct authoring guide](write_a_prompt_manually.md).
+A new attempt retains prior evidence and records its new configuration without
+overwriting earlier results. Derive the planned Mermaid from the actual new work:
 show reused inputs, remaining work and independent partial results where relevant.
-The observed annotation later records what happened, without implying replay.
+After execution, annotate what actually happened without implying that reused
+work was repeated.
 
 The field pattern above is an aid, not a complete prompt or a second continuation
 vocabulary. In a governed task, use `accepted_prior_evidence` for claims and

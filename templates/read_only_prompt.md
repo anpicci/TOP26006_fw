@@ -15,7 +15,7 @@ read_only: [exact inputs and protected resources]
 validation_ceiling: static_inspection_only
 ```
 
-Run binding: [complete author-selected configuration, rationale and retained guide versions in this delivery, outside explicit task-byte boundaries].
+Run binding: [complete author-selected configuration, rationale and retained guide versions in this delivery, outside the explicitly delimited reusable-task section].
 Mandate/authority: [actual provenance, no scientific choice inferred].
 Repository/profile: [typed IDs, exact profile input; explicit material paths].
 Branch/grants: [read_only_current_branch and exact positive capability map;

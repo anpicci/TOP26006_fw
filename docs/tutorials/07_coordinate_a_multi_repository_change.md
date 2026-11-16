@@ -43,7 +43,7 @@ For a future authorized correction change, hand over the exact provider revision
 
 ## Optional documentary practice: prepare an evidence transfer
 
-You are the researcher preparing evidence for a receiving methods responsibility. Your purpose is to decide which analysis claim can be carried across and what the recipient must still establish. You will produce a **personal evidence-transfer draft**, using the existing [handoff template](../../templates/handoff.md) as a read-only guide. You need only read access to that template and the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md), plus a place for your own draft. No previous tutorial execution, scratch repository, shell variables, or historical Git objects are required. A saved [Tutorial 6](06_continue_from_existing_evidence.md) draft may help, but is optional.
+You are preparing evidence for the person responsible for the methods record. Decide which analysis claim that person can reuse and what they must still establish. Prepare a **personal evidence-transfer draft** using the existing [handoff template](../../templates/handoff.md) as a read-only guide. You need read access to that template and the [observed scenario](../../examples/research_workflow_lifecycle/observed_scenario.md), plus a place for your draft. No previous tutorial execution, scratch repository, shell variables or historical Git objects are required. A saved [Tutorial 6](06_continue_from_existing_evidence.md) draft is optional.
 
 ### Select the documented transfer stage
 

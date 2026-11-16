@@ -7,6 +7,10 @@ common policy owner is project governance through model_policy; native guides
 own provider-specific options. Adoption must establish the maintained homes
 without copying complete routing tables between documents.
 
+This page preserves the design-stage guide. For the implemented candidate,
+read the [maintained common guide](../../governance/model_selection_common.md).
+Actual execution remains governed by current master.
+
 The author selects and communicates a complete concrete configuration for each run
 in the same self-contained delivery as the reusable task, outside explicit task
 byte boundaries under CPC’s proposed construction rule. No necessary profile or

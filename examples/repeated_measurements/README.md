@@ -2,6 +2,8 @@
 
 This small teaching example asks: what common value summarizes five repeated
 synthetic measurements, given their stated statistical uncertainties?
+This teaching dataset specifies no physical observable or unit. The values and
+their one-standard-deviation uncertainties use the same numerical scale.
 The numbers are deliberately invented; no instrument or institution produced them.
 They are not TOP-26-006 scientific data or an accepted result.
 

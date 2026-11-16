@@ -8,7 +8,7 @@ replace slots and add all applicable conditional fields before dispatch.
 - Research coordinator / bounded evidence acceptance: [role and scope].
 - Scientific lead / interpretation acceptance: [role or not applicable reason].
 - Prompt author / executor / independent reviewer: [separate responsibilities].
-- Run binding: [complete same-delivery author-selected provider/product/profile outside task bytes,
+- Run binding: [complete same-delivery author-selected provider/product/profile outside the explicitly delimited reusable-task section,
   rationale and guide versions; task retains authorized delegation/independence].
 - Repository/profile/targets: [typed IDs, exact profile, semantic branch role,
   exact paths/effects; explicit physical targets where decision-material].

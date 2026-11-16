@@ -11,10 +11,10 @@ and in the implementation evidence's `sources/approved/` directory. Current
 master still governs actual dispatch. This editorial revision changes neither
 the examples' task bytes nor their original execution and review status.
 
-The proposal, accounting and postimage sections below preserve the original
-direct-prompt design episode. Their “current”, “this round”, “future” and
-“inactive” descriptions refer to that episode, not the present implementation.
-For the implemented candidate, selection responsibilities and native options
+The proposal, field-count comparison and proposed replacement text below record
+the original design episode. In those sections, “current”, “this round”, “future”
+and “inactive” describe that episode. For the implemented candidate, use the
+maintained files linked below. Selection responsibilities and native options
 live in the maintained [common guide](../../governance/model_selection_common.md)
 and [OpenAI guide](../../governance/providers/openai_selection.md), under
 [model policy](../../governance/model_policy.md). The design guides linked below
@@ -49,8 +49,12 @@ permissions and criteria, then selects and communicates each run configuration.
 The executor applies that configuration and records observations; the reviewer
 challenges the result and its limits without accepting it. Inputs are the retained
 task bytes, actual input/method contents, applicable governance and the selected
-guide versions. Outputs are the consolidated inactive candidate and directly coupled guide, with proposed consumer postimages and evidence in the
-existing report. CPC owns the proposed construction rule; aids/reference/report consumers apply it. Reuse the existing examples, method and workbook; add no new layer. Reuse preserves the task bytes across intentional profile changes.
+guide versions. Outputs are the consolidated inactive candidate and directly
+coupled guide, with proposed replacement text for the affected templates and
+references, and evidence in the existing report. CPC owns the proposed
+construction rule; authoring aids and the prompt and report references apply it.
+Reuse the existing examples, method and workbook; add no new layer. Reuse
+preserves the task bytes across intentional profile changes.
 The installation YAML resolves tooling/paths; it is not the run configuration.
 
 A two-field nucleus (`prompt_id`, `decision_question`) indexes an idea but cannot
@@ -161,7 +165,7 @@ publication, production and recovery retain their current conditional fields.
 
 ### P3. Mandatory derived non-authoritative graph
 
-The single proposed CPC construction rule is the literal postimage in N1
+The single proposed CPC construction rule is the literal replacement text in N1
 (graph paragraph). Apply it here: semantic blocks/subblocks represented by nodes
 use the same unique IDs in text and Mermaid. P3 and the consumers below refer to
 that rule; they do not define a competing vocabulary or graph authority.
@@ -774,9 +778,9 @@ task_revision is the new task identifier consumed by P4. Runtime observations
 never masquerade as author selection; the run adds no effect surface. Conditional
 contracts remain activity-selected with no numerical field cap.
 
-## N — exact proposed normative replacements and dependent consumers
+## N — proposed replacement text and affected files
 
-These source-relative postimages preserve the original implementation proposals.
+These source-relative replacements preserve the original implementation proposals.
 They are inert design text; their episode-relative status does not claim that
 only design files exist in the implemented candidate. Consult the maintained
 CPC, AGENTS, selection guides, templates and references for that candidate's
@@ -878,7 +882,7 @@ Append to the one-self-contained-prompt paragraph:
 > workbook is the case/attempt record in existing reports, not a new registry
 > or three copies of the same instructions.
 
-### N2. AGENTS and model_policy dependent postimages
+### N2. Proposed replacements in AGENTS and model_policy
 
 **AGENTS — replace the opening path paragraph in Scope, effects and capability:**
 
@@ -1006,12 +1010,12 @@ inactive. Add a provider guide only for an actual need, with native options and
 limits, sources/version, ownership and observed accessibility, never a fictitious
 cross-provider mapping or empty stub.
 
-### N3a. Literal dependent template and reference postimages
+### N3a. Literal proposed template and reference replacements
 
 The following exact proposed file bodies complete the edit inventory above.
 They remain inert text inside this candidate. Slots are intentional authoring
 aid placeholders, not unfilled example decisions. No referenced root/skill file
-is changed by including its proposed postimage here.
+is changed by including its proposed replacement text here.
 
 **templates/read_only_prompt.md — replace whole file:**
 
@@ -1240,10 +1244,14 @@ Delivery/task/config SHA-256 respectively:
 `cf5be708ec51bb537b8f2045527cb7d76f47701785e636324e302fffeda7168a`,
 `675dfe146138e62edc9f427b3e5bf87fd13576b8347e9d65aba30f15ec8cf7d6`,
 `31fa8588b9d49f1c4dc9895f1d3029c14caa26892cdc54cdb1e370569250f68d`.
-Acceptance provenance is the owner disposition supplied in this round's H,
-following receiving review of eight decisive R3 records, 100 streams from 50
-captured records and delivered files. The earlier report predates acceptance;
-its pending wording is preserved, not rewritten.
+The retained design record reports owner acceptance of the bounded Git pilot
+after receiving review. The original owner-decision record is not identified
+in this page. The pilot report predates that acceptance and retains its original
+pending status. Section H of the retained consolidation delivery,
+`reports/diagnostics/TOP26006_LANE15_DIRECT_PROMPT_CONSOLIDATION_20261115_R1_rerun_001/received_prompt.md`,
+reports review of eight decisive R3 records, 100 streams from 50 captured records
+and the delivered files. This is the retained account of review coverage, not
+a new verification or the original receiving-review record.
 
 This supports only the bounded Git case. Received/authored delivery byte equality
 was checked by receiving review; no full CLI conversation or all inline utility
@@ -1268,15 +1276,15 @@ require their actual mandates. This design authorizes no broader audit.
 
 ## V — static semantic review checklist and disposition record
 
-The controller checks this exact document and examples; independent review
-findings and dispositions are preserved in the task's evidence directory.
-The final execution report identifies the reviewed postimage and any corrections.
-Review B1 corrects E3 joins/routes; B2 adds literal N3a postimages; B3 clarifies
-E1 profile reads versus tracked-write exclusion; B4 preserves identical method
-contents with the continuation configuration recorded separately. These are
-authoring corrections within s2, not runtime qualification or owner acceptance.
-The original review record retains process qualifications and their impact
-assessment; this document makes no retrospective strict-conformance claim.
+The controller checks this document and its examples. The task evidence
+directory retains the independent review and the response to each finding.
+The final execution report identifies the reviewed document and any corrections.
+Those corrections cover the E3 joins and routes, the literal proposed N3a
+replacements, the E1 distinction between profile reads and excluded tracked
+writes, and identical method contents with separately recorded continuation
+configuration. They are authoring corrections, not runtime qualification or
+owner acceptance. The original review retains its process limitations; this
+page makes no retrospective strict-conformance claim.
 
 The following are discriminating checks, not claims that payloads were run:
 
@@ -1306,13 +1314,14 @@ meaning; it is design evidence. No updated example payload, scientific/runtime t
 production is executed in this consolidation. The bounded accepted Git pilot
 retains only N4’s qualified claim; it does not qualify these changed examples.
 
-Continuation review qualifications retained: the earlier E1 reused_unchanged_lint
-flag did not demonstrate reuse from its first attached sample because the bytes
-differed; the final historical lint was on corrected bytes. No invocation count
-is reconstructed and old evidence is not rewritten. Earlier P1 began s1 before
-s0 serialization/reopening: this remains a procedural deviation, without proof
-of a mandate defect. A rerun cannot cure that history. This continuation records
-its own completed/reopened pre-effect readbacks and never claims retroactive cure.
+Two qualifications remain in the earlier continuation record. First, the
+initial E1 `reused_unchanged_lint` claim was unsupported because the example
+bytes differed; the final historical lint used the corrected bytes. Second,
+an earlier attempt began its next stage before serializing and reopening the
+preflight evidence. These are historical process limitations, without evidence
+that the mandate itself was defective. The recorded continuation documents its
+own pre-effect checks; it neither reconstructs an invocation count nor claims
+that rerunning checks repairs the earlier sequence. Old evidence is not rewritten.
 
 Consolidation v0.3.0 review additions: check every node resolves to exactly one
 semantic text ID; a transversal section need not become a node. Reject a Mermaid

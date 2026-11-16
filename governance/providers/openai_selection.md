@@ -18,8 +18,8 @@ The reported closed pilot's usable reviews do not establish a winner, cost,
 latency, availability or production qualification. The maintained
 [OpenAI reference procedure](../../docs/how_to/providers/openai_reference_procedure.md)
 dates mechanism observations to 2026-11-02/03 and separates installation,
-product, role and acceptance. This candidate consumes that distinction, not
-its historical sources as a substitute for current access evidence.
+product, role and acceptance. This candidate guide preserves that distinction.
+Its historical sources do not establish current access on the selected installation.
 
 This guide retains these local choices as a reasoned starting point: fixed,
 checkable work can use a lighter profile, while ambiguity and coupling justify

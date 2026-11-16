@@ -10,15 +10,17 @@ The smallest execution model that can produce that result is usually clearest. A
 
 The lifecycle can continue without repeating valid work. Accepted evidence remains usable while its identity, inputs, assumptions, and relevant interfaces still hold. A changed dependency calls for review of that dependency and directly coupled interactions. A bounded local repair preserves unaffected valid results and repeats the affected check. If a new choice or unsafe uncertainty appears, record the direct state and stop only the dependent action; independent authorized work may continue. Requirements for a later phase do not automatically block a correct current result.
 
-A [direct task](../how_to/write_a_prompt_manually.md) separates reusable
-instructions from the author-selected run configuration, delivering both
-completely together. The author fixes authority, scientific choices, target,
-effects, criteria and stops. Runtime verifies the material current facts before
-dependent effects. A different configuration is another immutable attempt,
-not permission to replay a closed result. Preserve contents and observations
-in the existing report; derive the Mermaid plan from the text and distinguish
-its observed states. Preparation, dispatch, execution, review, bounded evidence
-acceptance and scientific acceptance remain separate.
+Deliver the complete reusable instructions for a
+[direct task](../how_to/write_a_prompt_manually.md) and the author's run
+configuration together, with their contents separately delimited. The author
+fixes authority, scientific choices, target, permitted actions, criteria and
+stop conditions. Before each dependent action, the executor verifies the
+current facts that action needs. Changing the configuration starts a separate
+attempt whose configuration remains fixed; it gives no permission to repeat
+work whose recorded completion remains valid. Preserve contents and observations
+in the existing report. Derive the Mermaid plan from the task text and identify
+any observed states separately. Preparing, delivering, executing, reviewing,
+accepting task evidence and accepting a scientific claim remain distinct acts.
 
 For documentation maintenance, follow two different semantic relationships.
 First, a generic explanation supplies concepts to procedures and summaries:

@@ -26,7 +26,8 @@ The human defines scientific purpose, assumptions, permissions and acceptance. C
 
 1. **Prepare the task.** Identify the question, research lead, repository/path scope, permitted effects, validation ceiling, expected evidence and stop boundary. The prompt author follows current [AGENTS.md](../../../AGENTS.md), [CPC.md](../../../CPC.md), applicable modules/native policy and [mechanical prompt validation](../validate_a_prompt_before_execution.md). Validator PASS is not authorization or scientific correctness.
    In the candidate direct path, deliver the complete task and author-selected
-   run configuration together with distinct task bytes. Use the maintained
+   run configuration together, with the task text explicitly delimited and the
+   configuration outside it. Use the maintained
    [common](../../../governance/model_selection_common.md) and
    [OpenAI](../../../governance/providers/openai_selection.md) selection guides;
    ordinary profile choices are run data. The [authoring procedure](../write_a_prompt_manually.md)

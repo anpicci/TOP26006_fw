@@ -8,7 +8,7 @@
 - Executor claims, distinct from direct observations:
 - Independent checks, evidence locators and results:
 - CPC graph-rule checks: same text/node IDs, Mermaid, source disagreements, joins, partial routes and planned/observed distinction:
-- Complete same-delivery run configuration outside task bytes; no pending necessary choice/approval:
+- Complete same-delivery run configuration outside the explicitly delimited reusable-task section; no pending necessary choice/approval:
 - Blocking and nonblocking findings, each with dependent consequence:
 - Counterexamples, unsupported claims and recommended corrections:
 - Not evaluated, residual risks and completeness/confidence limits:

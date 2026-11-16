@@ -3,7 +3,7 @@
 **Learning goal:** prepare a bounded continuation that reuses valid evidence and names only the new work.
 
 - **You are:** a researcher preparing the next local task.
-- **You want:** to preserve prior closure without replaying an earlier process.
+- **You want:** to preserve valid earlier results and evidence, and do only the new work.
 - **You will use:** the maintained observed scenario and continuation template.
 - **You will change:** only your personal continuation draft; no repository change is executed here.
 - **You will not change:** prior evidence, templates, data, method, code, or any Git history.
@@ -42,12 +42,13 @@ Use the existing [continuation template](../../templates/continuation_prompt.md)
 The proposed sentence is a documentation delta, not a new calculation or evidence transfer to another repository. If it is already present, report that no write is needed. If it conflicts with the existing note or needs new scientific interpretation, stop that delta.
 
 For a real continuation, use the [direct route](../how_to/write_a_prompt_manually.md).
-Deliver the complete new task and author-selected configuration together, with
-separate task bytes. Reopen only changed material dependencies and their
-consumers; preserve the accepted claim, invalidation boundary and protected
-checks. A new profile does not authorize replay. The Mermaid view must show
-which result consumes which evidence, including valid partial outcomes.
-This teaching draft remains non-executing and supplies no live grants.
+Deliver the complete new task and the author's configuration together, keeping
+the exact reusable task text separately delimited. Recheck only changed or newly
+unresolved dependencies and the results that rely on them. Preserve the accepted
+claim, the conditions that would invalidate it, and the checks that must not be
+repeated. A new configuration gives no permission to rerun work whose recorded
+completion remains valid. Derive the Mermaid view from the stated dependencies
+and retain valid partial results. This teaching draft authorizes no execution.
 
 ## Review the draft before dispatch
 

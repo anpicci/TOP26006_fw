@@ -159,12 +159,12 @@ appropriate decision and evidence.
 The quotations above are teaching fragments, not dispatch-ready project
 prompts. For an actual governed task, use [direct prompt authoring](write_a_prompt_manually.md)
 to bind the mandate, input contents, scope, criteria, conditional permissions
-and planned dependencies. The author supplies a complete selected run
-configuration outside explicit reusable-task byte boundaries in the same
-self-contained delivery. Installation setup resolves paths and tooling; it
-does not supply that selection. Review the exact delivery before sending it.
-No necessary scientific choice, permission or configuration should remain to
-be recovered from a later conversation.
+and planned dependencies. Include the complete run configuration selected by
+the author in the same delivery, outside the clearly delimited reusable task
+text. Installation setup resolves paths and tooling; it does not supply that
+selection. Review the exact delivery before sending it. No necessary scientific
+choice, permission or configuration should remain to be recovered from a later
+conversation.
 
 ## Keep a small, usable handoff
 

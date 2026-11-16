@@ -1,13 +1,16 @@
 # Workstreams — synthetic teaching record
 
-This record supplies workstream responsibilities and review/acceptance routes.
-[Coordination](coordination.md) supplies the concrete events and decision
-references; [evidence dependencies](evidence-dependencies.md) projects those
-facts alongside input and validity relationships. For the same decision, compare
-result/decision identity, review, actor function/remit, acceptance layer, scope
-and validity. Titles alone confer no remit; the [roles explanation](../../explanation/roles_and_authority.md)
-supplies the generic distinction. Route changes require checking the associated
-events, map rows and passages that actually consume the changed fact.
+Use this record to identify each workstream's question, responsible person,
+inputs, expected result and review route. [Coordination](coordination.md)
+records the events and decisions; [evidence dependencies](evidence-dependencies.md)
+shows the corresponding inputs and validity.
+
+For maintainers: when these pages describe the same decision, check that its
+result and decision IDs, review, decision-maker and authority, acceptance type,
+scope and validity agree. Titles alone confer no authority; the
+[roles explanation](../../explanation/roles_and_authority.md) supplies the general
+distinction. If a review or acceptance route changes, check the associated
+events, map rows and passages that rely on that route.
 
 Workstream IDs name research responsibilities. They are not branches, repositories, models, agents, or sessions. The current responsibility source is the hypothetical teaching assignment approved by the simulated research lead `AUTH_CASE_1`, with transfer `AUTH_TRANSFER_1` recorded in [coordination](coordination.md); neither ID is live TOP26006_fw authority. All effects below mean edits to this teaching case only.
 

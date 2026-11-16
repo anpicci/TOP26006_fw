@@ -17,13 +17,16 @@ Current patch kinds in the live source are `prompt_local`, `cumulative`, `touche
 
 A separately tasked independent reviewer may [review returned evidence](../how_to/review_returned_evidence.md) and recommend acceptance, repair, or stop. Same-executor checking is not independent review, and AI review does not by itself constitute human peer review or independent scientific replication. The research coordinator records the bounded task/evidence acceptance decision after the required review for the stated scope. That decision does not authorize new effects or choose scientific method. The responsible scientific lead separately decides [scientific acceptance](../how_to/record_a_result_acceptance.md) of a claim or interpretation; accepting task evidence does not confer it.
 
-The existing report is the direct-prompt attempt workbook. Preserve exact
-task bytes/revision and consumed input/method/configuration contents or retained
-immutable content locators, separate author-selected run configuration and guide
-versions, requested/selected/runtime observations with provenance, output and
-decision evidence, and a distinct observed documentary graph applying CPC’s
-shared-ID/Mermaid-only rule. Record resolved
-workspace_root/repo_locations before dependent effects. A hash or filename
-alone does not preserve contents. Existing report, patch, collision and
-conditional stage/checkpoint mechanisms remain; no registry or parallel
-workbook is introduced. AGENTS and CPC remain the authority.
+Use the existing report to record each direct-prompt attempt. Retain the
+original complete delivery as well as its separately identifiable task and
+run-configuration components, including the exact task text and revision.
+Preserve the consumed input and method contents and the selection guides,
+including their versions, or cite retained immutable copies of those contents.
+A hash or filename alone does not preserve them. Record requested, selected and
+runtime-reported settings separately, with their sources, alongside outputs and
+decision evidence. Show what actually happened using CPC's shared text/node IDs
+and Mermaid rule; a clear annotation of the planned diagram can supply this
+observed view. Record resolved `workspace_root` and `repo_locations` before
+actions depend on them. Keep the existing report, patch, collision and
+conditional stage/checkpoint mechanisms; no additional registry or workbook is
+required. AGENTS and CPC remain the authority.

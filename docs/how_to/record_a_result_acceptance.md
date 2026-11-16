@@ -1,6 +1,6 @@
-# Record a result acceptance
+# Record acceptance of a result
 
-Use this guide for two separate decisions: the research coordinator records bounded task/evidence acceptance after the required review for a stated scope; the scientific lead records scientific acceptance when reviewed evidence supports a precise scientific claim. Task/evidence acceptance neither authorizes new effects nor chooses a scientific method or interpretation. The research lead authorizes bounded tasks and effects within actual authority; this does not make that role either acceptor.
+Use this guide for two separate decisions: the research coordinator records bounded task/evidence acceptance after the required review for a stated scope; the scientific lead records scientific acceptance when reviewed evidence supports a precise scientific claim. Task/evidence acceptance neither authorizes new effects nor chooses a scientific method or interpretation. The research lead authorizes bounded tasks and effects within their actual authority. That responsibility does not automatically authorize them to make either acceptance decision.
 
 ## Before you start
 

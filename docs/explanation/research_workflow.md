@@ -33,11 +33,13 @@ a finding unresolved; neither a successful command nor a review recommendation
 supplies acceptance. Continuation, recovery and handoff preserve valid evidence
 and identify the next authorized delta.
 
-The [direct authoring guide](../how_to/write_a_prompt_manually.md) connects an
-authorized question to a complete task and the author's chosen run configuration
-in one delivery. The task defines the scientific and effect boundaries; the
-configuration selects how this attempt will run. A derived Mermaid view makes
-real dependencies inspectable without granting effects. Author review checks
-meaning, runtime checks establish current applicability, and returned evidence
-supports a separate review and human decision. The existing report retains
-contents, observations and limits for a later continuation.
+The [direct authoring guide](../how_to/write_a_prompt_manually.md) turns an
+authorized question into a complete task and the author's chosen run
+configuration, delivered together. The task states the scientific choices and
+permitted actions; the configuration states how this attempt will run. Derive
+the Mermaid diagram from the task's stated dependencies. The diagram shows
+dependencies; it does not authorize actions. The author reviews the meaning
+before delivery. Before acting, the executor checks the current repository,
+inputs and permissions needed for that action. Returned evidence then supports
+review and a separate human decision. Retain the contents, observations and
+limits in the existing report for continuation.

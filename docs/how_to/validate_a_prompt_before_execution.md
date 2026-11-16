@@ -18,12 +18,12 @@ different questions; neither substitutes for the other.
 
 For the [direct route](write_a_prompt_manually.md), the author fixes authority,
 repository/role semantics, exact scope/effects, scientific choices, validation
-and stops, and supplies the complete run configuration outside the reusable task
-bytes in the same delivery. Review the exact final content semantically against
-current `refs/heads/master`; proposed governance cannot validate itself.
-Check the planned Mermaid against its text IDs and actual dependencies.
-Mechanical lint does not certify task/run separation, graph meaning or complete
-governance compliance; these remain semantic review obligations.
+and stops. The same delivery must contain the complete run configuration outside
+an explicitly delimited reusable-task section. Review the exact final content
+semantically against current `refs/heads/master`; proposed governance cannot
+validate itself. Check the planned Mermaid against its text IDs and actual
+dependencies. Mechanical lint does not certify task/run separation, graph
+meaning or complete governance compliance; these remain semantic review obligations.
 
 After authority and author review are established, the execution environment
 must check current applicability before effects. It verifies the consumed

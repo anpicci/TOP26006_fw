@@ -1,14 +1,18 @@
 # Coordination history — synthetic teaching record
 
-This record supplies the concrete event history and event-specific actors and
-decision references, using the routes in [workstreams](workstreams.md).
-[Evidence dependencies](evidence-dependencies.md) projects the corresponding
-acceptance facts; it does not decide them independently. For ACC_CHECK_R1 at
-C02, compare W_CHECK and E_CHECK_R1, the [overview](README.md) and
-[reconciliation lesson](../../tutorials/advanced/02_reconcile_a_shared_dependency_change.md)
-where they repeat actor/layer/scope. The [coordination lesson](../../tutorials/advanced/01_coordinate_parallel_research_workstreams.md)
-also consumes the check's scope and C03 sequence. A linked passage consuming
-only C10 transfer facts is not an ACC_CHECK_R1 actor dependency.
+Read the events below to follow the initial result, the changed assumption,
+the revised result and the transfer of responsibility.
+[Workstreams](workstreams.md) defines the responsibilities;
+[evidence dependencies](evidence-dependencies.md) shows which results rely on
+which inputs.
+
+For maintainers: this history supplies the event-specific decision-makers and
+decision references. If ACC_CHECK_R1 at C02 changes, compare its decision-maker,
+acceptance type and scope in W_CHECK, E_CHECK_R1, the [overview](README.md) and
+[reconciliation lesson](../../tutorials/advanced/02_reconcile_a_shared_dependency_change.md).
+The [coordination lesson](../../tutorials/advanced/01_coordinate_parallel_research_workstreams.md)
+also uses the check's scope and C03 sequence. A passage that uses only C10
+transfer facts does not depend on the C02 decision-maker.
 
 Sequence is logical order, not a claim of simultaneous execution. `AUTH_CASE_1` and `AUTH_TRANSFER_1` are hypothetical explicit authorization references from the simulated research lead inside this example. Receipt, acknowledgment, recipient readback, and effective transfer are separate facts. Empty effects are written `none known`; they are not assumed away.
 

@@ -4,7 +4,7 @@ Use master authority and CPC’s eight-task-input contract, including
 prompt_id, task_revision and decision_question; supply every applicable
 conditional field. Preserve existing continuation names.
 
-- Run binding: [complete immutable author-selected configuration and retained guide versions in this delivery, outside task bytes].
+- Run binding: [complete immutable author-selected configuration and retained guide versions in this delivery, outside the explicitly delimited reusable-task section].
 - continuation_of: [bounded prior task identity].
 - accepted_prior_evidence: [claim, artifact, locator, validity and actual
   acceptance provenance; scenario evidence labelled as such].

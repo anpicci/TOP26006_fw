@@ -48,16 +48,16 @@ The [bounded-change template](../../templates/bounded_change_prompt.md) helps st
 
 ## Prepare a real bounded task
 
-First define behavior, observable result and exclusions. The
-[direct authoring guide](../how_to/write_a_prompt_manually.md) shows how to
-combine the complete reusable task and author-selected run configuration with
-distinct byte boundaries in one delivery. State the scientific choices already
+First define behavior, observable result and exclusions. Use the
+[direct authoring guide](../how_to/write_a_prompt_manually.md) to deliver the
+reusable instructions and the author's run configuration together, with the
+exact text of each clearly delimited. State the scientific choices already
 made, actual inputs, exact writable paths, commit and validation scope, and who
-will decide acceptance. Derive the Mermaid plan from those stated dependencies.
-`allowed_to_modify` bounds contractual scope; it is not an OS ACL or proof of
-sandbox capability. Author review and runtime applicability checks precede
-effects. This lesson retains its own scratch-note exercise; preparing a task
-does not establish that the note was written.
+will decide acceptance. Derive the Mermaid plan from those dependencies.
+The `allowed_to_modify` field defines authorized scope; actual filesystem
+capability must also be checked before the action. Author review and runtime
+checks precede any action. This lesson retains its own scratch-note exercise;
+preparing a task does not write the note.
 
 ## Make the bounded change
 
@@ -102,7 +102,7 @@ git diff HEAD^ HEAD -- interpretation.md > ../tutorial04_change.patch
 git status --porcelain=v1
 ```
 
-Run these commands in order, stopping on any failure or unexpected path before committing. Write the patch only if its destination is absent; if it already exists, read and compare it rather than overwriting it. Keep the patch, note, seed/result identities, hash comparisons, and command observations in your lesson record. A clean result and a local commit prove neither pedagogical nor scientific acceptance. An independent reviewer advises; the person assigned actual task/evidence acceptance remit decides whether this bounded record is acceptable for its stated scope. Scientific acceptance of an interpretation remains a separate decision within scientific remit. A researcher may hold both functions, but neither the title nor this practice commit grants them; see [decision layers](../explanation/evidence_reproducibility_and_acceptance.md).
+Run the commands in order and stop on a failure or unexpected path before committing. Create the patch only when the destination is absent; otherwise read and compare the existing patch. Retain the patch, note, seed and result identities, hash comparisons and command observations in your lesson record. A clean working tree and a local commit do not establish acceptance. An independent reviewer advises. The person authorized to accept task evidence decides whether this bounded record is adequate for its stated purpose. The person with scientific authority separately decides whether to accept its interpretation. One researcher may hold both responsibilities, but neither the title nor this practice commit assigns them; see [decision layers](../explanation/evidence_reproducibility_and_acceptance.md).
 
 ## Restart or continue
 

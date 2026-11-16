@@ -8,6 +8,10 @@ project performance qualification. It does not alter this round's dispatched
 configuration. Future model_policy links here instead of duplicating catalogs
 and routing tables; AGENTS keeps authority and immutable-attempt invariants.
 
+This page preserves the design-stage provider guide. For the implemented
+candidate, read the [maintained OpenAI selection guide](../../../governance/providers/openai_selection.md).
+Actual execution remains governed by current master.
+
 ## Dated local decisions and provider history
 
 At master `5ba30bcc367d39e3131335a0eb55fdbc5bc54ce4`,
