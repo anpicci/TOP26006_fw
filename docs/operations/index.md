@@ -50,9 +50,23 @@ before preparing a command. Preserve the entry revision and original source
 revision/retained contents materially consumed in the run report. A Git revision
 of this collection identifies its prose, not the payload it describes.
 
+To practise this route using tracked pages alone, prepare the
+[dated BTV evidence-transfer record in Tutorial 7](../tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal).
+It follows a qualified reference through its procedure owner to a concrete
+unexecuted proposal; local originals are an optional read-only extension.
+
 Update a reference or lesson in ordinary authorized work when new evidence changes
 its applicable scope. State what it supersedes and for which use; preserve dated
 historical qualifications. Do not promote the newest filename or duplicate a
 native manifest. Framework maintainers own navigation; native maintainers and
 scientific leads retain technical/scientific ownership and acceptance. No new
 approval per card is introduced; each task's existing scope still governs edits.
+
+For example, the BTV report retains the consumed revision-1 plan, assumptions,
+proposed command and checks performed or missing. A later report does not itself
+update this workbook. If subsequent authorized maintenance has new evidence,
+cite its source and conditions in the relevant reference or lesson and name the
+specific use it supersedes. A receipt for a BTV figure would not resolve the
+separate reference10 hold or prove a package-to-workspace association. Keep the
+earlier plan-only observation dated and preserve the versions consumed by past
+reports. The playbook still links to the one native plotting procedure.

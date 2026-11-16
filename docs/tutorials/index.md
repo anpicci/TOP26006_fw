@@ -57,6 +57,8 @@ not another numbered lesson or prerequisite for the documentary exercises.
 
 **Tutorial 7 concerns evidence crossing repository boundaries.** Take it after the ordinary lifecycle when that dependency is your learning objective. Adding a second repository is not a measure of progress through the ordinary lessons. Its optional documentary practice has its own maintained inputs and does not require executing earlier lessons.
 
+Its separate [BTV reference-to-binding practice](07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal) can also be entered directly. Use the workbook to find qualified inputs, the playbook to locate the native procedure, and a personal record to explain a concrete unexecuted proposal. Tracked pages supply the exercise; original local evidence is optional. This does not require the synthetic practice, a TOPEFT installation or a previous tutorial run.
+
 **Advanced coordination is a separate choice.** Enter through the [advanced gateway](../advanced/index.md#decide-whether-to-enter-this-route) when separable questions or a specified checking method justify the coordination. Parallel work is optional, not an achievement level. The two advanced tutorials are sequential paper exercises; following them starts no workers or scientific calculation.
 
 ## Complete curriculum

@@ -10,6 +10,8 @@ It is for researchers and collaborators who want to use AI assistance while keep
 
 If you already want to learn through guided exercises, go directly to the [tutorial learning path](docs/tutorials/index.md). It explains where to begin and which lessons are optional.
 
+When preparing a task that needs an existing analysis reference or recurring procedure, consult the relevant entry in the [operational workbook and playbook](docs/operations/index.md). The workbook preserves qualified references and lessons; the playbook leads to the maintained procedure. Your task report records what you actually used and checked.
+
 ## A concrete starting point
 
 The first research exercise asks what common value summarizes [five synthetic measurements](examples/repeated_measurements/README.md). Inspect the input, then reproduce the maintained calculation in a terminal or its companion notebook using a prepared local environment. Explain the assumptions behind the summary and what agreement with the displayed result leaves unproven. The data are invented for teaching; reproducing the result does not establish that the model suits real measurements.

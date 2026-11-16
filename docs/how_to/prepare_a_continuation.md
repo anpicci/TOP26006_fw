@@ -32,6 +32,25 @@ the other applicable [CPC fields](../../CPC.md#conditional-field-router).
 
 ## Verify the result
 
+### Keep reusable knowledge within its evidence
+
+The report remains the record of the attempt: preserve the reference/version
+consumed, assumptions, concrete proposal, checks performed and checks missing.
+If a later task already authorizes maintaining the collection, update the
+relevant [workbook reference or lesson](../operations/index.md#use-and-maintain-the-collection)
+with its source, conditions, limits and exactly which earlier scope it supersedes.
+No separate approval per entry is required within that authorized scope.
+A new report alone neither updates an entry nor makes its observations universal;
+maintainer status confers no scientific acceptance or effect grant.
+
+For the [BTV example](../tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal),
+a later receipt could establish a particular output or resolve one association.
+An authorized update would cite that receipt for that use, preserve the earlier
+plan-only qualification as dated evidence, and leave unrelated holds intact.
+The playbook continues to point to the native procedure's single maintained
+home. Retain the consumed versions in earlier reports rather than rewriting
+them to match the newest entry.
+
 A successor can map each reused claim to provenance and each new check to the delta. A material invalidation stops the dependent reuse until revalidated; independent valid evidence remains available.
 
 ## Stop instead of proceeding if...

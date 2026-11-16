@@ -23,6 +23,14 @@ which files matter, request a bounded discovery step within a named directory
 and have the assistant propose the files to inspect. Do not invent file paths
 or let “find the source” expand into unrestricted editing or execution.
 
+When the question needs an existing analysis reference, consult only the relevant
+[workbook entry](../operations/index.md), follow its qualified source, and use
+the playbook to find the maintained procedure. Give the prepared task the exact
+reference and method it consumes, with their conditions and limits; the report
+will retain what was actually used. The collection supplies neither a missing
+scientific choice nor permission to act. For a concrete reading exercise, see
+the [BTV proposal in Tutorial 7](../tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal).
+
 ## A vague request and a usable replacement
 
 This request leaves both the problem and the permission unclear:

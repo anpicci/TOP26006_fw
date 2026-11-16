@@ -22,4 +22,6 @@ The optional [Add an analysis repository](tutorials/02_add_an_analysis_repositor
 
 ## Continue when the task grows
 
+If your question needs an existing analysis artifact or procedure, enter the [operational workbook and playbook](operations/index.md) and select only the relevant reference and procedure route. [Tutorial 7's optional BTV practice](tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal) shows how to turn them into a dated, unexecuted proposal using the tracked documentation alone. Access to the original local records is an optional extension.
+
 After your first task, follow the [tutorial learning path](tutorials/index.md) for the full guided curriculum. It explains how the later lessons on change, review, continuation, recovery, and handoff fit together, and when to take an optional extension. The [advanced and maintainer routes](index.md#advanced-and-maintainer-routes) are available when you need broader coordination, provider details, or project configuration.

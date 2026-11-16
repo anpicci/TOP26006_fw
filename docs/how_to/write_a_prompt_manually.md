@@ -136,11 +136,21 @@ rendered plan nor a planned state is execution evidence.
 
 ## Reuse a method when it helps
 
-An optional method or playbook supplies stable procedure: retain its contents,
-revision, applicability, inputs/outputs, parameters, validation and limits.
-Inline it if no retained resolvable source exists. It cannot choose a missing
+An optional method describes the procedure and its assumptions. The
+[playbook](../operations/playbook/index.md) helps you find the procedure's
+maintained home; it does not replace that source. Use the
+[workbook](../operations/index.md) selectively for qualified artifact references
+or evidence-backed lessons relevant to the question. Retain the materially
+consumed entry/source revisions and method contents, applicability,
+inputs/outputs, parameters, validation and limits in the task report.
+Inline the method if no retained resolvable source exists. It cannot choose a missing
 target, scientific convention, permission or acceptance criterion. A skill is
 an optional maintained package; an atomic task need not use one.
+
+[Tutorial 7's BTV practice](../tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal)
+connects a qualified reference to a native procedure and a concrete historical
+binding without executing it. Neither a method nor a skill is required merely
+because the collection exists.
 
 The [inert design examples](../design/direct_prompt_authoring_v0.md#e1--complete-inert-atomic-example-cell-counting)
 show three useful distinctions. E1 counts present process/coefficient pairs or

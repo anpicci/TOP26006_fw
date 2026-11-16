@@ -6,6 +6,22 @@ The [synthetic measurements](../../examples/repeated_measurements/README.md) mak
 
 The [tutorial route](../index.md) introduces installation mechanics only when needed to reproduce and review work. Current execution and prompt rules live in [AGENTS.md](../../AGENTS.md) and [CPC.md](../../CPC.md).
 
+When the question relies on earlier analysis work, consult the
+[operational workbook](../operations/index.md) for a qualified artifact reference
+or a justified lesson. Follow the playbook to the procedure maintained by its
+native owner, then bind the selected inputs and local settings to the proposed
+task. A method describes how the work is done; the playbook helps locate it.
+The report records this attempt's consumed versions, proposal, observations and
+missing checks. It remains separate from the workbook's reusable knowledge.
+[Tutorial 7's optional BTV practice](../tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal)
+lets you prepare that evidence transfer without running an analysis.
+
+Maintaining the collection is ordinary work within an already authorized scope:
+add the new evidence's source, applicability and limits, and state precisely
+which earlier use it supersedes. A later report does not update the collection
+automatically. The native procedure keeps one owner, and neither a reusable
+entry nor its maintenance supplies scientific acceptance or execution permission.
+
 The completed route adds a bounded note, independent review, a narrow continuation, sequential evidence transfer to a separate methods repository, an intentional stop, and a handoff. [Task lifecycle](task_lifecycle.md) explains why the next step depends on the last accepted evidence and current live state.
 
 ## From a question to the next bounded task

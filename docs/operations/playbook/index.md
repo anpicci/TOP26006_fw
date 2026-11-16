@@ -81,4 +81,5 @@ Never recover fits or choose toy settings from this playbook.
 Read a skill's live instructions only when actually applying it. This table
 routes to owners rather than copying their procedures. Ordinary tasks retain
 the applicable AGENTS/CPC and native policy, one report/patch and separate
-scientific acceptance; no new skill, wrapper, database or compiler is introduced.
+scientific acceptance. Reuse each maintained procedure at its owning source;
+keep only the task-specific binding in the report.
