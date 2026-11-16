@@ -6,6 +6,10 @@ The responsibility terms below explain the reader-facing roles. They do not crea
 | --- | --- |
 | Research question | The claim or uncertainty a study seeks to address. |
 | Method | The stated procedure and assumptions connecting data to a result. |
+| Workbook | [Operational collection](../operations/index.md) of qualified artifact references and evidence-backed knowledge, separate from task/run evidence reports. |
+| Playbook | Goal-oriented routes to maintained procedures and missing binding recipes; no effect or scientific authority. |
+| Report | Record of one task/run attempt, its consumed revisions, results and evidence under the existing report contract. |
+| Skill | Optional maintained package implementing a stable capability, with its own applicability and limits; no task authorization. |
 | Provenance | Where data, code, and observations came from. |
 | Reproducibility | Ability to rerun a declared calculation with identified inputs and environment. |
 | Validation evidence | Observations that check a bounded claim, with known limits. |

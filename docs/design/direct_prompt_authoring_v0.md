@@ -1,5 +1,13 @@
 # Direct prompt authoring — documentary candidate v0.3.0
 
+> Workbook terminology update, 2026-11-16: the owner's current candidate
+> decision separates the [operational workbook/playbook](../operations/index.md)
+> from attempt reports. P4 below reflects that distinction. Historical quoted
+> N1/N2/N3a/N4 proposals and examples that call the report a workbook remain
+> dated design evidence and are superseded only on that equivalence; they are
+> not current instructions to rebuild or merge those objects. The direct task,
+> separate run configuration, evidence retention and Mermaid rules remain.
+
 ## Status, sources and minimum design
 
 This page retains the direct-prompt design and inert examples used by the
@@ -115,7 +123,7 @@ review keeps that requirement even when the run identifies concrete executors.
 | Content | Author responsibility | Executor/consumer responsibility and proposed default |
 | --- | --- | --- |
 | Governance | Bind TOP26006_fw and the selected repository role; explicit owner overrides identify rule and scope | Acquire current master and the union of applicable router contracts before dependent actions; candidate policy cannot validate itself |
-| Installation | Name selected repository IDs and the exact profile input; explicit paths if no usable profile or a physical target is material | Resolve existing YAML profile and verify root/repository identity before effects; record resolved `workspace_root` and `repo_locations` in the attempt workbook |
+| Installation | Name selected repository IDs and the exact profile input; explicit paths if no usable profile or a physical target is material | Resolve existing YAML profile and verify root/repository identity before effects; record resolved `workspace_root` and `repo_locations` in the attempt report |
 | Targets | Explicit repository-relative source/output paths; explicit absolute external resource/worktree paths and refs when relevant | A profile cannot select science, activate an inactive repository or choose a new target; ambiguity stops its consumer |
 | Capabilities | Explicit exact positive grant map plus scope/action, with required denials | Omitted capabilities denied; mode, graph, method and profile confer none |
 | Branch | Applicable outer `branch_policy`, or each branch-relevant `stage_branch_policy`, and exact lifecycle/commit fields | Current Git contract unchanged; acquire volatile facts where consumed, preserve foreign work |
@@ -171,14 +179,16 @@ use the same unique IDs in text and Mermaid. P3 and the consumers below refer to
 that rule; they do not define a competing vocabulary or graph authority.
 The E1–E3 views are revised documentary examples, not retroactive pilot evidence.
 
-### P4. Task, run and evidence in the existing workbook
+### P4. Task, run and evidence in existing reports
 
 The single delivery retains complete run data outside explicit task-byte boundaries (P1). A boundary marker is an illustration, not a required schema or new file format. Preserve the delivered unit as well as its exact task/configuration components; reports are retention, not a source for missing dispatch choices.
 
 Use existing `<evidence_root>/<prompt_id>/` collision rules, report, actual patch
 and conditional ledgers. Distinguish attempts inside the report and preserve
 separately dispatched attempts without overwriting earlier evidence. No new
-workbook, database, registry or service is introduced. Optional methods remain
+execution registry, database or service is introduced. The separate operational
+workbook now holds references/knowledge and the playbook routes procedures;
+see the dated terminology update above. Optional methods remain
 stable procedure; an atomic task need not select a skill.
 
 | Object | Identity/content retained | Consumer |

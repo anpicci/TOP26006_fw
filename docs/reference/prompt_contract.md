@@ -42,3 +42,9 @@ execution, qualification or owner/scientific acceptance.
 [mechanical validation](../how_to/validate_a_prompt_before_execution.md) are
 reader guides; current master governance remains the dispatch authority pending
 adoption of this candidate.
+
+When a task needs existing operational references or recurring procedure, use
+the [workbook/playbook entrance](../operations/index.md) selectively. Entries
+identify native inputs and reusable knowledge; they do not supply a second
+mandate, effects or scientific choices. The run report retains material
+consumed entry/source revisions and the original input/method content.

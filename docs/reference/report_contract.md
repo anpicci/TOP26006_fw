@@ -28,5 +28,8 @@ decision evidence. Show what actually happened using CPC's shared text/node IDs
 and Mermaid rule; a clear annotation of the planned diagram can supply this
 observed view. Record resolved `workspace_root` and `repo_locations` before
 actions depend on them. Keep the existing report, patch, collision and
-conditional stage/checkpoint mechanisms; no additional registry or workbook is
-required. AGENTS and CPC remain the authority.
+conditional stage/checkpoint mechanisms. The [operational workbook and
+playbook](../operations/index.md) separately collect references, lessons and
+procedure routes; they do not add a parallel attempt report or executive
+registry. Retain their materially consumed entry/source revisions in this
+report. AGENTS and CPC remain the authority.

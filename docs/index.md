@@ -26,6 +26,7 @@ Use that walkthrough when you want to learn the method by doing; use the task ro
 | Turn a question into a task request | [Asking an assistant to prepare a task](how_to/ask_an_assistant_to_prepare_a_task.md) |
 | Prepare local execution | [Prepare a research project](tutorials/01_prepare_a_research_project.md) |
 | Inspect or work with a scientific repository | [Add an analysis repository](tutorials/02_add_an_analysis_repository.md), an optional TOPEFT-specific lesson that leads to native documentation and source |
+| Find an operational reference, recurring command or evidenced lesson | [Operational workbook and playbook](operations/index.md), then only the relevant entry and native source |
 | Look up a term or locate a file | [Glossary](reference/glossary.md) · [File map](reference/file_map.md) |
 
 ## Continue after the first task

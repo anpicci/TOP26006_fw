@@ -45,9 +45,12 @@ revision, applicability, inputs/outputs, validation, limits and preserved
 consumed content. It cannot supply task mandate, effects, target selection,
 scientific choices or acceptance. An unresolved reference blocks only its
 dependent use. Inline the contents when no retained resolvable source exists.
-A playbook is procedure; a skill is an optional maintained package; the
-workbook is the case/attempt record in existing reports, not a new registry
-or three copies of the same instructions.
+A playbook routes goals to maintained procedure; a skill is an optional
+maintained package. The workbook separately collects qualified artifact
+references and operational knowledge through docs/operations/index.md. The
+report remains the case/attempt evidence record. Preserve material consumed
+entry/source revisions in the run; none of these objects supplies authority
+or duplicates the native owner of data or procedure.
 
 Every actionable prompt contains prompt_id, task_revision, decision_question,
 prompt_mode, delegation_policy, allowed_to_modify, read_only and

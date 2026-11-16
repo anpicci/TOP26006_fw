@@ -21,6 +21,7 @@ Choose a destination by what you need to do. Learning pages and how-to guides ex
 | Make, review or continue a change | [Bounded change](../tutorials/04_make_a_bounded_analysis_change.md), [review and acceptance](../tutorials/05_review_and_accept_returned_evidence.md), [continuation](../tutorials/06_continue_from_existing_evidence.md) |
 | Recover or hand off work | [Stopped task](../tutorials/08_recover_from_a_stopped_task.md), [collaborator handoff](../tutorials/09_transfer_work_to_a_collaborator.md) |
 | Adapt an installation | [Paths and remote aliases](../how_to/adapt_paths_and_remotes.md), [workspace and checkout names](../how_to/choose_workspace_and_checkout_names.md): map local installation facts without changing repository identity |
+| Find qualified operational references and recurring procedures | [Workbook and playbook](../operations/index.md): select by scientific need, follow the unique native source, retain material revisions in the run report |
 | Inspect evidence before proposing a change | [Read-only examination](../how_to/perform_a_read_only_examination.md): bound observations and return their limits |
 | Preserve existing work | [Existing local changes](../how_to/handle_existing_local_changes.md), [reuse prior evidence](../how_to/reuse_prior_evidence.md), [prepare a continuation](../how_to/prepare_a_continuation.md): identify ownership, retain valid closure and request only the delta |
 | Check setup or a common stop | [Prerequisites](../how_to/check_prerequisites.md), [diagnose common stops](../how_to/diagnose_common_stops.md) |

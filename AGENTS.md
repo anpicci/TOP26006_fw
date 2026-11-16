@@ -73,6 +73,7 @@ is unresolved, stop that dependent action; omission never waives a rule.
 | Substantial work, audit/evidence classification, scientific/numerical/consumer comparison, sign-off, continuation closure, vendored dependency, or risk uncertainty | governance/contracts/review_and_evidence.md |
 | Autonomous/adaptive execution, blocker classification, preauthorized fallback/repair, continuation after mechanism failure, or anti-artificial-blocker decision | governance/contracts/autonomy_and_blocker_classification.md |
 | Selecting or changing model/reasoning, CLI dispatch, profile qualification or model-provenance dispute | governance/model_policy.md |
+| Existing operational reference, recurring procedure or evidenced lesson needed by the task | docs/operations/index.md, then only the relevant workbook/playbook entry and original native source; retain materially consumed revisions in the run |
 | Commit message, PR/MR, squash message or reviewer-facing prose | CONTRIBUTING.md |
 
 Ordinary small work loads only the core/compact contract and applicable
@@ -338,7 +339,12 @@ For commits include exact commit, subject, changed paths and reviewable commit
 delta; reuse the round patch only when proven equivalent.
 
 Apply CPC’s graph construction rule for ID resolution, Mermaid and observed views.
-The existing report is the task/run workbook. Preserve exact task bytes and
+The report records the task/run attempt. The separate operational workbook
+collects artifact references and evidence-backed knowledge; the playbook routes
+goals to maintained procedures through docs/operations/index.md. Consult it
+selectively, preserve material consumed entry/source revisions, and retain
+native scientific/technical ownership. These references and recipes grant no
+effects. Preserve exact task bytes and
 revision, consumed input/method/configuration contents or retained immutable
 locators, author-selected run configuration and guide versions, actual
 selected/runtime observations with provenance, outputs, decisions and a distinct

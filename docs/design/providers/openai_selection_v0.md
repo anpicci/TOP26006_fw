@@ -2,7 +2,7 @@
 
 **Inactive design; source observations 2026-11-14 UTC.** Apply the
 [common criteria/responsibilities](../model_selection_common_v0.md) and
-[task/run boundary](../direct_prompt_authoring_v0.md#p4-task-run-and-evidence-in-the-existing-workbook).
+[task/run boundary](../direct_prompt_authoring_v0.md#p4-task-run-and-evidence-in-existing-reports).
 This is the candidate native guide, not activated policy, an account probe or
 project performance qualification. It does not alter this round's dispatched
 configuration. Future model_policy links here instead of duplicating catalogs
