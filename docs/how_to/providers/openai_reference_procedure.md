@@ -42,3 +42,5 @@ The human defines scientific purpose, assumptions, permissions and acceptance. C
 ## Evidence status and next route
 
 OpenAI/Codex is the project reference procedure. This guide supplies no per-feature runtime qualification for Chat, Work, Codex, local, cloud or connected-app surfaces. Existing project use is not evidence for an unobserved feature or another installation. Check the [compatibility reference](../../reference/provider_compatibility.md) for the distinction; use the [adaptation guide](../adapt_to_another_ai_provider.md) for another provider and the [manual](../../index.md) to return to research tasks.
+
+The installation-specific [Glados manual route](../use_glados_mcp.md) connects delivery, owner launch in the already open external CLI, and original evidence recovery. Its accepted reader/deposit capabilities do not qualify automatic execution of new task/run deliveries or OpenAI features generally.

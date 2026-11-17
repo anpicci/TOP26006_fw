@@ -38,3 +38,5 @@ The report ties each stop to a concrete current consequence, preserves valid evi
 ## Stop instead of proceeding if...
 
 The consequence or applicable authority cannot be established. Do not turn uncertainty into a success claim or expand the task to repair it.
+
+For Glados transfer replies or interrupted evidence reads, follow [recovery at the affected boundary](use_glados_mcp.md#recover-at-the-affected-boundary). Reconcile the same transfer and bytes; do not query execution status for a deposit. Preserve verified file pages and recheck identities before resuming. An unprobed CLI with null error is not a reader failure.

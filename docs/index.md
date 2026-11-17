@@ -59,6 +59,7 @@ Use this gateway when you maintain the framework or translate an authorized task
 | Register or update a repository identity | [Repository registration](how_to/register_repositories.md) |
 | Add or update repository-specific governance | [Governance modules](how_to/add_or_update_a_governance_module.md) |
 | Write a governed prompt manually | [Manual prompt authoring](how_to/write_a_prompt_manually.md) |
+| Deliver a task and recover originals on Glados | [Installation-specific manual route](how_to/use_glados_mcp.md) |
 | Mechanically check a completed prompt | [Prompt validation](how_to/validate_a_prompt_before_execution.md) |
 | Look up the prompt contract | [Prompt contract reference](reference/prompt_contract.md) |
 

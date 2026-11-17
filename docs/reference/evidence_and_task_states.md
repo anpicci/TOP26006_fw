@@ -31,3 +31,5 @@ A path plus hash is not a backup. Indexed or searchable material is not thereby
 personally inspected or acquired in full. An inherited checksum is not your
 own semantic inspection. Conversely, checking a preserved copy's hash supports
 byte integrity, not the correctness of its scientific interpretation.
+
+A Glados `DEPOSITED` receipt records a completed byte publication with `execution_started: false`; it establishes neither task execution nor acceptance. Transfer identity, reusable task identity and an actual execution request remain distinct. See [manual delivery and recovery](../how_to/use_glados_mcp.md) for API selection and recovery; these observations add no project status schema.

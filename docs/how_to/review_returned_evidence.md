@@ -53,3 +53,5 @@ Each finding cites direct evidence and explains its effect on the bounded claim.
 ## Stop instead of proceeding if...
 
 Required identity or evidence cannot be reopened, an effect remains uncertain, or a new scientific or technical choice appears. Preserve supported findings and report the precise boundary.
+
+For originals on this Glados installation, use [evidence recovery by source](use_glados_mcp.md#select-and-recover-original-evidence). External CLI dossiers use the path reader without bridge task registration. Distinguish complete or partial personal reading from inherited claims; a digest establishes byte integrity, not scientific correctness.

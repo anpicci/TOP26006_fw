@@ -193,3 +193,5 @@ Reopen serialized evidence before classifying the result. The reviewer challenge
 claims; the person with actual task/evidence remit decides bounded acceptance,
 and the scientific lead separately decides scientific acceptance. Completion,
 lint or a favorable review cannot make those decisions.
+
+For this Glados installation, follow [manual delivery and evidence recovery](use_glados_mcp.md) after preparing and validating the complete task/run document. The owner applies the supplied configuration in the already open CLI before starting; depositing the document does not execute it.
