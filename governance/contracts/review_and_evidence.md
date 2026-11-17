@@ -264,6 +264,50 @@ Rules:
   numerically cross-checked where applicable. Unexpected empty metadata is an
   explicit validation failure, not a structurally valid success.
 
+### MCP acquisition and recovery
+
+Select authorized readers by actual provenance, within exposed roots and
+repository bindings. An external CLI dossier uses `evidence_manifest`/`evidence_file`
+or the appropriate project-path reader, without bridge registration. Immutable
+local Git uses `project_git_tree`/`project_git_blob`, bound to repository, full
+commit, path and blob object ID. A true bridge task uses its actual execution
+`request_id` with `task_artifacts`/`task_artifact` and applicable `task_status`.
+`task_output` is a text view, not lossless originals. Neither transfer ID nor
+internal prompt ID establishes a registered execution. Follow the
+[manual guide](../../docs/how_to/use_glados_mcp.md) and current technical schema
+for parameters; no fictitious task or producer replay is needed to acquire files.
+
+Verify the complete selected membership and resource/binding identities, then
+contiguous decoded byte pages, page digests, total sizes and original-byte hashes.
+For mutable files, recheck the complete final manifest with the same selection
+and identities. Reconcile changed resources before resuming; never silently
+splice different versions. Frozen manifests, observed stability and multi-file
+atomicity are different claims. A text/JSON reserialization hash is not the
+original-byte hash or canonical Git blob hash. Preserve verified pages and valid
+partial results; a scoped reader/access failure proves neither object absence
+nor result invalidity. Use existing attachments/missing-evidence packages only
+when relevant authorized readers cannot acquire the necessary originals.
+
+A deposit receipt establishes that operation's `DEPOSITED` path, transfer
+identity, exact size/hash and `execution_started: false`; it establishes no
+global state for a historical task with the same name. After a lost deposit
+reply, reconcile the same transfer and original size/digest through
+`prompt_upload` and its `received_bytes`; resume only missing chunks or supported
+idempotent finalization. Never use a new ID, overwrite with different bytes,
+`task_status` on a transfer ID or submission to repair transport uncertainty.
+True execution and Git recovery use their own receipts/state and exact grants;
+technical idempotence grants no write, retry, submission or publication authority.
+
+`server_info` with `NOT_PROBED`, null CLI fields and no probe/error intentionally
+leaves execution readiness unprobed; it is not a reader/storage fault.
+Configuration availability flags are not operation receipts. Identify a release
+through actual bindings, exposed capabilities and schema, not a version string
+alone. Current schema bounds are transport properties, not permanent scientific
+or task resource caps. Reading/storage success does not qualify automatic
+execution. Execution, collection, validation, semantic/independent review and
+acceptance remain distinct: `COMPLETED` closes none of the later layers
+automatically, while failed/partial execution may contain reusable evidence.
+
 ### Comparison, consumer, and numerical-evidence contracts
 
 * State the semantic stage of every compared artifact and establish that the

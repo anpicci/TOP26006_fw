@@ -129,6 +129,19 @@ remains mandatory. Record exact task revision, consumed method/input/config
 contents, immutable attempt configuration, outputs, evidence and decisions
 in existing reports/checkpoints; a hash or path alone does not preserve bytes.
 
+MCP storage preserves opaque bytes; it does not authorize, validate, interpret
+or rewrite the task/run instructions. Preserve the complete delivery and its
+separately identifiable task/run byte ranges and versions. Keep the transfer's
+`request_id`/`transfer_id`, reusable `prompt_id`/`task_revision` and actual
+execution identity distinct. Equality is not universal; a particular qualified
+execution consumer may require an explicit binding. Do not move run configuration
+into task bytes to satisfy transport. The author remains responsible for complete
+instructions and real authority; a deposit receipt supplies neither. The ordinary
+[manual route](docs/how_to/use_glados_mcp.md) returns the verified locator for
+owner launch in the already-open CLI under AGENTS; storage does not register an
+external execution or apply its profile. Evidence/recovery rules belong to the
+[evidence contract](governance/contracts/review_and_evidence.md#mcp-acquisition-and-recovery).
+
 ## Conditional field router
 
 Apply the AGENTS trigger union before emission and execution. Include the

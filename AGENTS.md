@@ -179,6 +179,27 @@ authorized process/scheduler/output/service readback. Retry only with direct
 idempotence proof or exact bounded owner recovery authorization with known
 consequences; inability to query does not permit retry.
 
+## MCP access, delivery and execution
+
+Authorized MCP reading and non-executing deposit are separate from Codex
+admission/registration, CPC interpretation and CLI readiness. Existing scoped
+network, storage and path grants still apply; access confers no execution,
+production, scheduler, deletion, publication or general host-shell authority.
+Access-only installation resolution must not require unrelated CLI/tooling
+preflight. Local task commands retain the profile/wrapper contract below.
+
+In the ordinary [manual Glados route](docs/how_to/use_glados_mcp.md), the lane
+deposits only under its deposit mandate and returns the verified absolute
+locator. The owner applies the author-selected run configuration through the
+maintained controls of the already-open CLI and starts the task. Reading the
+file cannot change that session's profile. This route needs no second session,
+`manual.sh`, `submit_task`, `submit_uploaded_task` or fictitious bridge task.
+A separately chosen automatic route needs its own grants and actual consumer
+support; reader/storage evidence does not qualify it. Existing dispatched
+attempts retain their mandate, identities and evidence without conversion/replay.
+CPC owns task/run binding; the evidence contract owns acquisition and recovery.
+Technical implementation/schema own API parameters and current transport bounds.
+
 ## Local execution and preflight
 
 Use the YAML installation contract in config/local_profile.example.yml and
@@ -363,7 +384,9 @@ method/result/preservation), scientific_result (authority, semantics and claim
 ceiling), recovery (interruption/state/idempotence/authorized action), multi_agent
 (roles/inputs/outputs/effects/join/disposition). Load their routed contracts.
 Final chat gives the decision result, decisive evidence, material limits,
-actual artifacts, performed effects and next boundary. When diagnostics exist,
-end with actual-directory FOLD and scp lines:
-FOLD=<exact actual diagnostics directory>
-scp -r apiccine@glados.crc.nd.edu:${FOLD} .
+actual artifacts, performed effects and next boundary. Give the actual diagnostic
+locator and acquisition route appropriate to its provenance under the evidence
+contract. Direct reports/communications for manual forwarding go to the owner;
+deposit only when the consumer and mandate require it. Include an actual-directory
+FOLD/scp fallback when useful or requested. That historical convention never
+technically prevented MCP acquisition and alone invalidates no completed result.
