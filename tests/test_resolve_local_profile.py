@@ -33,6 +33,22 @@ def test_example_is_structural_only():
         MODULE.resolve(example, SCHEMA, execution_ready=True)
 
 
+def test_access_only_profile_does_not_require_execution_tooling(tmp_path):
+    profile = valid_profile(tmp_path)
+    profile.pop('tooling')
+    assert MODULE.resolve(profile, SCHEMA, execution_ready=True, access_only=True)['tooling'] == {}
+    with pytest.raises(MODULE.ProfileError, match='tooling'):
+        MODULE.resolve(profile, SCHEMA, execution_ready=True)
+    profile['tooling'] = {'command_wrapper': '<unavailable>', 'python_interpreter': '/missing/python'}
+    MODULE.resolve(profile, SCHEMA, execution_ready=True, access_only=True)
+    for unusable in (None, {'python_interpreter': '/missing/python'}):
+        profile['tooling'] = unusable
+        MODULE.resolve(profile, SCHEMA, execution_ready=True, access_only=True)
+    profile['evidence_root'] = '<unavailable>'
+    with pytest.raises(MODULE.ProfileError, match='placeholder'):
+        MODULE.resolve(profile, SCHEMA, execution_ready=True, access_only=True)
+
+
 def test_relative_resolution_and_absolute_spelling(tmp_path):
     profile = valid_profile(tmp_path)
     resolved = MODULE.resolve(profile, SCHEMA, execution_ready=True)

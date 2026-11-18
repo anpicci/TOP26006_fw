@@ -130,17 +130,24 @@ def resolve_path(raw, root, label):
     return str(resolved)
 
 
-def resolve(profile, schema, execution_ready=False):
+def resolve(profile, schema, execution_ready=False, access_only=False):
     if not isinstance(schema, dict) or schema.get("schema_version") != 1 or "profile" not in schema:
         raise ProfileError("unsupported or malformed local-profile schema")
     reject_sensitive_keys(profile)
+    if access_only:
+        # Access consumers validate only the consumed installation projection.
+        # Missing, partial or unusable execution tooling is not an access gate.
+        import copy
+        schema = copy.deepcopy(schema)
+        schema['profile']['required'].pop('tooling')
+        profile = {key: value for key, value in profile.items() if key != 'tooling'}
     validate_node(profile, schema["profile"], "profile")
     if execution_ready:
         def check_placeholders(value):
             if isinstance(value, str) and PLACEHOLDER.search(value):
                 raise ProfileError("execution-ready profile contains a placeholder")
             if isinstance(value, dict):
-                for child in value.values():
+                for key, child in value.items():
                     check_placeholders(child)
         check_placeholders(profile)
     root = Path(profile["workspace_root"]).expanduser()
@@ -154,7 +161,7 @@ def resolve(profile, schema, execution_ready=False):
     result["evidence_root"] = resolve_path(profile["evidence_root"], root, "evidence_root")
     result["tooling"] = {
         key: resolve_path(value, root, "tooling." + key)
-        for key, value in profile["tooling"].items()
+        for key, value in profile.get("tooling", {}).items()
     }
     result["repositories"] = {
         key: dict(value, path=resolve_path(value["path"], root, "repositories." + key + ".path"))

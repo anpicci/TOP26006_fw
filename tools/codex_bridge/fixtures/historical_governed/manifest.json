@@ -1,0 +1,121 @@
+{
+  "format_version": 1,
+  "revision": "e308672369d600f933a5a9fefa6de33e58a3f20f",
+  "purpose": "Historical governed execution compatibility test data; never current governance authority",
+  "files": [
+    {
+      "path": ".agents/skills/correction-lib-prompt-contract/scripts/validate_prompt.py",
+      "object_id": "2887001b2424dd04e8339b9ccc3dafafc7cf5ac3",
+      "size_bytes": 14194,
+      "sha256": "bb4123f0ebddadb93a3d3b4b752824002fa72fb062c0befc95c2b720c3a78882"
+    },
+    {
+      "path": "AGENTS.md",
+      "object_id": "c478dcff71533c7eec5461f860e2da5014e78d53",
+      "size_bytes": 20329,
+      "sha256": "2176fe629461ba4c74405af4755936fa3863f8d2d4d6ae5fbc8578e89986f4ca"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "object_id": "436873224e86902c239d36b785fee402472460c4",
+      "size_bytes": 20590,
+      "sha256": "6d4dcff08726f3de9a191e31a95510550100ce967fb2c9b351614de541d4319e"
+    },
+    {
+      "path": "CPC.md",
+      "object_id": "fcb264e63449d872e61c0060af0090fc3d219b3a",
+      "size_bytes": 8636,
+      "sha256": "34e1b79f1b1131ffbf7595306e39ffbcd9b341fb690afcd407b2cbb4664ce01a"
+    },
+    {
+      "path": "config/local_profile.schema.yml",
+      "object_id": "418ac87c9950c7b62d84550136383371bff370b5",
+      "size_bytes": 726,
+      "sha256": "405463897bf046bb1fa898c16db12d122d038bd8c989e9e53c488f75b1d2ee1a"
+    },
+    {
+      "path": "docs/how_to/providers/openai_reference_procedure.md",
+      "object_id": "07d01e96914e0fe893c3ae30082483e5087a6083",
+      "size_bytes": 5143,
+      "sha256": "452fd18f86c43a4e85b722a5bcb05e86fb8e177c092a6477af9a9a679d6c3635"
+    },
+    {
+      "path": "docs/reference/provider_compatibility.md",
+      "object_id": "3b3eb577829571bd29e927eafaee0a21e735afbe",
+      "size_bytes": 4797,
+      "sha256": "f8dbbc5ebe9623962d69cee955bf81f104a80f10875705a5984624118424d9c0"
+    },
+    {
+      "path": "governance/contracts/autonomy_and_blocker_classification.md",
+      "object_id": "cc6d46a3ed486d45cae7878934245d0ddeaa9076",
+      "size_bytes": 5612,
+      "sha256": "f19f1d9e81ed9540c94c14d276f647cdb004a855b542c8e8dfdeb32e637dde15"
+    },
+    {
+      "path": "governance/contracts/git_lifecycle.md",
+      "object_id": "cfaf07e29071ed4e768464d616b49e42ba4dd2cd",
+      "size_bytes": 42833,
+      "sha256": "81b0708a24970f67388284b07b3052189fb01767441407ce9c0ae47d84d0bdbd"
+    },
+    {
+      "path": "governance/contracts/orchestration.md",
+      "object_id": "4f5003dbefc61f1298b3a51377d3ba3a436b0d12",
+      "size_bytes": 15295,
+      "sha256": "5972ef8f164f276d45614487b2eede01b89fd24d1659f66f0703a0ab41b6f5f2"
+    },
+    {
+      "path": "governance/contracts/production.md",
+      "object_id": "ae76d0b7deca8a2637cc137d1e1a2a7c5a568e7a",
+      "size_bytes": 9881,
+      "sha256": "4f1a21a35752265fdefe51e68d27a155b4c1d14f5fc7ddf583af637c063c1a56"
+    },
+    {
+      "path": "governance/contracts/review_and_evidence.md",
+      "object_id": "2073d6be0a84d41e47e737ae8f7ef49f8259fb07",
+      "size_bytes": 17048,
+      "sha256": "37cfb2a0e65b5366403f22b53695c957f941a7fd0a513e99b551899e078837aa"
+    },
+    {
+      "path": "governance/model_policy.md",
+      "object_id": "6d64d1bd54d4c3d7e5f113dd6aafb236607509b9",
+      "size_bytes": 12901,
+      "sha256": "eca10569798b9b42cf2663f89135c6a79bd0e6c7beb9d9f91a6db7d3e0a3dbef"
+    },
+    {
+      "path": "governance/modules/andocs.md",
+      "object_id": "1cfba20be75cf92c14747219fafcf9790574514c",
+      "size_bytes": 15486,
+      "sha256": "4ce0b28fced295f5f036831385bdf8a2abf50aebe2b30387937b405ff2bdbfa4"
+    },
+    {
+      "path": "governance/modules/eftfit.md",
+      "object_id": "7d93091fb25de19c147eb356727294654362021c",
+      "size_bytes": 1154,
+      "sha256": "a9d1131264795e5421b6530c2ac1eb9f1e65e7c489d73b312c01b4ed946bf933"
+    },
+    {
+      "path": "governance/modules/topcoffea.md",
+      "object_id": "acfceb8d25d655bbf9303a1500fcaf3375101d85",
+      "size_bytes": 2932,
+      "sha256": "80fb7163d66d04eba8ad9700e9be126ed8bf4fb42189cb59711f716da8508622"
+    },
+    {
+      "path": "governance/modules/topeft.md",
+      "object_id": "c35ffda994c2648d33fca12f83717bf3c5f98fb3",
+      "size_bytes": 3601,
+      "sha256": "10940e357daa5c0aaff174269b89eb90a4fee37feb6cfe2adaf7acbb5d0bf0e0"
+    },
+    {
+      "path": "governance/repositories.md",
+      "object_id": "4f00afe4eed17674cf1244d1509fc74e48c247df",
+      "size_bytes": 8751,
+      "sha256": "fc275381415c90096a9c2aae38cbb046c37a6d42ecf107f7065ba989b708725a"
+    },
+    {
+      "path": "tools/resolve_local_profile.py",
+      "object_id": "562bda35d360a7defaa687dafc52f78677e21119",
+      "size_bytes": 7852,
+      "sha256": "f2117b028a7489ee3f9c85b52060eff42760d0171892782792961a4bee1fd8b7"
+    }
+  ]
+}
