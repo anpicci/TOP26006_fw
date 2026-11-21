@@ -390,3 +390,28 @@ contract. Direct reports/communications for manual forwarding go to the owner;
 deposit only when the consumer and mandate require it. Include an actual-directory
 FOLD/scp fallback when useful or requested. That historical convention never
 technically prevented MCP acquisition and alone invalidates no completed result.
+
+## Selective operational reading and task-scoped maintenance
+
+Under the owner-approved CP disposition of 2026-11-20, when work depends on a
+reusable artifact, lesson or procedure, read its relevant workbook/playbook
+entry and necessary originals, apply relevant subsequent deltas and reuse valid
+readings and evidence. Preserve materially consumed source versions. The S5
+collection is adopted from 2026-11-16, 19:39:23 America/Chicago, originally at
+`33bd0ac5a37ec61cef2f218bacebb035b11fcf52`; its entries retain their actual
+qualification and conditions. This candidate addition awaits authorized
+acceptance/integration and does not govern its own implementation attempt.
+
+When the authorized result changes a reusable reference or operational
+knowledge, assign pertinent maintenance within that same task: exact pages,
+expected content, sources, actual state, conditions, supersession and write
+scope, retaining the applicable integration boundary. The workbook preserves
+qualified references and lessons, the playbook routes to the maintained owner,
+and the report preserves the attempt. Record observed results in their actual
+state; new rules, generalizations and scientific, design or procedural choices
+require owner discussion before adoption. Review assesses mandated updates;
+additional evidence can motivate later maintenance. Already-dispatched tasks
+retain identity and criteria. Historical documentary backlog retains its owner
+and can be repaired using qualified evidence without reopening accepted work.
+This supplements existing selective-reading and maintenance passages and
+supersedes no authority, permission, scientific or runtime contract.

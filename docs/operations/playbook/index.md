@@ -2,7 +2,7 @@
 
 Resolve repository paths from the existing profile/registry. Native relative
 paths below are exact entry locators, not shell commands to execute from this
-candidate. The native owner maintains the command syntax and full procedure;
+playbook. The native owner maintains the command syntax and full procedure;
 read that procedure selectively, then use the
 [binding recipe](prepare_bound_command.md) to prepare a task-local command.
 Preparation, execution, successful output and acceptance are distinct.
@@ -84,3 +84,23 @@ routes to owners rather than copying their procedures. Ordinary tasks retain
 the applicable AGENTS/CPC and native policy, one report/patch and separate
 scientific acceptance. Reuse each maintained procedure at its owning source;
 keep only the task-specific binding in the report.
+
+## From a research question to a qualified continuation
+
+The collection is operative within the S5 adoption scope of 2026-11-16,
+19:39:23 America/Chicago, originally published at
+`33bd0ac5a37ec61cef2f218bacebb035b11fcf52`. This wording supersedes the
+current-operative candidate description; it does not qualify new executions.
+The following navigation is candidate content pending human acceptance, based
+on the accepted researcher guide and CP maintenance disposition of 2026-11-20.
+
+| Need | Maintained owner | Result and boundary |
+| --- | --- | --- |
+| Discuss an unresolved scientific question | [Complete scientific note](../../explanation/research_oriented_writing.md#complete-scientific-note) | Read the whole argument; discussion or an adequate existing note may suffice |
+| Prepare further bounded work | [Task preparation](../../how_to/ask_an_assistant_to_prepare_a_task.md) | Exact question, inputs, effects and useful return; preparation is not execution |
+| Judge a returned result | [Evidence review](../../how_to/review_returned_evidence.md) | Supported claims and limits, followed by the appropriate human acceptance |
+| Resume or hand over responsibility | [Continuation](../../how_to/prepare_a_continuation.md), [handoff](../../../templates/handoff.md) | Complete note, accepted evidence, residual mandate and uncertain-effect readback |
+
+These routes keep each procedure at its existing owner. They supplement the
+framework routes above and do not supersede native scientific procedures or
+create commands, services, consumers or permissions.

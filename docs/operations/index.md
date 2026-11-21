@@ -3,7 +3,10 @@
 Use this entrance when a task needs an existing scientific reference, a recurring
 procedure, or an evidenced operational lesson. Read the relevant row and follow
 its source; the whole collection is not required reading for every task.
-This candidate collection is inactive until separately adopted.
+S5 adoption is effective from 2026-11-16, 19:39:23 America/Chicago,
+originally published at `33bd0ac5a37ec61cef2f218bacebb035b11fcf52`.
+This adoption covers the operational collection and its documented qualifications;
+it does not requalify payloads, transfer native ownership or authorize execution.
 
 The **workbook** holds references in `workbook/artifacts/` and justified lessons
 in `workbook/knowledge/`. The **playbook** routes goals to maintained procedures
@@ -70,3 +73,27 @@ specific use it supersedes. A receipt for a BTV figure would not resolve the
 separate reference10 hold or prove a package-to-workspace association. Keep the
 earlier plan-only observation dated and preserve the versions consumed by past
 reports. The playbook still links to the one native plotting procedure.
+
+## Complete scientific notes and ordinary maintenance
+
+The [complete synthetic scientific note](../explanation/research_oriented_writing.md#complete-scientific-note)
+is maintained in the research-writing explanation. Its source is the accepted
+researcher guide, content version 1 of 2026-11-20, retained in the implementation
+attempt. This English integration is candidate content pending human acceptance.
+It reuses the tutorial's statistical result and explains a hypothetical common
+calibration; it supplies no measured calibration or executed fit comparison.
+Read the whole note and its pertinent constituent modules. Section links help
+navigation. For an actual analysis, reuse its adequate native note and identify
+its authorized location and version here rather than duplicating it.
+
+The owner-approved CP disposition of 2026-11-20 supplies the maintenance criterion:
+read relevant entries and necessary originals, apply subsequent relevant deltas,
+and reuse valid evidence. When a task changes reusable knowledge, assign the
+pertinent maintenance in that same authorized task, with sources, actual state,
+conditions, supersession and integration scope. New rules or generalizations
+remain proposals until the appropriate human decision. Review covers the
+mandated updates; further evidence may justify later maintenance. Dispatched
+tasks keep their identities and criteria. A historical documentation backlog
+retains its responsible maintainer and can use already qualified evidence; it
+does not invalidate accepted work. This passage supersedes the inactive banner
+and supplements navigation, without promoting scientific artifact rows.

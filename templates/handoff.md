@@ -19,4 +19,9 @@ Use one repository when sufficient. Add an entry for each genuinely participatin
 - Next action and next human decision/acceptance boundary: [smallest continuation action, who must authorize it and who may accept the result separately in each repository]
 - Recipient readback: [which artifacts were acquired/read and whether understanding was confirmed; record sending separately]
 
+- Research actor and receiving AI agent: [durable competence/responsibility, scope, exclusions and mandate source; separate the human authority and session executor]
+- Complete scientific note: [authorized location/version, all constituent modules; question, assumptions, alternatives, decision reasons, why work stopped and evidence that would permit resumption]
+- Last qualified return: [exact report/version, accepted results and conditions; link rather than duplicate the note's reasons]
+- Effects awaiting reconciliation: [uncertain operation and authorized readback needed before any retry; delivery alone proves neither reading nor understanding]
+
 A handoff carries evidence for continuity. It does not prove compatibility, scientific correctness or comprehension. Separate repositories retain separate authority and acceptance; valid partial results do not imply a global transaction or automatic rollback.

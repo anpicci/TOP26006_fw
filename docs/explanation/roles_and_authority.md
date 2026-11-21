@@ -205,3 +205,21 @@ only the task you authorized.
 Next, use [the tool-choice scenarios](../how_to/choose_an_ai_tool_for_a_research_task.md)
 to decide which contributions your question needs, then
 [prepare a task request](../how_to/ask_an_assistant_to_prepare_a_task.md).
+
+## Person, research actor and AI agent
+
+A **person / researcher** (Italian: *persona / ricercatore*) is human and
+formulates and evaluates scientific questions. A **research actor** (*attore di
+ricerca*) identifies durable competence and responsibility across conversations
+and tools. An **AI agent** (*agente AI*) is software interpreting that role or
+performing a bounded assignment. These are the distinctions adopted in the
+researcher guide; they do not assign a new source of authority.
+
+For continuity, identify the actor's question, scope, exclusions and source of
+responsibility in the existing responsibility record and [handoff](../../templates/handoff.md),
+linked to the complete [scientific note](research_oriented_writing.md#complete-scientific-note).
+The person with actual authority still decides effects, priorities and acceptance
+within that remit. A chat, model, branch, worktree or workstream key does not
+identify the actor or transfer a mandate. The [workstream record](../reference/advanced/workstream_record.md)
+remains a teaching example, with responsibility and executor recorded separately.
+No live actor registry is required.

@@ -189,3 +189,23 @@ will use this reference workflow to complete one bounded research task from
 question to evidence. The existing [first read-only task](../tutorials/03_complete_a_first_read_only_task.md)
 is the hands-on route; its execution sequence and notebook are outside this
 preparation lesson.
+
+## Give the agent the scientific context it will consume
+
+Supply the question and the complete adopted [scientific note](../explanation/research_oriented_writing.md#complete-scientific-note),
+including its constituent modules, material source versions, agreed decisions,
+the useful result and allowed effects. Reuse an adequate existing note. A
+section link locates a passage; the complete note supplies its reasoning.
+Identify the research actor's scope, exclusions and responsibility source using
+the existing [handoff](../../templates/handoff.md). Check actual access in the
+receiving session: a path, delivery receipt or old conversation proves neither
+reading nor understanding. If the note already answers the question, record
+that conclusion without inventing an execution task.
+
+When the authorized result changes a reusable reference or operational lesson,
+include the relevant maintenance in the same task: exact pages, expected content,
+sources, actual state, conditions, supersession and write scope, with the
+applicable integration boundary. The workbook preserves qualified references
+and lessons; the playbook routes to the maintained procedure; the report records
+the attempt. New generalizations or scientific/procedural choices require the
+owner's decision before adoption. Already dispatched tasks retain their criteria.

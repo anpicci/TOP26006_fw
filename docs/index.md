@@ -68,3 +68,15 @@ Use this gateway when you maintain the framework or translate an authorized task
 The guides explain procedures; live [AGENTS.md](../AGENTS.md), [CPC.md](../CPC.md), the [repository registry](../governance/repositories.md) and its applicable modules/contracts remain the authority. Use [governance precedence](reference/governance_precedence.md) and the [file map's authority locators](reference/file_map.md#normative-governance-authority) to find those sources; [CONTRIBUTING.md](../CONTRIBUTING.md) governs contribution and review prose. A prompt-validator PASS establishes supported mechanical checks, not governance completeness, authorization or scientific correctness.
 
 For public visibility and the current licensing status, see the [repository README](../README.md#repository-visibility-and-licensing).
+
+## Begin with an open research question
+
+Read your existing scientific note and discuss the unresolved question. An
+adequate note or source-based conversation may already suffice. No fictitious
+task, research group, Git setup or provider qualification is needed for that
+discussion. The [complete scientific note](explanation/research_oriented_writing.md#complete-scientific-note)
+shows how assumptions, results and reasons support a decision. The
+[person, research actor and AI agent](explanation/roles_and_authority.md#person-research-actor-and-ai-agent)
+carry different responsibilities through later sessions. When further work is
+needed, [prepare a bounded task](how_to/ask_an_assistant_to_prepare_a_task.md)
+and apply the operational setup at its point of use.

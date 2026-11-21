@@ -25,3 +25,15 @@ The optional [Add an analysis repository](tutorials/02_add_an_analysis_repositor
 If your question needs an existing analysis artifact or procedure, enter the [operational workbook and playbook](operations/index.md) and select only the relevant reference and procedure route. [Tutorial 7's optional BTV practice](tutorials/07_coordinate_a_multi_repository_change.md#optional-btv-practice-from-reference-to-bound-proposal) shows how to turn them into a dated, unexecuted proposal using the tracked documentation alone. Access to the original local records is an optional extension.
 
 After your first task, follow the [tutorial learning path](tutorials/index.md) for the full guided curriculum. It explains how the later lessons on change, review, continuation, recovery, and handoff fit together, and when to take an optional extension. The [advanced and maintainer routes](index.md#advanced-and-maintainer-routes) are available when you need broader coordination, provider details, or project configuration.
+
+## Begin with an open research question
+
+Read your existing scientific note and discuss the unresolved question. An
+adequate note or source-based conversation may already suffice. No fictitious
+task, research group, Git setup or provider qualification is needed for that
+discussion. The [complete scientific note](explanation/research_oriented_writing.md#complete-scientific-note)
+shows how assumptions, results and reasons support a decision. The
+[person, research actor and AI agent](explanation/roles_and_authority.md#person-research-actor-and-ai-agent)
+carry different responsibilities through later sessions. When further work is
+needed, [prepare a bounded task](how_to/ask_an_assistant_to_prepare_a_task.md)
+and apply the operational setup at its point of use.

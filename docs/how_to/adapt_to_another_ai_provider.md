@@ -30,3 +30,16 @@ Record each applicable row in the task's existing evidence record. Label its evi
 | Human review and acceptance | Separate reviewer and acceptance decision maker with actual remit for the stated layer and scope: bounded task/evidence or scientific acceptance; preserve the reviewed claim and residual limits as explained in [decision layers](../explanation/evidence_reproducibility_and_acceptance.md). Provider agreement cannot accept it |
 
 For each row add the official locator/date, exact target surface/version, local observation or missing check, and claim ceiling. Recheck any decision-material mechanism at use time, especially after a product, configuration or surface change. A mechanism rename reopens that mapping, not the research method or unrelated accepted work.
+
+## Carry the reasoning into the receiving session
+
+Keep the research actor's scope, exclusions and responsibility source distinct
+from the receiving AI agent. Supply the question, complete adopted scientific
+note and its modules, source versions, agreed decisions, desired result and
+allowed effects. Use the existing [handoff](../../templates/handoff.md) to link
+the last qualified return and accepted results. Verify that the receiving
+session can acquire those versions; configuration and access confer neither
+scientific authority nor permission. Prior conversation availability, a provider
+mapping or delivery receipt does not prove reading, understanding or compatibility.
+The complete [note](../explanation/research_oriented_writing.md#complete-scientific-note)
+retains reasons, stopping conditions and evidence that would reopen the question.

@@ -14,3 +14,12 @@ The [synthetic workstreams table](../../examples/advanced_parallel_workstreams/w
 | `coordination_record_ref` | Events that change state or assign follow-up. |
 
 Record a stop boundary with the scope or its linked coordination event. Actual authority outside this illustrative file must support each assignment or permission and each acceptance for its stated layer and scope. Identify the relevant decision maker and authority reference separately: task assignment/authorization, independent review, bounded task/evidence acceptance and scientific acceptance are distinct functions. One person may hold several functions without merging the decisions; see [responsibilities](../../explanation/roles_and_authority.md) and [decision layers](../../explanation/evidence_reproducibility_and_acceptance.md).
+
+## Continuity of responsibility
+
+A research actor identifies continuing competence and responsibility; an AI
+agent performs an assigned role or task. See the [person, actor and agent distinction](../../explanation/roles_and_authority.md#person-research-actor-and-ai-agent).
+Use the existing scope, exclusions, responsibility-source and executor fields
+together with a handoff linked to the complete scientific note. A workstream
+key helps locate a responsibility record; it is not the actor's identity or an
+agent assignment. This didactic record does not activate an operational registry.
